@@ -4,8 +4,10 @@
  * screenshots and bug reports line up.
  *
  * Opening stock is written directly (one "opening" movement per shelf); the
- * last month's deliveries and adjustments go through the real receiveGoods and
- * adjustStock, then are backdated, so the history obeys every business rule.
+ * last month's deliveries, adjustments and transfers go through the real
+ * receiveGoods, adjustStock and transfer functions, then are backdated, so the
+ * history obeys every business rule. A couple of transfers are left on the
+ * road, so "on the way" has something to show.
  */
 
 import { hashPassword } from "better-auth/crypto";
@@ -13,7 +15,7 @@ import { hashPassword } from "better-auth/crypto";
 // and every write, happens in the same order each run so the data repeats.
 // mulberry32 itself is defined in 32-bit integer operations.
 /* oxlint-disable no-bitwise, no-await-in-loop, react-doctor/async-await-in-loop -- see above */
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { gtinCheckDigit } from "@/lib/barcode";
 import type { Db } from "@/lib/db/client";
@@ -25,6 +27,8 @@ import {
   product,
   stockLevel,
   stockMovement,
+  stockTransfer,
+  stockTransferLine,
   supplier,
   user,
 } from "@/lib/db/schema";
@@ -39,6 +43,11 @@ import type { Actor } from "@/lib/permissions";
 import { adjustStock } from "@/lib/stock/adjust";
 import { StockError } from "@/lib/stock/errors";
 import { receiveGoods } from "@/lib/stock/receive";
+import {
+  cancelTransfer,
+  dispatchTransfer,
+  receiveTransfer,
+} from "@/lib/stock/transfer";
 
 const DAY_MS = 86_400_000;
 const HISTORY_DAYS = 30;
@@ -319,7 +328,103 @@ type HistoryEvent =
       readonly at: Date;
       readonly kind: "adjustment";
       readonly branchId: string;
-    };
+    }
+  | {
+      readonly at: Date;
+      readonly kind: "dispatch";
+      /** Links the later arrival or cancellation to this transfer. */
+      readonly key: number;
+      readonly branchId: string;
+      readonly toBranchId: string;
+    }
+  | {
+      readonly at: Date;
+      readonly kind: "arrival";
+      readonly key: number;
+      /** A carton goes missing on the way. */
+      readonly short: boolean;
+    }
+  | { readonly at: Date; readonly kind: "cancel"; readonly key: number };
+
+const WAREHOUSE_ID = "TMA";
+
+/** Hours from dispatch to the receiving branch counting it in. */
+const TRANSIT_HOURS = new Map([
+  ["AMS", 20],
+  ["ASH", 18],
+  ["KSI", 44],
+  ["SPX", 20],
+  ["WJA", 22],
+]);
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * The month's transfers: two top-ups from the warehouse to every store, one
+ * store helping another, one called back the same day, and two still on the
+ * road. Kumasi's first top-up arrives a carton short.
+ */
+const planTransfers = (
+  random: Random,
+  during: (day: number) => Date,
+  now: Date
+): HistoryEvent[] => {
+  const events: HistoryEvent[] = [];
+  let key = 0;
+
+  const send = (
+    from: string,
+    to: string,
+    at: Date,
+    then: "arrival" | "cancel" | null,
+    afterHours: number,
+    short = false
+  ): void => {
+    key += 1;
+    events.push({ at, branchId: from, key, kind: "dispatch", toBranchId: to });
+
+    const later = new Date(at.getTime() + afterHours * HOUR_MS);
+
+    if (then === "arrival") {
+      events.push({ at: later, key, kind: "arrival", short });
+    }
+
+    if (then === "cancel") {
+      events.push({ at: later, key, kind: "cancel" });
+    }
+  };
+
+  for (const seedBranch of BRANCHES) {
+    if (seedBranch.kind === "warehouse") {
+      continue;
+    }
+
+    const hours = TRANSIT_HOURS.get(seedBranch.id) ?? 20;
+
+    for (const [round, days] of [
+      [0, [2, 12]],
+      [1, [14, 24]],
+    ] as const) {
+      send(
+        WAREHOUSE_ID,
+        seedBranch.id,
+        during(random.int(days[0], days[1])),
+        "arrival",
+        hours,
+        seedBranch.id === "KSI" && round === 0
+      );
+    }
+  }
+
+  send("WJA", "ASH", during(random.int(8, 20)), "arrival", 6);
+  send("AMS", "WJA", during(random.int(8, 20)), "cancel", 3);
+
+  // Still on the road: dispatched this morning and yesterday.
+  send(WAREHOUSE_ID, "SPX", new Date(now.getTime() - 5 * HOUR_MS), null, 0);
+  send(WAREHOUSE_ID, "KSI", new Date(now.getTime() - 26 * HOUR_MS), null, 0);
+
+  return events;
+};
 
 const planHistory = (
   random: Random,
@@ -358,6 +463,8 @@ const planHistory = (
     }
   }
 
+  events.push(...planTransfers(random, during, now));
+
   return events
     .filter((event) => event.at.getTime() < now.getTime())
     .toSorted((a, b) => a.at.getTime() - b.at.getTime());
@@ -388,6 +495,180 @@ const ADJUSTMENT_NOTES = {
   ],
 } as const;
 
+type TransferEvent = Extract<
+  HistoryEvent,
+  { readonly kind: "dispatch" | "arrival" | "cancel" }
+>;
+
+interface SeededTransfer {
+  readonly id: number;
+  readonly fromBranchId: string;
+  readonly toBranchId: string;
+}
+
+const PLATES = ["GT", "GW", "GR", "AS"] as const;
+
+/** Moves a transfer step's timestamps back to when it "happened". */
+const backdateTransfer = async (
+  db: Db,
+  transferId: number,
+  step: TransferEvent["kind"],
+  at: Date
+): Promise<void> => {
+  const stamp = {
+    arrival: { receivedAt: at },
+    cancel: { cancelledAt: at },
+    dispatch: { createdAt: at },
+  }[step];
+
+  await db
+    .update(stockTransfer)
+    .set(stamp)
+    .where(eq(stockTransfer.id, transferId));
+  await db
+    .update(stockMovement)
+    .set({ createdAt: at })
+    .where(
+      and(
+        eq(stockMovement.transferId, transferId),
+        eq(
+          stockMovement.kind,
+          step === "dispatch" ? "transfer_out" : "transfer_in"
+        )
+      )
+    );
+};
+
+/**
+ * What to send: a handful of active lines the sender actually holds. A store
+ * helping another parts with at most a third of its shelf.
+ */
+const pickTransferLines = async (
+  db: Db,
+  random: Random,
+  products: readonly SeededProduct[],
+  fromBranchId: string
+): Promise<{ productId: number; quantity: number }[]> => {
+  const wanted = [
+    ...new Set(
+      Array.from({ length: random.int(4, 8) }, () => random.pick(products))
+    ),
+  ];
+
+  const held = await db
+    .select({ onHand: stockLevel.onHand, productId: stockLevel.productId })
+    .from(stockLevel)
+    .innerJoin(product, eq(product.id, stockLevel.productId))
+    .where(
+      and(
+        eq(stockLevel.branchId, fromBranchId),
+        eq(product.active, true),
+        inArray(
+          stockLevel.productId,
+          wanted.map((item) => item.id)
+        )
+      )
+    );
+
+  const onHand = new Map(held.map((row) => [row.productId, row.onHand]));
+  const share = fromBranchId === WAREHOUSE_ID ? 1 : 1 / 3;
+
+  return wanted.flatMap((item) => {
+    const available = Math.floor((onHand.get(item.id) ?? 0) * share);
+
+    const quantity = Math.min(
+      available,
+      Math.max(1, Math.round(item.reorder * random.between(1, 2.5)))
+    );
+
+    return quantity > 0 ? [{ productId: item.id, quantity }] : [];
+  });
+};
+
+const runTransferEvent = async (
+  db: Db,
+  random: Random,
+  products: readonly SeededProduct[],
+  managers: ReadonlyMap<string, Actor>,
+  transfers: Map<number, SeededTransfer>,
+  event: TransferEvent
+): Promise<void> => {
+  if (event.kind === "dispatch") {
+    const actor = managers.get(event.branchId);
+    const lines = await pickTransferLines(db, random, products, event.branchId);
+
+    if (actor === undefined || lines.length === 0) {
+      return;
+    }
+
+    const sent = await dispatchTransfer(db, actor, {
+      fromBranchId: event.branchId,
+      lines,
+      note: `Truck ${random.pick(PLATES)}-${random.int(1000, 9999)}-${random.int(19, 24)}`,
+      toBranchId: event.toBranchId,
+    });
+
+    await backdateTransfer(db, sent.id, "dispatch", event.at);
+    transfers.set(event.key, {
+      fromBranchId: event.branchId,
+      id: sent.id,
+      toBranchId: event.toBranchId,
+    });
+
+    return;
+  }
+
+  const transfer = transfers.get(event.key);
+
+  if (transfer === undefined) {
+    return;
+  }
+
+  if (event.kind === "cancel") {
+    const actor = managers.get(transfer.fromBranchId);
+
+    if (actor !== undefined) {
+      await cancelTransfer(db, actor, {
+        note: "Weija restocked itself the same morning; van called back",
+        transferId: transfer.id,
+      });
+      await backdateTransfer(db, transfer.id, "cancel", event.at);
+    }
+
+    return;
+  }
+
+  const actor = managers.get(transfer.toBranchId);
+
+  if (actor === undefined) {
+    return;
+  }
+
+  const sentLines = await db
+    .select({
+      productId: stockTransferLine.productId,
+      quantitySent: stockTransferLine.quantitySent,
+    })
+    .from(stockTransferLine)
+    .where(eq(stockTransferLine.transferId, transfer.id))
+    .orderBy(stockTransferLine.productId);
+
+  await receiveTransfer(db, actor, {
+    lines: sentLines.map((line, index) => ({
+      productId: line.productId,
+      quantityReceived:
+        event.short && index === 0
+          ? Math.max(0, line.quantitySent - random.int(1, 3))
+          : line.quantitySent,
+    })),
+    note: event.short
+      ? "One carton crushed on the Accra–Kumasi road; written off by the driver"
+      : undefined,
+    transferId: transfer.id,
+  });
+  await backdateTransfer(db, transfer.id, "arrival", event.at);
+};
+
 const runHistory = async (
   db: Db,
   random: Random,
@@ -396,8 +677,19 @@ const runHistory = async (
   events: readonly HistoryEvent[]
 ): Promise<void> => {
   const bySupplier = Map.groupBy(products, (item) => item.supplierId);
+  const transfers = new Map<number, SeededTransfer>();
 
   for (const event of events) {
+    if (
+      event.kind === "dispatch" ||
+      event.kind === "arrival" ||
+      event.kind === "cancel"
+    ) {
+      await runTransferEvent(db, random, products, managers, transfers, event);
+
+      continue;
+    }
+
     const actor = managers.get(event.branchId);
 
     if (!actor) {

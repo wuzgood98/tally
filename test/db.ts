@@ -262,6 +262,23 @@ export const transferMismatches = async (db: Db): Promise<unknown[]> => {
   return queryRows.parse(result).rows;
 };
 
+/**
+ * Movements whose timestamp is earlier than the movement before them by id.
+ * The ledger lists newest first by id, so ids must follow time.
+ */
+export const movementsOutOfOrder = async (db: Db): Promise<unknown[]> => {
+  const result = await db.execute(sql`
+    select id, created_at, previous
+    from (
+      select id, created_at, lag(created_at) over (order by id) as previous
+      from ${stockMovement}
+    ) ordered
+    where previous > created_at
+  `);
+
+  return queryRows.parse(result).rows;
+};
+
 /** Awaits a promise expected to fail with a StockError, and returns that error. */
 export const rejection = async (
   promise: Promise<unknown>

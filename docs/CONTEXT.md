@@ -15,33 +15,45 @@ The user is a frontend engineer, and this is their first "real world" project af
 
 ## Status
 
-**Milestone 1, the core stock loop, is done**: built, tested (55 tests), lint-clean, production build passing, walked through in the browser. It is committed and pushed to `main` at https://github.com/wuzgood98/tally. Commit only when the user asks.
-
-Built in Milestone 1:
+**Milestones 1 and 2 are done**: built, tested (78 tests), lint-clean, production build passing, smoke-tested for every role and scope, walked through in the browser at desktop and 390px. Milestone 1 (the core stock loop) is on `main` at https://github.com/wuzgood98/tally. Milestone 2 (transfers) is committed on the branch `milestone-2-transfers`, not yet pushed or merged. Commit only when the user asks.
 
 | Area | Route(s) | Domain code |
 | --- | --- | --- |
 | Sign-in, demo accounts | `/login` | `lib/auth.ts`, `app/login/actions.ts` |
-| Overview dashboard | `/` | `lib/queries/overview.ts` |
+| Overview dashboard, incl. "On the way" | `/` | `lib/queries/overview.ts`, `components/stock/on-the-way-panel.tsx` |
 | Product list, detail, create, edit | `/products`, `/products/[id]`, `/products/new`, `/products/[id]/edit` | `lib/catalogue.ts`, `lib/queries/products.ts` |
 | Branch reorder point and shelf location | panel on `/products/[id]` | `setStockSettings` in `lib/catalogue.ts` |
 | Receive goods (GRNs) | `/receipts`, `/receipts/new`, `/receipts/[id]` | `lib/stock/receive.ts` |
 | Adjustments and stock counts | `/adjustments`, `/adjustments/new` | `lib/stock/adjust.ts` |
-| Low stock, grouped by supplier | `/low-stock` | `getReorderLines` in `lib/queries/overview.ts` |
+| Transfers: send, receive (incl. short), cancel | `/transfers`, `/transfers/new`, `/transfers/[id]` | `lib/stock/transfer.ts`, `lib/queries/transfers.ts` |
+| Low stock, grouped by supplier, with "On the way" and a warehouse top-up | `/low-stock` | `getReorderLines` in `lib/queries/overview.ts`, `lib/stock/top-up.ts` |
 | Movement ledger | `/movements` | `lib/queries/movements.ts` |
 | Staff accounts | `/staff` | `lib/staff.ts` |
 | Branch switcher ("scope") | header on every page | `lib/scope.ts`, `app/(app)/scope-action.ts` |
 
-**Milestone 2, transfers between branches, is in progress.** Plan, in batches:
+How transfers work (Milestone 2):
 
-1. **Done**: schema, migration `0001_transfers`, domain code (`lib/stock/transfer.ts`), permissions, the average-cost fix for goods in transit, tests.
-2. **Done**: `/transfers` list (status filter; direction filter in single-branch scope), `/transfers/new` (`?from=&to=&lines=12:40,15:10` pre-fills; blocks quantities above what the sender holds), read-only `/transfers/[id]`, nav entry. Queries in `lib/queries/transfers.ts` (aliased `branch` / `user` joins via `alias()`). Walked through in the browser (storekeeper sending, blocked over-quantity, 390px).
-3. **Done**: receive form on `/transfers/[id]` (`ReceiveTransferForm`, pre-filled with sent quantities; shortfall needs a note), two-step cancel for sending managers (`CancelTransferForm`), "On the way" panel on the overview and an incoming badge on the Transfers nav item (`countIncomingInTransit`), transfer kinds labelled and linked in every movement table (and filterable on `/movements`), an "On the way" column on product detail (`getProductInTransit`) and in `ReorderTable` (`inTransit` on `getReorderLines`), and a "Transfer from warehouse" button on `/low-stock` for people who can send from the warehouse, viewing one store. It pre-fills `topUpQuantity` (`lib/stock/top-up.ts`): fill to twice the reorder point, minus on hand and on the way. Walked through in the browser at desktop and 390px.
-4. Seed demo transfers (received, in transit to SPX and KSI, one short), update this file, full verification.
+- **Sending** (`dispatchTransfer`) takes the stock out of the sender as `transfer_out` movements, at the products' average cost at that moment. The transfer is `in_transit` and its goods are on no branch's shelf.
+- **Receiving** (`receiveTransfer`) adds what was counted at the receiver as `transfer_in`. Anything short is recorded as lost in transit on the transfer's lines.
+- **Cancelling** (`cancelTransfer`) returns everything to the sender as `transfer_in` there.
+- Document numbers come from the sender: `TRF-TMA-000042`.
+- `/transfers/new?from=TMA&to=SPX&lines=12:40,15:10` pre-fills the form. The low-stock "Transfer from warehouse" button uses it, filling to twice the reorder point minus on hand and on the way (`topUpQuantity`).
 
-Decisions the user accepted: storekeepers may dispatch and receive at their own branch; a short receipt is allowed with a required note and the shortfall is recorded as lost in transit on the transfer (not an adjustment at either branch); receiving more than was sent is refused (extras go in as a "found" adjustment); a manager at the sending branch (or head office) may cancel a transfer in transit, which returns the stock to the sender; branch _requests_ for stock are out of scope (they belong with purchase orders).
+Decisions the user accepted for transfers:
 
-**Later milestones** (order not chosen): point-of-sale sales; purchase orders raised from the low-stock list; reports (stock value over time, fast and slow sellers, shrinkage by branch, including transit losses).
+- Storekeepers may send and receive at their own branch.
+- A short receipt is allowed with a required note. The shortfall is recorded as lost in transit on the transfer, not as an adjustment at either branch.
+- Receiving more than was sent is refused; extras go in as a "found" adjustment.
+- A manager at the sending branch, or head office, may cancel a transfer in transit, which returns the stock to the sender.
+- Branch _requests_ for stock are out of scope; they belong with purchase orders. So "Transfer from warehouse" shows only to people who can send from the warehouse (head office and Tema staff), viewing a single store.
+
+**Planned next** (proposed to the user, order not yet chosen):
+
+1. Point-of-sale integration: sales take stock down as they happen.
+2. Purchase orders raised from the low-stock list, received against the order. Branch requests for warehouse stock could join this.
+3. Reports: stock value over time (including goods in transit), fast and slow sellers, losses (shrinkage) by branch, including transit losses (`quantity_sent - quantity_received` on received transfers).
+
+Ask the user which milestone to start, then plan it in batches before writing code.
 
 ## Stack
 
@@ -65,7 +77,7 @@ Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), Rea
 
 ## Rules the code depends on
 
-These are invariants. New features must keep them; Milestone 2 features (transfers, sales) are new movement kinds through the same ledger.
+These are invariants. New features must keep them. Transfers were added as new movement kinds through the same ledger; sales should be too.
 
 1. **All stock changes go through `applyMovement`** in `lib/stock/ledger.ts`, inside a transaction. It updates `stock_level.on_hand` and appends the `stock_movement` row together. Never write `on_hand` directly anywhere else (the seed's opening balances are the one exception). Tests assert every balance equals the sum of its movements (`ledgerMismatches` in `test/db.ts`).
 2. **Stock goes down only through one conditional UPDATE** (`on_hand + q >= 0` in the WHERE clause). No row updated means insufficient stock. This is what makes concurrent write-offs and sales safe.
@@ -83,6 +95,7 @@ These are invariants. New features must keep them; Milestone 2 features (transfe
 - Docker isn't installed on this machine. The user's local PostgreSQL 17 runs on port **6942**, but its `postgres` password wasn't available (two attempts were rejected), so development uses PGlite. Ask the user before trying Postgres again.
 - **Only one process may open `.data/pglite` at a time.** A dev server plus a script, or parallel build workers, corrupt it ("PGlite failed to initialize properly"). The fix is `pnpm db:reset` with the dev server stopped. This is why the connection and auth are created lazily, through `getDb()` and `getAuth()`; never connect at module import time.
 - `.env.local` holds `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL=http://localhost:3500`; `.env.example` documents every variable.
+- The seed's month of history runs in time order through the real domain functions: deliveries, adjustments and transfers. That gives 14 transfers: top-ups from TMA to every store, one Weija → Ashaiman, one cancelled, one received short at Kumasi, and two still in transit to Spintex and Kumasi. Each step is backdated after it runs. Movement ids must stay in time order, because the ledger lists newest first by id. A seed test checks this (`movementsOutOfOrder` in `test/db.ts`), so add new seeded activity as history events, never as a pass afterwards.
 - Demo accounts (sign-in page, demo mode): every account uses the password `akwaaba-demo`. Head office `efua.asante@akwaaba.example`; Spintex manager `ama.mensah@…`; Spintex storekeeper `kofi.boateng@…`; the full list is `STAFF` in `lib/db/seed-data.ts`. The seed is deterministic (fixed random seed).
 - New enum values: Postgres can't use an enum value in the transaction that adds it, and Drizzle runs migrations in one transaction. CHECK constraints that mention new values compare `kind::text` instead.
 - Tests give each file its own in-memory PGlite with real migrations (`test/db.ts` → `createTestWorld()`).

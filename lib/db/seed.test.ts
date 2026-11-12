@@ -4,9 +4,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { isValidGtin } from "@/lib/barcode";
 import { connectPglite } from "@/lib/db/client";
 import type { Connection } from "@/lib/db/client";
-import { product } from "@/lib/db/schema";
+import { product, stockTransfer, stockTransferLine } from "@/lib/db/schema";
 import { seed } from "@/lib/db/seed";
-import { ledgerMismatches } from "@/test/db";
+import {
+  ledgerMismatches,
+  movementsOutOfOrder,
+  transferMismatches,
+} from "@/test/db";
 
 let connection: Connection;
 
@@ -23,6 +27,36 @@ afterAll(async () => {
 describe("seed", () => {
   it("leaves every balance equal to its ledger", async () => {
     expect(await ledgerMismatches(connection.db)).toEqual([]);
+  });
+
+  it("keeps every transfer's movements equal to its lines", async () => {
+    expect(await transferMismatches(connection.db)).toEqual([]);
+  });
+
+  it("seeds transfers received, short, cancelled and still on the road", async () => {
+    const rows = await connection.db
+      .select({
+        count: sql<number>`count(distinct ${stockTransfer.id})::int`,
+        short: sql<number>`count(distinct ${stockTransfer.id}) filter (where ${stockTransferLine.quantityReceived} < ${stockTransferLine.quantitySent})::int`,
+        status: stockTransfer.status,
+      })
+      .from(stockTransfer)
+      .innerJoin(
+        stockTransferLine,
+        sql`${stockTransferLine.transferId} = ${stockTransfer.id}`
+      )
+      .groupBy(stockTransfer.status);
+
+    const byStatus = new Map(rows.map((row) => [row.status, row]));
+
+    expect(byStatus.get("received")?.count).toBeGreaterThanOrEqual(8);
+    expect(byStatus.get("received")?.short).toBe(1);
+    expect(byStatus.get("cancelled")?.count).toBe(1);
+    expect(byStatus.get("in_transit")?.count).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps movement ids in time order, as the ledger lists them", async () => {
+    expect(await movementsOutOfOrder(connection.db)).toEqual([]);
   });
 
   it("gives every barcode a valid check digit", async () => {
