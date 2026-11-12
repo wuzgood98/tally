@@ -20,6 +20,7 @@ import {
 } from "@/lib/permissions";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct, getProductLevels } from "@/lib/queries/products";
+import { getProductUnitsSold } from "@/lib/queries/sales";
 import { stockStatus } from "@/lib/queries/stock-status";
 import { getProductInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
@@ -27,6 +28,7 @@ import { param, queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 
 const HISTORY = 25;
+const SALES_DAYS = 30;
 
 const productId = (raw: string): number | null => {
   const id = Number(raw);
@@ -90,9 +92,10 @@ const ProductPage = async ({
     notFound();
   }
 
-  const [levels, inTransit, scope, branches] = await Promise.all([
+  const [levels, inTransit, sold, scope, branches] = await Promise.all([
     getProductLevels(item.id),
     getProductInTransit(item.id),
+    getProductUnitsSold(item.id, SALES_DAYS),
     getScope(viewer),
     listBranches(),
   ]);
@@ -245,6 +248,7 @@ const ProductPage = async ({
                 <Th>Location</Th>
                 <Th numeric>On hand</Th>
                 <Th numeric>On the way</Th>
+                <Th numeric>Sold, {SALES_DAYS} days</Th>
                 <Th numeric>Reorder at</Th>
                 <Th>Status</Th>
               </tr>
@@ -281,6 +285,11 @@ const ProductPage = async ({
                     </Td>
                     <Td numeric tone={onTheWay > 0 ? "good" : "faint"}>
                       {onTheWay > 0 ? `+${formatCount(onTheWay)}` : "—"}
+                    </Td>
+                    <Td numeric tone="muted">
+                      {level.branchKind === "warehouse"
+                        ? "—"
+                        : formatCount(sold.get(level.branchId) ?? 0)}
                     </Td>
                     <Td numeric tone="muted">
                       {formatCount(reorderPoint)}

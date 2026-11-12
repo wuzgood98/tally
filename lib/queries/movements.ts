@@ -8,8 +8,11 @@ import {
   branch,
   goodsReceipt,
   product,
+  sale,
+  saleReturn,
   stockMovement,
   stockTransfer,
+  till,
   user,
 } from "@/lib/db/schema";
 import type { AdjustmentReason, MovementKind } from "@/lib/db/schema";
@@ -30,6 +33,11 @@ export interface MovementRow {
   readonly sku: string;
   readonly receiptId: number | null;
   readonly receiptNumber: string | null;
+  readonly saleId: number | null;
+  readonly saleNumber: string | null;
+  /** For returns, and the damaged write-off after one: the sale it was against. */
+  readonly returnSaleId: number | null;
+  readonly returnNumber: string | null;
   readonly transferId: number | null;
   readonly transferNumber: string | null;
   readonly transferFromId: string | null;
@@ -84,18 +92,26 @@ export const listMovements = async (
       receiptId: stockMovement.receiptId,
       receiptNumber: goodsReceipt.number,
       sku: product.sku,
+      returnNumber: saleReturn.number,
+      returnSaleId: saleReturn.saleId,
+      saleId: stockMovement.saleId,
+      saleNumber: sale.number,
       transferFromId: stockTransfer.fromBranchId,
       transferFromName: transferFrom.name,
       transferId: stockMovement.transferId,
       transferNumber: stockTransfer.number,
       transferToName: transferTo.name,
       unitCost: stockMovement.unitCost,
-      userName: user.name,
+      // A POS sale has no person behind it in Tally: name the till.
+      userName: sql<string | null>`coalesce(${user.name}, ${till.name})`,
     })
     .from(stockMovement)
     .innerJoin(branch, eq(branch.id, stockMovement.branchId))
     .innerJoin(product, eq(product.id, stockMovement.productId))
     .leftJoin(goodsReceipt, eq(goodsReceipt.id, stockMovement.receiptId))
+    .leftJoin(sale, eq(sale.id, stockMovement.saleId))
+    .leftJoin(saleReturn, eq(saleReturn.id, stockMovement.saleReturnId))
+    .leftJoin(till, eq(till.id, sale.tillId))
     .leftJoin(stockTransfer, eq(stockTransfer.id, stockMovement.transferId))
     .leftJoin(transferFrom, eq(transferFrom.id, stockTransfer.fromBranchId))
     .leftJoin(transferTo, eq(transferTo.id, stockTransfer.toBranchId))

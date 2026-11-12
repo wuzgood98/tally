@@ -18,6 +18,8 @@ const PAGE = 50;
 
 const KINDS = [
   "all",
+  "sale",
+  "sale_return",
   "receipt",
   "adjustment",
   "transfer_out",
@@ -30,6 +32,8 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   all: "Everything",
   opening: "Opening balances",
   receipt: "Deliveries",
+  sale: "Sales",
+  sale_return: "Customer returns",
   transfer_in: "Transfers in",
   transfer_out: "Transfers out",
 };

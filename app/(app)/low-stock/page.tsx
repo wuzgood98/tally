@@ -71,7 +71,25 @@ const LowStockPage = async () => {
     ),
   ].toSorted(([, a], [, b]) => b.length - a.length);
 
-  const out = lines.filter((line) => line.onHand === 0).length;
+  let out = 0;
+  let needCount = 0;
+
+  for (const line of lines) {
+    if (line.onHand === 0) {
+      out += 1;
+    }
+
+    // Tills sold more than the record held: someone needs to count the shelf.
+    if (line.onHand < 0) {
+      needCount += 1;
+    }
+  }
+
+  const countNote =
+    needCount > 0
+      ? `, ${formatCount(needCount)} ${needCount === 1 ? "needs" : "need"} a count`
+      : "";
+
   const topUpHref = warehouseTopUpHref(viewer, scope, branches, lines);
 
   return (
@@ -85,7 +103,7 @@ const LowStockPage = async () => {
             </Link>
           )
         }
-        description={`${formatCount(lines.length)} lines at or below their reorder point, ${formatCount(out)} of them empty, grouped by supplier · ${scopeLabel(scope, branches)}`}
+        description={`${formatCount(lines.length)} lines at or below their reorder point, ${formatCount(out)} of them empty${countNote}, grouped by supplier · ${scopeLabel(scope, branches)}`}
         title="Low stock"
       />
       {lines.length === 0 ? (

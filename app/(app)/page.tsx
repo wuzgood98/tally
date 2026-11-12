@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BestSellersPanel } from "@/components/sales/best-sellers-panel";
 import { MovementTable } from "@/components/stock/movement-table";
 import { OnTheWayPanel } from "@/components/stock/on-the-way-panel";
 import { ReorderTable } from "@/components/stock/reorder-table";
@@ -16,6 +17,7 @@ import {
   getReorderLines,
   getWeekReceipts,
 } from "@/lib/queries/overview";
+import { getBestSellers, getTodaySales } from "@/lib/queries/sales";
 import { listTransfers } from "@/lib/queries/transfers";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { queryString } from "@/lib/search-params";
@@ -24,6 +26,8 @@ import { requireViewer } from "@/lib/session";
 const REORDER_PREVIEW = 8;
 const RECENT_MOVEMENTS = 8;
 const ON_THE_WAY_PREVIEW = 5;
+const BEST_SELLER_DAYS = 7;
+const BEST_SELLERS = 6;
 
 const SeeAll = ({
   href,
@@ -48,15 +52,25 @@ const OverviewPage = async () => {
   const allBranches = scope.kind === "all";
   const branchId = allBranches ? undefined : scope.branchId;
 
-  const [totals, week, reorder, movements, health, incoming] =
-    await Promise.all([
-      getOverviewTotals(scope),
-      getWeekReceipts(scope),
-      getReorderLines(scope, REORDER_PREVIEW),
-      listMovements({ branchId }, RECENT_MOVEMENTS),
-      allBranches ? getBranchHealth() : Promise.resolve([]),
-      listTransfers(scope, { direction: "incoming", status: "in_transit" }, 1),
-    ]);
+  const [
+    totals,
+    week,
+    reorder,
+    movements,
+    health,
+    incoming,
+    salesToday,
+    bestSellers,
+  ] = await Promise.all([
+    getOverviewTotals(scope),
+    getWeekReceipts(scope),
+    getReorderLines(scope, REORDER_PREVIEW),
+    listMovements({ branchId }, RECENT_MOVEMENTS),
+    allBranches ? getBranchHealth() : Promise.resolve([]),
+    listTransfers(scope, { direction: "incoming", status: "in_transit" }, 1),
+    getTodaySales(scope),
+    getBestSellers(scope, BEST_SELLER_DAYS, BEST_SELLERS),
+  ]);
 
   // Rendered on the server only, so there is no client clock to disagree with.
   const today = formatLongDate(new Date());
@@ -71,14 +85,15 @@ const OverviewPage = async () => {
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat
-          detail={`${formatCedisCompact(totals.retailValue)} at shelf prices`}
+          detail={`${formatCount(totals.units)} units · ${formatCedisCompact(totals.retailValue)} at shelf prices`}
           label="Stock value at cost"
           value={formatCedisCompact(totals.costValue)}
         />
         <Stat
-          detail={`${formatCount(totals.linesInStock)} lines in stock`}
-          label="Units on hand"
-          value={formatCount(totals.units)}
+          detail={`${formatCount(salesToday.count)} ${salesToday.count === 1 ? "sale" : "sales"}`}
+          href="/sales"
+          label="Sales today"
+          value={formatCedisCompact(salesToday.total)}
         />
         <Stat
           detail={`${formatCount(totals.outLines)} of them out of stock`}
@@ -98,7 +113,6 @@ const OverviewPage = async () => {
       <div className="mt-6 grid gap-6 xl:grid-cols-[3fr_2fr]">
         <Panel
           action={<SeeAll href="/low-stock">See all</SeeAll>}
-          className={allBranches ? undefined : "xl:col-span-2"}
           flush
           id="reorder"
           title="Running low"
@@ -155,6 +169,13 @@ const OverviewPage = async () => {
             </Table>
           </Panel>
         ) : null}
+
+        {/* Beside "Running low" for one branch; full width under the branch table. */}
+        <BestSellersPanel
+          className={allBranches ? "xl:col-span-2" : undefined}
+          days={BEST_SELLER_DAYS}
+          rows={bestSellers}
+        />
 
         {incoming.total > 0 ? (
           <OnTheWayPanel

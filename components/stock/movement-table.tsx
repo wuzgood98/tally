@@ -17,6 +17,23 @@ interface MovementTableProps {
   readonly caption: string;
 }
 
+/** A document number after a label, linking to the document. */
+const DocumentLink = ({
+  href,
+  number,
+}: {
+  readonly href: string | null;
+  readonly number: string | null;
+}) =>
+  href === null || number === null ? null : (
+    <Link
+      className="text-brand ml-1.5 font-mono text-xs hover:underline"
+      href={href}
+    >
+      {number}
+    </Link>
+  );
+
 const TransferLink = ({ row }: { readonly row: MovementRow }) =>
   row.transferId === null ? null : (
     <Link
@@ -62,15 +79,41 @@ const What = ({ row }: { readonly row: MovementRow }) => {
   }
 
   if (row.kind === "sale") {
-    return <span>Sale</span>;
+    return (
+      <span>
+        Sale
+        <DocumentLink
+          href={row.saleId === null ? null : `/sales/${row.saleId}`}
+          number={row.saleNumber}
+        />
+      </span>
+    );
   }
 
+  // A return, or the damaged write-off straight after one: both link to the sale.
+  const returnLink = (
+    <DocumentLink
+      href={row.returnSaleId === null ? null : `/sales/${row.returnSaleId}`}
+      number={row.returnNumber}
+    />
+  );
+
   if (row.kind === "sale_return") {
-    return <span>Customer return</span>;
+    return (
+      <span>
+        Customer return
+        {returnLink}
+      </span>
+    );
   }
 
   if (row.kind === "adjustment" && row.reason) {
-    return <span>{REASON_LABELS[row.reason]}</span>;
+    return (
+      <span>
+        {REASON_LABELS[row.reason]}
+        {row.returnNumber === null ? null : returnLink}
+      </span>
+    );
   }
 
   return <span className="text-ink-2">Opening balance</span>;

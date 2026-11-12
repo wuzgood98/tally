@@ -2,12 +2,14 @@ import type { StockStatus } from "@/lib/queries/stock-status";
 import { cn } from "@/lib/utils";
 
 const STYLES: Record<StockStatus, string> = {
+  count: "bg-danger-soft text-danger",
   low: "bg-warn-soft text-warn",
   ok: "bg-brand-soft text-good",
   out: "bg-danger-soft text-danger",
 };
 
 const LABELS: Record<StockStatus, string> = {
+  count: "Needs a count",
   low: "Low",
   ok: "In stock",
   out: "Out",

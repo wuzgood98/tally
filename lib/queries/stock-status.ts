@@ -13,13 +13,21 @@ export const isLow = sql<boolean>`(${stockLevel.onHand} > 0 and ${stockLevel.onH
 /** Empty, or below zero after selling stock the record said wasn't there. */
 export const isOut = sql<boolean>`(${stockLevel.onHand} <= 0)`;
 
-export type StockStatus = "out" | "low" | "ok";
+/**
+ * "count": below zero, because the tills sold stock the record said wasn't
+ * there. The record is wrong, so someone needs to count the shelf.
+ */
+export type StockStatus = "count" | "out" | "low" | "ok";
 
 export const stockStatus = (
   onHand: number,
   reorderPoint: number
 ): StockStatus => {
-  if (onHand <= 0) {
+  if (onHand < 0) {
+    return "count";
+  }
+
+  if (onHand === 0) {
     return "out";
   }
 
