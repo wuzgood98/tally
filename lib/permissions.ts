@@ -87,6 +87,29 @@ export const canSell = (actor: Actor, branchId: string): boolean =>
 export const canApproveReturn = (actor: Actor, branchId: string): boolean =>
   managesAt(actor, branchId);
 
+/** Drafting a purchase order: a manager for their branch, head office for any. */
+export const canDraftPurchaseOrder = (
+  actor: Actor,
+  branchId: string
+): boolean => managesAt(actor, branchId);
+
+/**
+ * Approving sends money out of the company, so it's head office's call; so
+ * is calling back an order the supplier already has, or closing one short.
+ */
+export const canApprovePurchaseOrder = (actor: Actor): boolean =>
+  actor.role === "admin";
+
+/** A draft can be dropped by whoever could have written it. */
+export const canCancelDraftPurchaseOrder = (
+  actor: Actor,
+  branchId: string
+): boolean => managesAt(actor, branchId);
+
+/** Asking the warehouse for stock: a store's manager, or head office. */
+export const canRequestStock = (actor: Actor, branchId: string): boolean =>
+  managesAt(actor, branchId);
+
 export const canManageCatalogue = (actor: Actor): boolean =>
   actor.role === "admin";
 

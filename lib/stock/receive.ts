@@ -4,11 +4,18 @@
  * cost, and updates the product's moving average cost.
  */
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Db, Tx } from "@/lib/db/client";
-import { branch, goodsReceipt, product, supplier } from "@/lib/db/schema";
+import {
+  branch,
+  goodsReceipt,
+  product,
+  purchaseOrder,
+  purchaseOrderLine,
+  supplier,
+} from "@/lib/db/schema";
 import { canReceive } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
@@ -43,6 +50,8 @@ export const receiptInput = z.object({
       "Each product can appear only once on a receipt."
     ),
   note: z.string().trim().max(500).optional(),
+  /** Set when the delivery is against a purchase order. */
+  purchaseOrderId: z.int().positive().optional(),
   supplierId: z.int().positive(),
   supplierReference: z.string().trim().max(60).optional(),
 });
@@ -161,6 +170,118 @@ const assertReferencesExist = async (
   }
 };
 
+/**
+ * Checks a delivery against its purchase order and adds it to the order's
+ * lines, under a lock on the order. Refuses anything not ordered, or more than
+ * is still outstanding: extras go on a separate receipt without an order.
+ */
+const fillPurchaseOrder = async (
+  tx: Tx,
+  purchaseOrderId: number,
+  input: ReceiptInput
+): Promise<void> => {
+  const [order] = await tx
+    .select({
+      branchId: purchaseOrder.branchId,
+      number: purchaseOrder.number,
+      status: purchaseOrder.status,
+      supplierId: purchaseOrder.supplierId,
+    })
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.id, purchaseOrderId))
+    .for("update");
+
+  if (order === undefined) {
+    throw new StockError("not_found", "That purchase order doesn't exist.");
+  }
+
+  if (
+    order.branchId !== input.branchId ||
+    order.supplierId !== input.supplierId
+  ) {
+    throw new StockError(
+      "invalid_input",
+      `${order.number} is for a different branch or supplier.`
+    );
+  }
+
+  if (order.status !== "approved" && order.status !== "partly_received") {
+    throw new StockError(
+      "conflict",
+      `${order.number} isn't open for deliveries.`
+    );
+  }
+
+  const ordered = await tx
+    .select({
+      productId: purchaseOrderLine.productId,
+      quantity: purchaseOrderLine.quantity,
+      quantityReceived: purchaseOrderLine.quantityReceived,
+    })
+    .from(purchaseOrderLine)
+    .where(eq(purchaseOrderLine.purchaseOrderId, purchaseOrderId));
+
+  const byProduct = new Map(ordered.map((line) => [line.productId, line]));
+
+  for (const line of input.lines) {
+    const orderLine = byProduct.get(line.productId);
+
+    if (orderLine === undefined) {
+      throw new StockError(
+        "invalid_input",
+        `A product on this delivery isn't on ${order.number}. Receive it on a separate receipt.`
+      );
+    }
+
+    const outstanding = orderLine.quantity - orderLine.quantityReceived;
+
+    if (line.quantity > outstanding) {
+      throw new StockError(
+        "invalid_input",
+        `Only ${outstanding} of a product are still due on ${order.number}. Receive the extra on a separate receipt.`
+      );
+    }
+  }
+
+  // Sorted by product id, like every other multi-row write.
+  /* oxlint-disable no-await-in-loop, react-doctor/async-await-in-loop -- see above */
+  for (const line of input.lines.toSorted(
+    (a, b) => a.productId - b.productId
+  )) {
+    await tx
+      .update(purchaseOrderLine)
+      .set({
+        quantityReceived: sql`${purchaseOrderLine.quantityReceived} + ${line.quantity}`,
+      })
+      .where(
+        and(
+          eq(purchaseOrderLine.purchaseOrderId, purchaseOrderId),
+          eq(purchaseOrderLine.productId, line.productId)
+        )
+      );
+  }
+  /* oxlint-enable no-await-in-loop, react-doctor/async-await-in-loop */
+
+  const delivered = new Map(
+    input.lines.map((line) => [line.productId, line.quantity])
+  );
+
+  const complete = ordered.every(
+    (line) =>
+      line.quantityReceived + (delivered.get(line.productId) ?? 0) >=
+      line.quantity
+  );
+
+  await tx
+    .update(purchaseOrder)
+    .set(
+      complete
+        ? { closedAt: new Date(), status: "received" }
+        : { status: "partly_received" }
+    )
+    .where(eq(purchaseOrder.id, purchaseOrderId));
+};
+
 export const receiveGoods = async (
   db: Db,
   actor: Actor,
@@ -195,6 +316,11 @@ export const receiveGoods = async (
   const lines = input.lines.toSorted((a, b) => a.productId - b.productId);
 
   return await db.transaction(async (tx) => {
+    // First, before any stock rows: two deliveries against one order take turns.
+    if (input.purchaseOrderId !== undefined) {
+      await fillPurchaseOrder(tx, input.purchaseOrderId, input);
+    }
+
     const number = await nextDocumentNumber(tx, "GRN", input.branchId);
 
     const [receipt] = await tx
@@ -203,6 +329,7 @@ export const receiveGoods = async (
         branchId: input.branchId,
         note: (input.note ?? "") || null,
         number,
+        purchaseOrderId: input.purchaseOrderId ?? null,
         receivedById: actor.id,
         supplierId: input.supplierId,
         supplierReference: (input.supplierReference ?? "") || null,

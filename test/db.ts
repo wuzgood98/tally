@@ -12,7 +12,10 @@ import type { Connection, Db } from "@/lib/db/client";
 import {
   branch,
   category,
+  goodsReceipt,
   product,
+  purchaseOrder,
+  purchaseOrderLine,
   stockLevel,
   stockMovement,
   sale,
@@ -295,6 +298,48 @@ export const saleMismatches = async (db: Db): Promise<unknown[]> => {
         <> (select coalesce(sum(quantity), 0) from ${stockMovement} where sale_return_id = r.id and kind = 'sale_return')
        or (select coalesce(sum(quantity), 0) from ${saleReturnLine} where return_id = r.id and disposition = 'damaged')
         <> -(select coalesce(sum(quantity), 0) from ${stockMovement} where sale_return_id = r.id and kind = 'adjustment')
+  `);
+
+  return queryRows.parse(result).rows;
+};
+
+/**
+ * Purchase order lines whose received quantity disagrees with the receipts
+ * against the order, and orders whose status disagrees with their lines.
+ */
+export const purchaseOrderMismatches = async (db: Db): Promise<unknown[]> => {
+  const result = await db.execute(sql`
+    with delivered as (
+      select r.purchase_order_id, m.product_id, sum(m.quantity)::int as quantity
+      from ${goodsReceipt} r
+      join ${stockMovement} m on m.receipt_id = r.id
+      where r.purchase_order_id is not null
+      group by 1, 2
+    ), lines as (
+      select l.purchase_order_id, l.product_id, l.quantity, l.quantity_received,
+        coalesce(d.quantity, 0) as delivered
+      from ${purchaseOrderLine} l
+      left join delivered d
+        on d.purchase_order_id = l.purchase_order_id and d.product_id = l.product_id
+    )
+    select o.number, o.status, 'line out of step' as problem
+    from ${purchaseOrder} o join lines l on l.purchase_order_id = o.id
+    where l.quantity_received <> l.delivered
+    union all
+    select o.number, o.status, 'status out of step'
+    from ${purchaseOrder} o
+    join (
+      select purchase_order_id,
+        bool_and(quantity_received >= quantity) as complete,
+        bool_or(quantity_received > 0) as started
+      from lines group by 1
+    ) t on t.purchase_order_id = o.id
+    where case o.status
+      when 'received' then not t.complete
+      when 'partly_received' then t.complete or not t.started
+      when 'closed' then not t.started
+      else t.started
+    end
   `);
 
   return queryRows.parse(result).rows;

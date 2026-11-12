@@ -322,6 +322,10 @@ export const goodsReceipt = pgTable(
       .references(() => supplier.id),
     /** The supplier's invoice or waybill number, for matching paperwork. */
     supplierReference: text("supplier_reference"),
+    /** Set when this delivery was received against a purchase order. */
+    purchaseOrderId: integer("purchase_order_id").references(
+      () => purchaseOrder.id
+    ),
     /** Sum of quantity × unit cost over the lines, in pesewas. */
     totalCost: integer("total_cost").notNull(),
   },
@@ -559,6 +563,158 @@ export const saleReturnLine = pgTable(
   ]
 );
 
+export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", [
+  "draft",
+  "approved",
+  "partly_received",
+  "received",
+  "closed",
+  "cancelled",
+]);
+
+/**
+ * An order to a supplier for one branch. A manager drafts it; head office
+ * approves it, which is when it counts as sent. Deliveries received against
+ * it fill its lines; it closes when everything has arrived, or when head
+ * office closes it short.
+ */
+export const purchaseOrder = pgTable(
+  "purchase_order",
+  {
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvedById: text("approved_by_id").references(() => user.id),
+    /** The branch the goods are delivered to. */
+    branchId: text("branch_id")
+      .notNull()
+      .references(() => branch.id),
+    /** When it was cancelled, fully received or closed short. */
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedById: text("closed_by_id").references(() => user.id),
+    /** Why it was cancelled or closed short. */
+    closeNote: text("close_note"),
+    createdAt: createdAt(),
+    createdById: text("created_by_id").references(() => user.id),
+    /** Approval date plus the supplier's lead time. */
+    expectedAt: timestamp("expected_at", { withTimezone: true }),
+    id: serial("id").primaryKey(),
+    note: text("note"),
+    /** Human document number, e.g. PO-TMA-000012. */
+    number: text("number").notNull(),
+    status: purchaseOrderStatusEnum("status").notNull().default("draft"),
+    supplierId: integer("supplier_id")
+      .notNull()
+      .references(() => supplier.id),
+    /** Sum of quantity × agreed unit cost over the lines, in pesewas. */
+    totalCost: integer("total_cost").notNull(),
+  },
+  (table) => [
+    uniqueIndex("purchase_order_number_idx").on(table.number),
+    index("purchase_order_branch_idx").on(table.branchId, table.status),
+    index("purchase_order_supplier_idx").on(table.supplierId),
+    check(
+      "purchase_order_approved_matches_status",
+      sql`(${table.status}::text <> 'draft' or ${table.approvedAt} is null) and (${table.status}::text not in ('approved', 'partly_received', 'received', 'closed') or ${table.approvedAt} is not null)`
+    ),
+    check(
+      "purchase_order_closed_matches_status",
+      sql`(${table.status}::text in ('received', 'closed', 'cancelled')) = (${table.closedAt} is not null)`
+    ),
+  ]
+);
+
+export const purchaseOrderLine = pgTable(
+  "purchase_order_line",
+  {
+    productId: integer("product_id")
+      .notNull()
+      .references(() => product.id),
+    purchaseOrderId: integer("purchase_order_id")
+      .notNull()
+      .references(() => purchaseOrder.id),
+    quantity: integer("quantity").notNull(),
+    /** Delivered so far against this line; never more than ordered. */
+    quantityReceived: integer("quantity_received").notNull().default(0),
+    /** The agreed price per unit, in pesewas. */
+    unitCost: integer("unit_cost").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.purchaseOrderId, table.productId] }),
+    index("purchase_order_line_product_idx").on(table.productId),
+    check("purchase_order_line_quantity_positive", sql`${table.quantity} > 0`),
+    check(
+      "purchase_order_line_received_in_range",
+      sql`${table.quantityReceived} >= 0 and ${table.quantityReceived} <= ${table.quantity}`
+    ),
+    check("purchase_order_line_cost_non_negative", sql`${table.unitCost} >= 0`),
+  ]
+);
+
+export const stockRequestStatusEnum = pgEnum("stock_request_status", [
+  "requested",
+  "fulfilled",
+  "cancelled",
+]);
+
+/**
+ * A store asking the warehouse for stock. Warehouse staff fulfil it by
+ * sending a transfer, which closes the request.
+ */
+export const stockRequest = pgTable(
+  "stock_request",
+  {
+    /** The requesting store. */
+    branchId: text("branch_id")
+      .notNull()
+      .references(() => branch.id),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledById: text("cancelled_by_id").references(() => user.id),
+    createdAt: createdAt(),
+    createdById: text("created_by_id").references(() => user.id),
+    /** The warehouse asked. */
+    fromBranchId: text("from_branch_id")
+      .notNull()
+      .references(() => branch.id),
+    fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
+    id: serial("id").primaryKey(),
+    note: text("note"),
+    /** Human document number, e.g. REQ-SPX-000003. */
+    number: text("number").notNull(),
+    status: stockRequestStatusEnum("status").notNull().default("requested"),
+    /** The transfer that fulfilled it. */
+    transferId: integer("transfer_id").references(() => stockTransfer.id),
+  },
+  (table) => [
+    uniqueIndex("stock_request_number_idx").on(table.number),
+    index("stock_request_from_idx").on(table.fromBranchId, table.status),
+    index("stock_request_branch_idx").on(table.branchId, table.createdAt),
+    check(
+      "stock_request_fulfilled_matches_status",
+      sql`(${table.status}::text = 'fulfilled') = (${table.fulfilledAt} is not null and ${table.transferId} is not null)`
+    ),
+    check(
+      "stock_request_cancelled_matches_status",
+      sql`(${table.status}::text = 'cancelled') = (${table.cancelledAt} is not null)`
+    ),
+  ]
+);
+
+export const stockRequestLine = pgTable(
+  "stock_request_line",
+  {
+    productId: integer("product_id")
+      .notNull()
+      .references(() => product.id),
+    quantity: integer("quantity").notNull(),
+    requestId: integer("request_id")
+      .notNull()
+      .references(() => stockRequest.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.requestId, table.productId] }),
+    check("stock_request_line_quantity_positive", sql`${table.quantity} > 0`),
+  ]
+);
+
 /** Per-branch counters for document numbers, claimed inside the transaction. */
 export const documentCounter = pgTable(
   "document_counter",
@@ -584,5 +740,11 @@ export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
 
 export type ReturnDisposition =
   (typeof returnDispositionEnum.enumValues)[number];
+
+export type PurchaseOrderStatus =
+  (typeof purchaseOrderStatusEnum.enumValues)[number];
+
+export type StockRequestStatus =
+  (typeof stockRequestStatusEnum.enumValues)[number];
 
 export type Unit = (typeof unitEnum.enumValues)[number];

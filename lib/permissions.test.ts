@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   canAdjust,
+  canApprovePurchaseOrder,
   canApproveReturn,
+  canCancelDraftPurchaseOrder,
   canCancelTransfer,
   canDispatchTransfer,
+  canDraftPurchaseOrder,
   canManageCatalogue,
   canReceive,
   canReceiveTransfer,
+  canRequestStock,
   canSell,
   canSetReorderPoint,
   operableBranchIds,
@@ -88,6 +92,25 @@ describe("permissions", () => {
     expect(canApproveReturn(storekeeper, "SPX")).toBe(false);
     expect(sellableBranchIds(storekeeper, ["SPX"])).toEqual([]);
     expect(canApproveReturn(admin, "KSI")).toBe(true);
+  });
+
+  it("lets managers draft and request, and head office approve", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+
+    expect(canDraftPurchaseOrder(manager, "SPX")).toBe(true);
+    expect(canDraftPurchaseOrder(manager, "KSI")).toBe(false);
+    expect(canDraftPurchaseOrder(storekeeper, "SPX")).toBe(false);
+    expect(canDraftPurchaseOrder(cashier, "SPX")).toBe(false);
+    expect(canDraftPurchaseOrder(admin, "KSI")).toBe(true);
+
+    expect(canApprovePurchaseOrder(manager)).toBe(false);
+    expect(canApprovePurchaseOrder(admin)).toBe(true);
+    expect(canCancelDraftPurchaseOrder(manager, "SPX")).toBe(true);
+    expect(canCancelDraftPurchaseOrder(storekeeper, "SPX")).toBe(false);
+
+    expect(canRequestStock(manager, "SPX")).toBe(true);
+    expect(canRequestStock(storekeeper, "SPX")).toBe(false);
+    expect(canRequestStock(manager, "KSI")).toBe(false);
   });
 
   it("reserves reorder points and the catalogue", () => {
