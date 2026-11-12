@@ -75,7 +75,7 @@ export const listProducts = async (
           "level_branches_low"
         ),
       branchesOut:
-        sql<number>`count(*) filter (where ${stockLevel.onHand} = 0)::int`.as(
+        sql<number>`count(*) filter (where ${stockLevel.onHand} <= 0)::int`.as(
           "level_branches_out"
         ),
       onHand: sql<number>`sum(${stockLevel.onHand})::int`.as("level_on_hand"),

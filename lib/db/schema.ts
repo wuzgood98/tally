@@ -36,7 +36,12 @@ const updatedAt = () =>
 // Auth (Better Auth's tables, plus the admin plugin's fields and our own).
 // ---------------------------------------------------------------------------
 
-export const roleEnum = pgEnum("role", ["admin", "manager", "storekeeper"]);
+export const roleEnum = pgEnum("role", [
+  "admin",
+  "manager",
+  "storekeeper",
+  "cashier",
+]);
 
 export const user = pgTable("user", {
   banExpires: timestamp("ban_expires", { withTimezone: true }),
@@ -214,7 +219,6 @@ export const stockLevel = pgTable(
   (table) => [
     primaryKey({ columns: [table.branchId, table.productId] }),
     index("stock_level_product_idx").on(table.productId),
-    check("stock_level_on_hand_non_negative", sql`${table.onHand} >= 0`),
   ]
 );
 
@@ -224,6 +228,8 @@ export const movementKindEnum = pgEnum("movement_kind", [
   "adjustment",
   "transfer_out",
   "transfer_in",
+  "sale",
+  "sale_return",
 ]);
 
 export const adjustmentReasonEnum = pgEnum("adjustment_reason", [
@@ -257,6 +263,13 @@ export const stockMovement = pgTable(
     receiptId: integer("receipt_id").references(() => goodsReceipt.id),
     /** Set for transfer movements only: the transfer this stock left or arrived on. */
     transferId: integer("transfer_id").references(() => stockTransfer.id),
+    /** Set for sale movements only. */
+    saleId: integer("sale_id").references(() => sale.id),
+    /**
+     * Set for returns: the sale_return movement that puts stock back, and the
+     * damaged write-off that follows it when the item can't be resold.
+     */
+    saleReturnId: integer("sale_return_id").references(() => saleReturn.id),
     /** Cost per unit for receipts and transfers, in pesewas. */
     unitCost: integer("unit_cost"),
     userId: text("user_id").references(() => user.id),
@@ -279,6 +292,16 @@ export const stockMovement = pgTable(
       sql`(${table.kind}::text in ('transfer_out', 'transfer_in')) = (${table.transferId} is not null)`
     ),
     index("stock_movement_transfer_idx").on(table.transferId),
+    check(
+      "stock_movement_sale_matches_kind",
+      sql`(${table.kind}::text = 'sale') = (${table.saleId} is not null)`
+    ),
+    check(
+      "stock_movement_return_matches_kind",
+      sql`(${table.kind}::text <> 'sale_return' or ${table.saleReturnId} is not null) and (${table.saleReturnId} is null or ${table.kind}::text in ('sale_return', 'adjustment'))`
+    ),
+    index("stock_movement_sale_idx").on(table.saleId),
+    index("stock_movement_return_idx").on(table.saleReturnId),
   ]
 );
 
@@ -392,6 +415,118 @@ export const stockTransferLine = pgTable(
   ]
 );
 
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "cash",
+  "mobile_money",
+  "card",
+]);
+
+/**
+ * A sale at a till. Its lines keep the price and the average cost at the
+ * moment of sale, so margins can be reported later without guessing.
+ */
+export const sale = pgTable(
+  "sale",
+  {
+    branchId: text("branch_id")
+      .notNull()
+      .references(() => branch.id),
+    cashierId: text("cashier_id").references(() => user.id),
+    /**
+     * The till's own id for this sale. A till that retries after a dropped
+     * connection sends the same one, and gets the first sale back.
+     */
+    clientRef: text("client_ref").notNull(),
+    createdAt: createdAt(),
+    id: serial("id").primaryKey(),
+    /** Human document number, e.g. SAL-SPX-000123. */
+    number: text("number").notNull(),
+    paymentMethod: paymentMethodEnum("payment_method").notNull(),
+    /** Sum of quantity × unit price over the lines, in pesewas. */
+    total: integer("total").notNull(),
+  },
+  (table) => [
+    uniqueIndex("sale_number_idx").on(table.number),
+    uniqueIndex("sale_client_ref_idx").on(table.branchId, table.clientRef),
+    index("sale_branch_idx").on(table.branchId, table.createdAt),
+    check("sale_total_non_negative", sql`${table.total} >= 0`),
+  ]
+);
+
+export const saleLine = pgTable(
+  "sale_line",
+  {
+    productId: integer("product_id")
+      .notNull()
+      .references(() => product.id),
+    quantity: integer("quantity").notNull(),
+    saleId: integer("sale_id")
+      .notNull()
+      .references(() => sale.id),
+    /** Average cost at the moment of sale, in pesewas. */
+    unitCost: integer("unit_cost").notNull(),
+    /** Price charged per unit, including VAT, in pesewas. */
+    unitPrice: integer("unit_price").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.saleId, table.productId] }),
+    index("sale_line_product_idx").on(table.productId),
+    check("sale_line_quantity_positive", sql`${table.quantity} > 0`),
+    check("sale_line_price_non_negative", sql`${table.unitPrice} >= 0`),
+    check("sale_line_cost_non_negative", sql`${table.unitCost} >= 0`),
+  ]
+);
+
+export const returnDispositionEnum = pgEnum("return_disposition", [
+  "restock",
+  "damaged",
+]);
+
+/** A customer return against an earlier sale, approved by a manager. */
+export const saleReturn = pgTable(
+  "sale_return",
+  {
+    /** The manager who approved and recorded it. */
+    approvedById: text("approved_by_id").references(() => user.id),
+    branchId: text("branch_id")
+      .notNull()
+      .references(() => branch.id),
+    createdAt: createdAt(),
+    id: serial("id").primaryKey(),
+    /** Human document number, e.g. RET-SPX-000007. */
+    number: text("number").notNull(),
+    reason: text("reason").notNull(),
+    /** Sum of quantity × the original unit price, in pesewas. */
+    refund: integer("refund").notNull(),
+    saleId: integer("sale_id")
+      .notNull()
+      .references(() => sale.id),
+  },
+  (table) => [
+    uniqueIndex("sale_return_number_idx").on(table.number),
+    index("sale_return_sale_idx").on(table.saleId),
+    index("sale_return_branch_idx").on(table.branchId, table.createdAt),
+  ]
+);
+
+export const saleReturnLine = pgTable(
+  "sale_return_line",
+  {
+    disposition: returnDispositionEnum("disposition").notNull(),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => product.id),
+    quantity: integer("quantity").notNull(),
+    returnId: integer("return_id")
+      .notNull()
+      .references(() => saleReturn.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.returnId, table.productId] }),
+    check("sale_return_line_quantity_positive", sql`${table.quantity} > 0`),
+  ]
+);
+
 /** Per-branch counters for document numbers, claimed inside the transaction. */
 export const documentCounter = pgTable(
   "document_counter",
@@ -412,5 +547,10 @@ export type AdjustmentReason = (typeof adjustmentReasonEnum.enumValues)[number];
 export type MovementKind = (typeof movementKindEnum.enumValues)[number];
 
 export type TransferStatus = (typeof transferStatusEnum.enumValues)[number];
+
+export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
+
+export type ReturnDisposition =
+  (typeof returnDispositionEnum.enumValues)[number];
 
 export type Unit = (typeof unitEnum.enumValues)[number];

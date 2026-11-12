@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   canAdjust,
+  canApproveReturn,
   canCancelTransfer,
   canDispatchTransfer,
   canManageCatalogue,
   canReceive,
   canReceiveTransfer,
+  canSell,
   canSetReorderPoint,
   operableBranchIds,
+  sellableBranchIds,
 } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 
@@ -61,6 +64,30 @@ describe("permissions", () => {
     expect(canCancelTransfer(storekeeper, "SPX")).toBe(false);
     expect(canCancelTransfer(manager, "KSI")).toBe(false);
     expect(canCancelTransfer(admin, "KSI")).toBe(true);
+  });
+
+  it("keeps cashiers to the till at their own store", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+
+    expect(canSell(cashier, "SPX")).toBe(true);
+    expect(canSell(cashier, "KSI")).toBe(false);
+    expect(canReceive(cashier, "SPX")).toBe(false);
+    expect(canAdjust(cashier, "SPX", "damaged")).toBe(false);
+    expect(canDispatchTransfer(cashier, "SPX")).toBe(false);
+    expect(canReceiveTransfer(cashier, "SPX")).toBe(false);
+    expect(canApproveReturn(cashier, "SPX")).toBe(false);
+    expect(operableBranchIds(cashier, ["SPX", "KSI"])).toEqual([]);
+    expect(sellableBranchIds(cashier, ["SPX", "KSI"])).toEqual(["SPX"]);
+  });
+
+  it("lets managers sell and approve returns, but not storekeepers", () => {
+    expect(canSell(manager, "SPX")).toBe(true);
+    expect(canApproveReturn(manager, "SPX")).toBe(true);
+    expect(canApproveReturn(manager, "KSI")).toBe(false);
+    expect(canSell(storekeeper, "SPX")).toBe(false);
+    expect(canApproveReturn(storekeeper, "SPX")).toBe(false);
+    expect(sellableBranchIds(storekeeper, ["SPX"])).toEqual([]);
+    expect(canApproveReturn(admin, "KSI")).toBe(true);
   });
 
   it("reserves reorder points and the catalogue", () => {

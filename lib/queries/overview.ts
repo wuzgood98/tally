@@ -38,12 +38,12 @@ export const getOverviewTotals = async (
 ): Promise<OverviewTotals> => {
   const [row] = await getDb()
     .select({
-      costValue: sql<number>`coalesce(sum(${stockLevel.onHand}::bigint * ${product.averageCost}), 0)::float8`,
+      costValue: sql<number>`coalesce(sum(greatest(${stockLevel.onHand}, 0)::bigint * ${product.averageCost}), 0)::float8`,
       linesInStock: sql<number>`count(*) filter (where ${stockLevel.onHand} > 0)::int`,
       lowLines: sql<number>`count(*) filter (where ${isLow})::int`,
       outLines: sql<number>`count(*) filter (where ${isOut})::int`,
-      retailValue: sql<number>`coalesce(sum(${stockLevel.onHand}::bigint * ${product.sellPrice}), 0)::float8`,
-      units: sql<number>`coalesce(sum(${stockLevel.onHand}), 0)::float8`,
+      retailValue: sql<number>`coalesce(sum(greatest(${stockLevel.onHand}, 0)::bigint * ${product.sellPrice}), 0)::float8`,
+      units: sql<number>`coalesce(sum(greatest(${stockLevel.onHand}, 0)), 0)::float8`,
     })
     .from(stockLevel)
     .innerJoin(product, eq(product.id, stockLevel.productId))
@@ -75,7 +75,7 @@ export interface BranchHealth {
 export const getBranchHealth = async (): Promise<BranchHealth[]> =>
   await getDb()
     .select({
-      costValue: sql<number>`coalesce(sum(${stockLevel.onHand}::bigint * ${product.averageCost}), 0)::float8`,
+      costValue: sql<number>`coalesce(sum(greatest(${stockLevel.onHand}, 0)::bigint * ${product.averageCost}), 0)::float8`,
       id: branch.id,
       kind: branch.kind,
       lines: sql<number>`count(${product.id})::int`,

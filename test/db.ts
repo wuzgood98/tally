@@ -15,6 +15,10 @@ import {
   product,
   stockLevel,
   stockMovement,
+  sale,
+  saleLine,
+  saleReturn,
+  saleReturnLine,
   stockTransfer,
   stockTransferLine,
   supplier,
@@ -37,6 +41,7 @@ export interface TestWorld {
   readonly spintexStorekeeper: Actor;
   readonly kumasiManager: Actor;
   readonly kumasiStorekeeper: Actor;
+  readonly spintexCashier: Actor;
 }
 
 export const SPINTEX = "SPX";
@@ -130,6 +135,13 @@ export const createTestWorld = async (): Promise<TestWorld> => {
       role: "storekeeper",
     },
     {
+      branchId: SPINTEX,
+      email: "till@tally.test",
+      id: "u-till",
+      name: "Esi Quaye",
+      role: "cashier",
+    },
+    {
       branchId: KUMASI,
       email: "kmgr@tally.test",
       id: "u-kmgr",
@@ -151,6 +163,7 @@ export const createTestWorld = async (): Promise<TestWorld> => {
     admin,
     spintexManager,
     spintexStorekeeper,
+    spintexCashier,
     kumasiManager,
     kumasiStorekeeper,
   ] = people.map(({ id, role, branchId }): Actor => ({ branchId, id, role }));
@@ -160,7 +173,8 @@ export const createTestWorld = async (): Promise<TestWorld> => {
     spintexManager === undefined ||
     spintexStorekeeper === undefined ||
     kumasiManager === undefined ||
-    kumasiStorekeeper === undefined
+    kumasiStorekeeper === undefined ||
+    spintexCashier === undefined
   ) {
     throw new Error("Fixture insert failed.");
   }
@@ -172,6 +186,7 @@ export const createTestWorld = async (): Promise<TestWorld> => {
     kumasiManager,
     kumasiStorekeeper,
     products: { kettle: kettle.id, old: old.id, rice: rice.id },
+    spintexCashier,
     spintexManager,
     spintexStorekeeper,
     supplierId: sup.id,
@@ -257,6 +272,29 @@ export const transferMismatches = async (db: Db): Promise<unknown[]> => {
           or (l.received > 0 and m.in_branches <> array[t.to_branch_id])
         else coalesce(m.moved_in, 0) <> l.sent or m.in_branches <> array[t.from_branch_id]
       end
+  `);
+
+  return queryRows.parse(result).rows;
+};
+
+/**
+ * Every sale or return whose movements disagree with its lines. A sale takes
+ * out exactly what it sold; a return puts back exactly what came back, and
+ * writes off exactly the damaged part again.
+ */
+export const saleMismatches = async (db: Db): Promise<unknown[]> => {
+  const result = await db.execute(sql`
+    select 'sale' as document, s.number
+    from ${sale} s
+    where (select coalesce(sum(quantity), 0) from ${saleLine} where sale_id = s.id)
+       <> -(select coalesce(sum(quantity), 0) from ${stockMovement} where sale_id = s.id and kind = 'sale')
+    union all
+    select 'return', r.number
+    from ${saleReturn} r
+    where (select coalesce(sum(quantity), 0) from ${saleReturnLine} where return_id = r.id)
+        <> (select coalesce(sum(quantity), 0) from ${stockMovement} where sale_return_id = r.id and kind = 'sale_return')
+       or (select coalesce(sum(quantity), 0) from ${saleReturnLine} where return_id = r.id and disposition = 'damaged')
+        <> -(select coalesce(sum(quantity), 0) from ${stockMovement} where sale_return_id = r.id and kind = 'adjustment')
   `);
 
   return queryRows.parse(result).rows;

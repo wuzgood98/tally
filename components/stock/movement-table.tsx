@@ -61,6 +61,14 @@ const What = ({ row }: { readonly row: MovementRow }) => {
     );
   }
 
+  if (row.kind === "sale") {
+    return <span>Sale</span>;
+  }
+
+  if (row.kind === "sale_return") {
+    return <span>Customer return</span>;
+  }
+
   if (row.kind === "adjustment" && row.reason) {
     return <span>{REASON_LABELS[row.reason]}</span>;
   }

@@ -14,6 +14,8 @@ export interface PickedProduct {
   readonly barcode: string | null;
   readonly unit: Unit;
   readonly averageCost: number;
+  /** Shelf price including VAT, in pesewas: what the till charges. */
+  readonly sellPrice: number;
   /** On hand per branch id; missing means never stocked there. */
   readonly onHand: Readonly<Record<string, number>>;
 }
@@ -64,6 +66,7 @@ const columns = {
   barcode: product.barcode,
   id: product.id,
   name: product.name,
+  sellPrice: product.sellPrice,
   sku: product.sku,
   unit: product.unit,
 };

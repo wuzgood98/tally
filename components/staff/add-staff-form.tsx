@@ -82,6 +82,7 @@ export const AddStaffForm = ({ branches }: AddStaffFormProps) => {
             }}
             value={role}
           >
+            <option value="cashier">Cashier</option>
             <option value="storekeeper">Storekeeper</option>
             <option value="manager">Branch manager</option>
             <option value="admin">Head office</option>

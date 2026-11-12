@@ -4,6 +4,8 @@ import {
   LogOut,
   Package,
   PackagePlus,
+  Receipt,
+  ScanBarcode,
   ScrollText,
   TriangleAlert,
   Truck,
@@ -14,7 +16,7 @@ import { signOut } from "@/app/login/actions";
 import { TallyMark } from "@/components/brand/tally-mark";
 import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
-import { canManageStaff } from "@/lib/permissions";
+import { canManageStaff, sellableBranchIds } from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
 import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
@@ -36,10 +38,24 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
 
   const homeBranch = branches.find((item) => item.id === viewer.branchId);
 
+  const sellsSomewhere =
+    sellableBranchIds(
+      viewer,
+      branches.flatMap((item) => (item.kind === "store" ? [item.id] : []))
+    ).length > 0;
+
   const nav = (
     <>
       <NavLink href="/" icon={<LayoutDashboard />}>
         Overview
+      </NavLink>
+      {sellsSomewhere ? (
+        <NavLink href="/till" icon={<ScanBarcode />}>
+          Till
+        </NavLink>
+      ) : null}
+      <NavLink href="/sales" icon={<Receipt />}>
+        Sales
       </NavLink>
       <NavLink href="/products" icon={<Package />}>
         Products

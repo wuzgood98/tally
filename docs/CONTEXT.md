@@ -9,7 +9,7 @@ Stock control for **one retailer with several branches**, at the scale of China 
 - Demo company: **Akwaaba Mall**, fictional. Branch locations are real Ghanaian places; the company, people and suppliers are made up. Never present it as China Mall or any real business.
 - The company name comes from `TALLY_COMPANY_NAME` (`lib/site.ts`); the demo name is only the default.
 - Currency: Ghana cedis (GH₵). Time zone: `Africa/Accra` (GMT all year, no daylight saving).
-- Users: head office (`admin`), branch managers (`manager`), storekeepers (`storekeeper`).
+- Users: head office (`admin`), branch managers (`manager`), storekeepers (`storekeeper`), cashiers (`cashier`).
 
 The user is a frontend engineer, and this is their first "real world" project after a run of portfolio sites. They chose: a multi-branch retailer; PostgreSQL + Drizzle + Better Auth; build in milestones, each in **batches**.
 
@@ -47,13 +47,24 @@ Decisions the user accepted for transfers:
 - A manager at the sending branch, or head office, may cancel a transfer in transit, which returns the stock to the sender.
 - Branch _requests_ for stock are out of scope; they belong with purchase orders. So "Transfer from warehouse" shows only to people who can send from the warehouse (head office and Tema staff), viewing a single store.
 
-**Planned next** (proposed to the user, order not yet chosen):
+**Milestone 3, point-of-sale sales, is in progress** on the branch `milestone-3-sales`. The user asked for the rest of the roadmap to be built in order, each milestone in batches: sales, then purchase orders, then reports. Check in with them between milestones.
 
-1. Point-of-sale integration: sales take stock down as they happen.
-2. Purchase orders raised from the low-stock list, received against the order. Branch requests for warehouse stock could join this.
-3. Reports: stock value over time (including goods in transit), fast and slow sellers, losses (shrinkage) by branch, including transit losses (`quantity_sent - quantity_received` on received transfers).
+Decisions the user accepted for sales:
 
-Ask the user which milestone to start, then plan it in batches before writing code.
+- Sales come from an in-app till screen **and** a sales API with per-till keys, both through `recordSale`.
+- A sale is never refused for lack of stock. The balance goes below zero and the line is flagged for a count; only sales (and the write-off half of a damaged return) may do this.
+- There is a new `cashier` role: sells at their own store and nothing else. Managers and head office can sell too; storekeepers can't.
+- Customer returns are in scope. A manager approves each one; each line is restocked or written off as damaged.
+
+Batches:
+
+1. **Done**: migration `0002_sales`; `sale`, `sale_line`, `sale_return` and `sale_return_line` tables; movement kinds `sale` and `sale_return`; `recordSale` (`lib/stock/sales.ts`, idempotent on `(branch, client_ref)`) and `returnSale` (`lib/stock/returns.ts`); permissions `canSell`, `canApproveReturn` and `sellableBranchIds`; tests, including `saleMismatches`.
+2. **Done**: till screen `/till` (`TillForm`: scan to basket, Cash / Mobile money / Card, cash received and change, warns when a line goes beyond the record; the clientRef is kept until the sale succeeds so retries can't double-charge; focus returns to the scan box after each sale), sales list `/sales` with today's total, sale detail `/sales/[id]`, Till and Sales in the nav, cashier in the staff form, and one demo cashier per store (Esi Quaye at Spintex is on the sign-in page). Payment labels live in `lib/stock/payment.ts`, kept free of the schema so client code doesn't bundle Drizzle. Walked through in the browser as a cashier at desktop and 390px.
+3. Sales API `POST /api/v1/sales` with per-till keys managed by head office, and a till simulator script.
+4. Returns UI, sales on the overview and product pages, sale and return labels and links in movements, and "needs a count" flags for negative lines.
+5. Seed a month of sales (scaled down for PGlite), update this file, full verification.
+
+**After Milestone 3:** purchase orders raised from the low-stock list (branch requests for warehouse stock could join this), then reports (stock value over time including goods in transit, fast and slow sellers from `sale_line`, shrinkage by branch including transit losses).
 
 ## Stack
 
@@ -80,10 +91,10 @@ Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), Rea
 These are invariants. New features must keep them. Transfers were added as new movement kinds through the same ledger; sales should be too.
 
 1. **All stock changes go through `applyMovement`** in `lib/stock/ledger.ts`, inside a transaction. It updates `stock_level.on_hand` and appends the `stock_movement` row together. Never write `on_hand` directly anywhere else (the seed's opening balances are the one exception). Tests assert every balance equals the sum of its movements (`ledgerMismatches` in `test/db.ts`).
-2. **Stock goes down only through one conditional UPDATE** (`on_hand + q >= 0` in the WHERE clause). No row updated means insufficient stock. This is what makes concurrent write-offs and sales safe.
+2. **Stock goes down only through one conditional UPDATE** (`on_hand + q >= 0` in the WHERE clause). No row updated means insufficient stock. This is what makes concurrent write-offs and transfers safe. **The one exception is a sale** (`allowNegative` on `applyMovement`): the customer is holding the item, so the sale goes through and the balance may go below zero. The `stock_level` CHECK (≥ 0) was dropped for this. Every query that sums stock must use `greatest(on_hand, 0)`; "out" means `on_hand <= 0`.
 3. **Lock rows in a fixed order** (sorted by product id) when a transaction touches several products, so transactions can't deadlock.
 4. **The ledger is append-only.** Mistakes are corrected with a new adjustment, never by editing or deleting movements.
-5. **Permissions live in `lib/permissions.ts`** (pure, tested functions) and **every domain function checks them**. The UI calls the same functions only to hide controls. Rules: head office acts on any branch. Managers act on their own branch. Storekeepers may receive goods and write off `damaged` / `expired` at their own branch only. Storekeepers may also dispatch and receive transfers at their own branch. Theft, found, internal use, counts, reorder settings and cancelling a transfer need a manager. Catalogue and staff are head office only. Anyone may _view_ any branch.
+5. **Permissions live in `lib/permissions.ts`** (pure, tested functions) and **every domain function checks them**. The UI calls the same functions only to hide controls. Rules: head office acts on any branch. Managers act on their own branch. Storekeepers may receive goods and write off `damaged` / `expired` at their own branch only. Storekeepers may also dispatch and receive transfers at their own branch. Cashiers may only sell at their own store; managers and head office may sell too, storekeepers may not. Returns need a manager. Theft, found, internal use, counts, reorder settings and cancelling a transfer need a manager. Catalogue and staff are head office only. Anyone may _view_ any branch.
 6. **Validate twice.** Server Actions parse untrusted input at the boundary (zod, `lib/form.ts` helpers). Domain functions take typed input (`z.input<typeof schema>`) and parse it again. Business-rule failures throw `StockError` (`lib/stock/errors.ts`) with a message written for the user. Actions catch **only** `StockError` and return `{ error }`; anything else is rethrown (a bug).
 7. **Goods in transit still belong to the company.** Dispatch is a `transfer_out` at the sender; receipt is a `transfer_in` at the receiver; cancelling is a `transfer_in` back at the sender. Anything counting company stock (average cost via `companyUnitsHeld` in `lib/stock/holdings.ts`, stock value) must add `in_transit` lines. Receiving and cancelling claim the transfer with a conditional UPDATE (`WHERE status = 'in_transit'`), so it settles once. Tests assert every transfer's movements match its lines (`transferMismatches` in `test/db.ts`).
 8. Notes are required for theft, found and internal use (`NOTE_REQUIRED` in `lib/stock/reasons.ts`). Count adjustments compute the difference from a locked current balance; a count that matches is `no_change`, not an empty movement.

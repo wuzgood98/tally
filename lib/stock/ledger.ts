@@ -4,8 +4,13 @@
  * so the ledger and the balance can never disagree.
  *
  * The balance is changed with a single conditional UPDATE (`on_hand + q >= 0`),
- * so two tills or storekeepers racing for the last unit can't both win:
- * Postgres serialises the row and the loser sees no row updated.
+ * so two storekeepers racing for the last unit can't both win: Postgres
+ * serialises the row and the loser sees no row updated.
+ *
+ * Sales are the one exception (`allowNegative`). The customer is standing at
+ * the till holding the item, so the record must be wrong, not the sale: it
+ * goes through, the balance goes below zero, and the line is flagged for a
+ * count. Nothing else may take stock below zero.
  */
 
 import { and, eq, sql } from "drizzle-orm";
@@ -25,6 +30,10 @@ export interface MovementInput {
   readonly unitCost?: number;
   readonly receiptId?: number;
   readonly transferId?: number;
+  readonly saleId?: number;
+  readonly saleReturnId?: number;
+  /** Sales only: let the balance go below zero rather than refuse. */
+  readonly allowNegative?: boolean;
   readonly note?: string | null;
   readonly userId?: string | null;
 }
@@ -36,9 +45,11 @@ export interface AppliedMovement {
 
 const changeBalance = async (
   tx: Tx,
-  { branchId, productId, quantity }: MovementInput
+  { allowNegative = false, branchId, productId, quantity }: MovementInput
 ): Promise<number | null> => {
-  if (quantity > 0) {
+  // An upsert never refuses: right for stock coming in, and for a sale that
+  // must go through whatever the record says.
+  if (quantity > 0 || allowNegative) {
     const [row] = await tx
       .insert(stockLevel)
       .values({ branchId, onHand: quantity, productId })
@@ -94,6 +105,8 @@ export const applyMovement = async (
       productId: input.productId,
       quantity: input.quantity,
       receiptId: input.receiptId,
+      saleId: input.saleId,
+      saleReturnId: input.saleReturnId,
       transferId: input.transferId,
       unitCost: input.unitCost,
       userId: input.userId ?? null,

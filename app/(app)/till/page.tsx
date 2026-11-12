@@ -1,0 +1,69 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { TillForm } from "@/components/sales/till-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { sellableBranchIds } from "@/lib/permissions";
+import { getScope, listBranches } from "@/lib/scope";
+import { requireViewer } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Till" };
+
+const TillPage = async () => {
+  const viewer = await requireViewer();
+
+  const [branches, scope] = await Promise.all([
+    listBranches(),
+    getScope(viewer),
+  ]);
+
+  const allowed = new Set(
+    sellableBranchIds(
+      viewer,
+      branches.map((item) => item.id)
+    )
+  );
+
+  // Only stores have tills; the warehouse doesn't sell to customers.
+  const stores = branches.filter(
+    (item) => item.kind === "store" && allowed.has(item.id)
+  );
+
+  if (stores.length === 0) {
+    return (
+      <PageHeader
+        description="The till is for cashiers and managers at a store."
+        title="Till"
+      />
+    );
+  }
+
+  const scoped = scope.kind === "branch" ? scope.branchId : "";
+
+  const defaultStoreId =
+    [scoped, viewer.branchId ?? ""].find((id) =>
+      stores.some((store) => store.id === id)
+    ) ??
+    stores[0]?.id ??
+    "";
+
+  return (
+    <>
+      <PageHeader
+        description="Stock comes off the shelf record the moment a sale is charged."
+        eyebrow={
+          <Link className="hover:text-ink hover:underline" href="/sales">
+            Sales
+          </Link>
+        }
+        title="Till"
+      />
+      <TillForm
+        defaultStoreId={defaultStoreId}
+        stores={stores.map(({ id, name }) => ({ id, name }))}
+      />
+    </>
+  );
+};
+
+export default TillPage;

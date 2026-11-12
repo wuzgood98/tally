@@ -10,7 +10,8 @@ export const effectiveReorderPoint = sql<number>`coalesce(${stockLevel.reorderPo
 /** At or below the reorder point, but not empty. */
 export const isLow = sql<boolean>`(${stockLevel.onHand} > 0 and ${stockLevel.onHand} <= ${effectiveReorderPoint})`;
 
-export const isOut = sql<boolean>`(${stockLevel.onHand} = 0)`;
+/** Empty, or below zero after selling stock the record said wasn't there. */
+export const isOut = sql<boolean>`(${stockLevel.onHand} <= 0)`;
 
 export type StockStatus = "out" | "low" | "ok";
 

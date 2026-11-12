@@ -2,8 +2,8 @@ import { signIn } from "@/app/login/actions";
 import { DEMO_PASSWORD, STAFF } from "@/lib/db/seed-data";
 import { ROLE_LABELS as ROLE_LABEL } from "@/lib/site";
 
-/** Three people who show the three levels of access, all at Spintex. */
-const PICKS = [STAFF[0], STAFF[2], STAFF[3]];
+/** One person per level of access: head office, then three people at Spintex. */
+const PICKS = [STAFF[0], STAFF[2], STAFF[3], STAFF[14]];
 
 /** Plain forms, so they work before any JavaScript loads. */
 const signInAs = async (formData: FormData) => {

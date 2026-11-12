@@ -22,7 +22,7 @@ export const companyUnitsHeld = async (
   const [row] = await executor
     .select({
       units: sql<number>`(
-        (select coalesce(sum(${stockLevel.onHand}), 0)
+        (select coalesce(sum(greatest(${stockLevel.onHand}, 0)), 0)
           from ${stockLevel}
           where ${stockLevel.productId} = ${product.id})
         + (select coalesce(sum(${stockTransferLine.quantitySent}), 0)

@@ -4,6 +4,7 @@
  *
  * - Head office (admin): everything, at every branch.
  * - Branch manager: runs their own branch's stock; sees other branches.
+ * - Cashier: sells at their own branch's tills, and nothing else.
  * - Storekeeper: receives goods, sends and receives transfers, and writes off
  *   damaged or expired stock at their own branch. Anything that could hide a
  *   loss (theft, recounts, "found" stock, internal use) needs a manager, and so
@@ -22,20 +23,24 @@ export interface Actor {
 const worksAt = (actor: Actor, branchId: string): boolean =>
   actor.role === "admin" || actor.branchId === branchId;
 
+/** Everyone who handles stock in the back: not cashiers, who only sell. */
+const handlesStockAt = (actor: Actor, branchId: string): boolean =>
+  actor.role !== "cashier" && worksAt(actor, branchId);
+
 const STOREKEEPER_REASONS: ReadonlySet<AdjustmentReason> = new Set([
   "damaged",
   "expired",
 ]);
 
 export const canReceive = (actor: Actor, branchId: string): boolean =>
-  worksAt(actor, branchId);
+  handlesStockAt(actor, branchId);
 
 export const canAdjust = (
   actor: Actor,
   branchId: string,
   reason: AdjustmentReason
 ): boolean => {
-  if (!worksAt(actor, branchId)) {
+  if (!handlesStockAt(actor, branchId)) {
     return false;
   }
 
@@ -50,35 +55,58 @@ export const adjustableReasons = (
 ): AdjustmentReason[] =>
   reasons.filter((reason) => canAdjust(actor, branchId, reason));
 
+/** Head office anywhere, or a manager at their own branch. */
+const managesAt = (actor: Actor, branchId: string): boolean =>
+  (actor.role === "manager" || actor.role === "admin") &&
+  worksAt(actor, branchId);
+
 /** Sending stock: the receiving branch counts it in, which checks the sender. */
 export const canDispatchTransfer = (
   actor: Actor,
   fromBranchId: string
-): boolean => worksAt(actor, fromBranchId);
+): boolean => handlesStockAt(actor, fromBranchId);
 
 /** Counting a transfer in, including recording units lost on the way. */
 export const canReceiveTransfer = (actor: Actor, toBranchId: string): boolean =>
-  worksAt(actor, toBranchId);
+  handlesStockAt(actor, toBranchId);
 
 /** Calling back a transfer still in transit returns its stock to the sender. */
 export const canCancelTransfer = (
   actor: Actor,
   fromBranchId: string
-): boolean => actor.role !== "storekeeper" && worksAt(actor, fromBranchId);
+): boolean => managesAt(actor, fromBranchId);
 
 export const canSetReorderPoint = (actor: Actor, branchId: string): boolean =>
+  managesAt(actor, branchId);
+
+/** Ringing up sales: cashiers and managers at their branch, head office anywhere. */
+export const canSell = (actor: Actor, branchId: string): boolean =>
   actor.role !== "storekeeper" && worksAt(actor, branchId);
+
+/** Returns are a common way to hide theft, so a manager approves every one. */
+export const canApproveReturn = (actor: Actor, branchId: string): boolean =>
+  managesAt(actor, branchId);
 
 export const canManageCatalogue = (actor: Actor): boolean =>
   actor.role === "admin";
 
 export const canManageStaff = (actor: Actor): boolean => actor.role === "admin";
 
+const ownBranches = (actor: Actor, allBranchIds: readonly string[]): string[] =>
+  actor.role === "admin"
+    ? [...allBranchIds]
+    : allBranchIds.filter((id) => id === actor.branchId);
+
 /** Branches whose stock this actor may change: their own, or all for head office. */
 export const operableBranchIds = (
   actor: Actor,
   allBranchIds: readonly string[]
 ): string[] =>
-  actor.role === "admin"
-    ? [...allBranchIds]
-    : allBranchIds.filter((id) => id === actor.branchId);
+  actor.role === "cashier" ? [] : ownBranches(actor, allBranchIds);
+
+/** Branches whose tills this actor may use. */
+export const sellableBranchIds = (
+  actor: Actor,
+  allBranchIds: readonly string[]
+): string[] =>
+  actor.role === "storekeeper" ? [] : ownBranches(actor, allBranchIds);

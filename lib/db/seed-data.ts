@@ -1116,6 +1116,36 @@ export const STAFF = [
     name: "Gifty Addo",
     role: "storekeeper",
   },
+  {
+    branchId: "SPX",
+    email: "esi.quaye@akwaaba.example",
+    name: "Esi Quaye",
+    role: "cashier",
+  },
+  {
+    branchId: "WJA",
+    email: "nana.yeboah@akwaaba.example",
+    name: "Nana Yeboah",
+    role: "cashier",
+  },
+  {
+    branchId: "ASH",
+    email: "fuseini.iddrisu@akwaaba.example",
+    name: "Fuseini Iddrisu",
+    role: "cashier",
+  },
+  {
+    branchId: "AMS",
+    email: "dzifa.agbenu@akwaaba.example",
+    name: "Dzifa Agbenu",
+    role: "cashier",
+  },
+  {
+    branchId: "KSI",
+    email: "kwame.asamoah@akwaaba.example",
+    name: "Kwame Asamoah",
+    role: "cashier",
+  },
 ] as const;
 
 /** Every demo account shares this password. Shown on the sign-in page in demo mode. */
