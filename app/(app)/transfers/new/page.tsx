@@ -8,38 +8,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { noStockBranchMessage } from "@/lib/access-messages";
 import { operableBranchIds } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
-import { param } from "@/lib/search-params";
+import { lineParam, param } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 import { MAX_TRANSFER_LINES } from "@/lib/stock/transfer";
 
 export const metadata: Metadata = { title: "New transfer" };
 
-const LINE_PATTERN = /^(?<id>\d+):(?<quantity>\d+)$/u;
-
-/** "?lines=12:40,15:10" pre-fills products and quantities, e.g. from low stock. */
-const requestedLines = (text: string): { id: number; quantity: number }[] =>
-  text
-    .split(",")
-    .slice(0, MAX_TRANSFER_LINES)
-    .flatMap((part) => {
-      const match = LINE_PATTERN.exec(part.trim());
-
-      if (match === null) {
-        return [];
-      }
-
-      const id = Number(match.groups?.id);
-      const quantity = Number(match.groups?.quantity);
-
-      return Number.isSafeInteger(id) &&
-        id > 0 &&
-        Number.isSafeInteger(quantity)
-        ? [{ id, quantity }]
-        : [];
-    });
-
 const loadLines = async (text: string): Promise<TransferDraftLine[]> => {
-  const wanted = requestedLines(text);
+  const wanted = lineParam(text, MAX_TRANSFER_LINES);
 
   const products = await Promise.all(
     wanted.map(async ({ id }) => await getPickedProduct(id))

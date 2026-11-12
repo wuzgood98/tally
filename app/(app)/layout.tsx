@@ -8,6 +8,7 @@ import {
   Receipt,
   ScanBarcode,
   ScrollText,
+  ShoppingCart,
   TriangleAlert,
   Truck,
   Users,
@@ -18,11 +19,13 @@ import { TallyMark } from "@/components/brand/tally-mark";
 import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import {
+  canApprovePurchaseOrder,
   canManageStaff,
   canManageTills,
   sellableBranchIds,
 } from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
+import { countDraftPurchaseOrders } from "@/lib/queries/purchase-orders";
 import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
@@ -36,9 +39,13 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     getScope(viewer),
   ]);
 
-  const [totals, incoming] = await Promise.all([
+  const [totals, incoming, draftsToApprove] = await Promise.all([
     getOverviewTotals(scope),
     countIncomingInTransit(scope),
+    // Only head office approves, so only head office sees the count.
+    canApprovePurchaseOrder(viewer)
+      ? countDraftPurchaseOrders()
+      : Promise.resolve(0),
   ]);
 
   const homeBranch = branches.find((item) => item.id === viewer.branchId);
@@ -78,6 +85,13 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       <NavLink badge={incoming} href="/transfers" icon={<Truck />}>
         Transfers
       </NavLink>
+      <NavLink
+        badge={draftsToApprove}
+        href="/purchase-orders"
+        icon={<ShoppingCart />}
+      >
+        Purchase orders
+      </NavLink>
       <NavLink href="/adjustments" icon={<ClipboardList />}>
         Adjustments
       </NavLink>
@@ -98,7 +112,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
   );
 
   return (
-    <div className="lg:grid lg:min-h-svh lg:grid-cols-[15rem_1fr]">
+    <div className="lg:grid lg:min-h-svh lg:grid-cols-[15rem_1fr] print:block">
       <a
         className="bg-brand text-primary-foreground sr-only z-50 rounded-md px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
         href="#main"
@@ -106,7 +120,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
         Skip to content
       </a>
 
-      <aside className="border-line bg-paper hidden border-r lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col">
+      <aside className="border-line bg-paper hidden border-r lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col print:hidden">
         <div className="flex items-center gap-2.5 px-4 pt-5 pb-6">
           <TallyMark className="text-brand size-7" />
           <div className="leading-tight">
@@ -136,7 +150,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       </aside>
 
       <div className="min-w-0">
-        <header className="border-line bg-paper/90 sticky top-0 z-30 border-b backdrop-blur">
+        <header className="border-line bg-paper/90 sticky top-0 z-30 border-b backdrop-blur print:hidden">
           <div className="flex h-14 items-center justify-between gap-3 px-4 lg:px-8">
             <div className="flex items-center gap-2 lg:hidden">
               <TallyMark className="text-brand size-6" />
@@ -165,7 +179,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
             {nav}
           </nav>
         </header>
-        <main className="px-4 pt-6 pb-16 lg:px-8 lg:pt-8" id="main">
+        <main className="px-4 pt-6 pb-16 lg:px-8 lg:pt-8 print:p-0" id="main">
           {children}
         </main>
       </div>

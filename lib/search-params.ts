@@ -48,3 +48,33 @@ export const queryString = (
 
   return text ? `?${text}` : "";
 };
+
+const LINE_PATTERN = /^(?<id>\d+):(?<quantity>\d+)$/u;
+
+/**
+ * "?lines=12:40,15:10": products and quantities to pre-fill a form with, e.g.
+ * from the low-stock list. Anything malformed is skipped, and at most `max`.
+ */
+export const lineParam = (
+  text: string,
+  max: number
+): { id: number; quantity: number }[] =>
+  text
+    .split(",")
+    .slice(0, max)
+    .flatMap((part) => {
+      const match = LINE_PATTERN.exec(part.trim());
+
+      if (match === null) {
+        return [];
+      }
+
+      const id = Number(match.groups?.id);
+      const quantity = Number(match.groups?.quantity);
+
+      return Number.isSafeInteger(id) &&
+        id > 0 &&
+        Number.isSafeInteger(quantity)
+        ? [{ id, quantity }]
+        : [];
+    });

@@ -78,7 +78,8 @@
   --good: #1f7a49;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Screens only: anything printed (a purchase order) stays dark ink on paper. */
+@media screen and (prefers-color-scheme: dark) {
   :root {
     --paper: #121411;
     --surface: #1a1d19;

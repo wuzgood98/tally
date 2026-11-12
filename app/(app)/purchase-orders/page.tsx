@@ -1,0 +1,179 @@
+import { FilePlus2 } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { PurchaseOrderStatusBadge } from "@/components/purchasing/purchase-order-status-badge";
+import { buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { Panel } from "@/components/ui/panel";
+import { Table, Td, Th } from "@/components/ui/table";
+import { formatCount, formatDate, isoString } from "@/lib/format";
+import { formatCedis } from "@/lib/money";
+import { canDraftPurchaseOrder } from "@/lib/permissions";
+import {
+  listPurchaseOrders,
+  PURCHASE_ORDERS_PAGE_SIZE,
+} from "@/lib/queries/purchase-orders";
+import { getScope, listBranches, scopeLabel } from "@/lib/scope";
+import { enumParam, intParam, queryString } from "@/lib/search-params";
+import { requireViewer } from "@/lib/session";
+import {
+  PURCHASE_ORDER_STATUS_LABELS,
+  PURCHASE_ORDER_STATUSES,
+} from "@/lib/stock/purchase-order-status";
+
+export const metadata: Metadata = { title: "Purchase orders" };
+
+const STATUSES = ["all", ...PURCHASE_ORDER_STATUSES] as const;
+
+const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
+  all: "Any status",
+  ...PURCHASE_ORDER_STATUS_LABELS,
+};
+
+const PurchaseOrdersPage = async ({
+  searchParams,
+}: PageProps<"/purchase-orders">) => {
+  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const page = intParam(params, "page", 1);
+  const status = enumParam(params, "status", STATUSES, "all");
+
+  const [branches, scope] = await Promise.all([
+    listBranches(),
+    getScope(viewer),
+  ]);
+
+  const { rows, total } = await listPurchaseOrders(
+    scope,
+    status === "all" ? null : status,
+    page
+  );
+
+  const canDraft = branches.some((item) =>
+    canDraftPurchaseOrder(viewer, item.id)
+  );
+
+  return (
+    <>
+      <PageHeader
+        actions={
+          canDraft ? (
+            <Link
+              className={buttonVariants({ size: "md" })}
+              href="/purchase-orders/new"
+            >
+              <FilePlus2 aria-hidden="true" />
+              New order
+            </Link>
+          ) : null
+        }
+        description={`Orders to suppliers, newest first. Managers draft them; head office approves and sends them. · ${scopeLabel(scope, branches)}`}
+        title="Purchase orders"
+      />
+
+      <form
+        action="/purchase-orders"
+        className="mb-4 flex flex-wrap items-center gap-2"
+      >
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-ink-2">Show</span>
+          <select className="field w-auto" defaultValue={status} name="status">
+            {STATUSES.map((value) => (
+              <option key={value} value={value}>
+                {STATUS_OPTIONS[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className={buttonVariants({ size: "md", variant: "outline" })}
+          type="submit"
+        >
+          Apply
+        </button>
+      </form>
+
+      <Panel flush>
+        {rows.length === 0 ? (
+          <p className="text-ink-2 p-8 text-center text-sm">
+            No purchase orders match.
+          </p>
+        ) : (
+          <Table>
+            <caption className="sr-only">Purchase orders</caption>
+            <thead>
+              <tr>
+                <Th>Order</Th>
+                <Th>Supplier</Th>
+                {scope.kind === "all" ? <Th>Deliver to</Th> : null}
+                <Th>Status</Th>
+                <Th>Expected</Th>
+                <Th numeric>Received</Th>
+                <Th numeric>Value</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr className="hover:bg-surface-2/60" key={row.id}>
+                  <Td nowrap>
+                    <Link
+                      className="text-brand font-mono text-xs font-medium hover:underline"
+                      href={`/purchase-orders/${row.id}`}
+                    >
+                      {row.number}
+                    </Link>
+                    <time
+                      className="text-ink-3 tabular block text-xs"
+                      dateTime={isoString(row.createdAt)}
+                    >
+                      {formatDate(row.createdAt)}
+                    </time>
+                  </Td>
+                  <Td className="min-w-44">{row.supplierName}</Td>
+                  {scope.kind === "all" ? (
+                    <Td nowrap>{row.branchName}</Td>
+                  ) : null}
+                  <Td nowrap>
+                    <PurchaseOrderStatusBadge status={row.status} />
+                  </Td>
+                  <Td nowrap tone="muted">
+                    {row.expectedAt === null ? (
+                      "—"
+                    ) : (
+                      <time
+                        className="tabular"
+                        dateTime={isoString(row.expectedAt)}
+                      >
+                        {formatDate(row.expectedAt)}
+                      </time>
+                    )}
+                  </Td>
+                  <Td numeric tone="muted">
+                    {formatCount(row.received)} / {formatCount(row.ordered)}
+                  </Td>
+                  <Td numeric weight="medium">
+                    {formatCedis(row.totalCost)}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+        <div className="border-line border-t">
+          <Pagination
+            href={(target) =>
+              `/purchase-orders${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
+            }
+            noun="orders"
+            page={page}
+            pageSize={PURCHASE_ORDERS_PAGE_SIZE}
+            total={total}
+          />
+        </div>
+      </Panel>
+    </>
+  );
+};
+
+export default PurchaseOrdersPage;
