@@ -17,7 +17,37 @@ interface MovementTableProps {
   readonly caption: string;
 }
 
+const TransferLink = ({ row }: { readonly row: MovementRow }) =>
+  row.transferId === null ? null : (
+    <Link
+      className="text-brand ml-1.5 font-mono text-xs hover:underline"
+      href={`/transfers/${row.transferId}`}
+    >
+      {row.transferNumber}
+    </Link>
+  );
+
+/** Sent away, arrived, or came back because the transfer was cancelled. */
+const transferLabel = (row: MovementRow): string => {
+  if (row.kind === "transfer_out") {
+    return `Sent to ${row.transferToName ?? "another branch"}`;
+  }
+
+  return row.branchId === row.transferFromId
+    ? "Returned: transfer cancelled"
+    : `Received from ${row.transferFromName ?? "another branch"}`;
+};
+
 const What = ({ row }: { readonly row: MovementRow }) => {
+  if (row.kind === "transfer_out" || row.kind === "transfer_in") {
+    return (
+      <span>
+        {transferLabel(row)}
+        <TransferLink row={row} />
+      </span>
+    );
+  }
+
   if (row.kind === "receipt") {
     return row.receiptId === null ? (
       <span>Delivery</span>

@@ -3,12 +3,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CancelTransferForm } from "@/components/stock/cancel-transfer-form";
+import { ReceiveTransferForm } from "@/components/stock/receive-transfer-form";
 import { TransferStatusBadge } from "@/components/stock/transfer-status-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
+import { canCancelTransfer, canReceiveTransfer } from "@/lib/permissions";
 import { getTransfer } from "@/lib/queries/transfers";
 import type { TransferDetail } from "@/lib/queries/transfers";
 import { param } from "@/lib/search-params";
@@ -180,11 +183,71 @@ const LinesTable = ({ transfer }: { readonly transfer: TransferDetail }) => {
   );
 };
 
+type Query = Record<string, string | string[] | undefined>;
+
+const NOTICE_KINDS = ["sent", "received", "cancelled"] as const;
+
+const noticeText = (
+  kind: (typeof NOTICE_KINDS)[number],
+  transfer: TransferDetail
+): string => {
+  const sent = transfer.lines.reduce((sum, line) => sum + line.quantitySent, 0);
+
+  const received = transfer.lines.reduce(
+    (sum, line) => sum + (line.quantityReceived ?? 0),
+    0
+  );
+
+  if (kind === "sent") {
+    return `Sent. ${formatCount(sent)} units left ${transfer.fromName} and are on the way to ${transfer.toName}.`;
+  }
+
+  if (kind === "cancelled") {
+    return `Cancelled. ${formatCount(sent)} units are back at ${transfer.fromName}.`;
+  }
+
+  const lost = sent - received;
+  const added = `Received. ${formatCount(received)} units added to ${transfer.toName}`;
+
+  return lost > 0
+    ? `${added}; ${formatCount(lost)} recorded as lost in transit.`
+    : `${added}.`;
+};
+
+/** The confirmation after sending, receiving or cancelling, if any. */
+const Notice = ({
+  query,
+  transfer,
+}: {
+  readonly query: Query;
+  readonly transfer: TransferDetail;
+}) => {
+  const kind = NOTICE_KINDS.find(
+    (candidate) => param(query, candidate) === "1"
+  );
+
+  if (kind === undefined) {
+    return null;
+  }
+
+  return (
+    <output className="bg-brand-soft text-good mb-6 flex flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
+      <CircleCheck aria-hidden="true" className="size-4" />
+      {noticeText(kind, transfer)}
+      {kind === "sent" ? (
+        <Link className="ml-auto underline" href="/transfers/new">
+          Send another
+        </Link>
+      ) : null}
+    </output>
+  );
+};
+
 const TransferPage = async ({
   params,
   searchParams,
 }: PageProps<"/transfers/[id]">) => {
-  const [, route, query] = await Promise.all([
+  const [viewer, route, query] = await Promise.all([
     requireViewer(),
     params,
     searchParams,
@@ -196,8 +259,6 @@ const TransferPage = async ({
   if (!transfer) {
     notFound();
   }
-
-  const justSent = param(query, "sent") === "1";
 
   const units = transfer.lines.reduce(
     (sum, line) => sum + line.quantitySent,
@@ -213,18 +274,17 @@ const TransferPage = async ({
     0
   );
 
+  const inTransit = transfer.status === "in_transit";
+
+  const receivable =
+    inTransit && canReceiveTransfer(viewer, transfer.toBranchId);
+
+  const cancellable =
+    inTransit && canCancelTransfer(viewer, transfer.fromBranchId);
+
   return (
     <>
-      {justSent ? (
-        <output className="bg-brand-soft text-good mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-          <CircleCheck aria-hidden="true" className="size-4" />
-          Sent. {formatCount(units)} units left {transfer.fromName} and are on
-          the way to {transfer.toName}.
-          <Link className="ml-auto underline" href="/transfers/new">
-            Send another
-          </Link>
-        </output>
-      ) : null}
+      <Notice query={query} transfer={transfer} />
 
       <PageHeader
         actions={
@@ -276,12 +336,30 @@ const TransferPage = async ({
         )}
       </Panel>
 
-      <Panel
-        flush
-        title={`${formatCount(transfer.lines.length)} ${transfer.lines.length === 1 ? "line" : "lines"} · ${formatCount(units)} units`}
-      >
-        <LinesTable transfer={transfer} />
-      </Panel>
+      {receivable ? (
+        <Panel flush title={`Count it in · ${formatCount(units)} units sent`}>
+          <ReceiveTransferForm
+            lines={transfer.lines}
+            transferId={transfer.id}
+          />
+        </Panel>
+      ) : (
+        <Panel
+          flush
+          title={`${formatCount(transfer.lines.length)} ${transfer.lines.length === 1 ? "line" : "lines"} · ${formatCount(units)} units`}
+        >
+          <LinesTable transfer={transfer} />
+        </Panel>
+      )}
+
+      {cancellable ? (
+        <Panel className="mt-6">
+          <CancelTransferForm
+            fromName={transfer.fromName}
+            transferId={transfer.id}
+          />
+        </Panel>
+      ) : null}
     </>
   );
 };

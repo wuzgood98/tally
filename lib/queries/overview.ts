@@ -8,6 +8,8 @@ import {
   goodsReceipt,
   product,
   stockLevel,
+  stockTransfer,
+  stockTransferLine,
   supplier,
 } from "@/lib/db/schema";
 import {
@@ -98,6 +100,8 @@ export interface ReorderLine {
   readonly branchName: string;
   readonly onHand: number;
   readonly reorderPoint: number;
+  /** Units already on a transfer to this branch, so nobody orders them twice. */
+  readonly inTransit: number;
   readonly supplierName: string | null;
   readonly categoryName: string;
 }
@@ -115,6 +119,15 @@ export const getReorderLines = async (
       branchId: stockLevel.branchId,
       branchName: branch.name,
       categoryName: category.name,
+      // Unique alias: subquery columns are emitted without a table prefix.
+      inTransit: sql<number>`(
+        select coalesce(sum(${stockTransferLine.quantitySent}), 0)::int
+        from ${stockTransferLine}
+        join ${stockTransfer} on ${stockTransfer.id} = ${stockTransferLine.transferId}
+        where ${stockTransfer.status} = 'in_transit'
+          and ${stockTransfer.toBranchId} = ${stockLevel.branchId}
+          and ${stockTransferLine.productId} = ${stockLevel.productId}
+      )`.as("reorder_in_transit"),
       name: product.name,
       onHand: stockLevel.onHand,
       productId: product.id,

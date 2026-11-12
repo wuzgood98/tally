@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { getDb } from "@/lib/db";
 import {
@@ -8,6 +9,7 @@ import {
   goodsReceipt,
   product,
   stockMovement,
+  stockTransfer,
   user,
 } from "@/lib/db/schema";
 import type { AdjustmentReason, MovementKind } from "@/lib/db/schema";
@@ -28,8 +30,16 @@ export interface MovementRow {
   readonly sku: string;
   readonly receiptId: number | null;
   readonly receiptNumber: string | null;
+  readonly transferId: number | null;
+  readonly transferNumber: string | null;
+  readonly transferFromId: string | null;
+  readonly transferFromName: string | null;
+  readonly transferToName: string | null;
   readonly userName: string | null;
 }
+
+const transferFrom = alias(branch, "transfer_from");
+const transferTo = alias(branch, "transfer_to");
 
 export interface MovementFilter {
   readonly branchId?: string;
@@ -74,6 +84,11 @@ export const listMovements = async (
       receiptId: stockMovement.receiptId,
       receiptNumber: goodsReceipt.number,
       sku: product.sku,
+      transferFromId: stockTransfer.fromBranchId,
+      transferFromName: transferFrom.name,
+      transferId: stockMovement.transferId,
+      transferNumber: stockTransfer.number,
+      transferToName: transferTo.name,
       unitCost: stockMovement.unitCost,
       userName: user.name,
     })
@@ -81,6 +96,9 @@ export const listMovements = async (
     .innerJoin(branch, eq(branch.id, stockMovement.branchId))
     .innerJoin(product, eq(product.id, stockMovement.productId))
     .leftJoin(goodsReceipt, eq(goodsReceipt.id, stockMovement.receiptId))
+    .leftJoin(stockTransfer, eq(stockTransfer.id, stockMovement.transferId))
+    .leftJoin(transferFrom, eq(transferFrom.id, stockTransfer.fromBranchId))
+    .leftJoin(transferTo, eq(transferTo.id, stockTransfer.toBranchId))
     .leftJoin(user, eq(user.id, stockMovement.userId))
     .where(and(...conditions))
     // Ids follow insertion order; the seed's backdating keeps them in time order too.

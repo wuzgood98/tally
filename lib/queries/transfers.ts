@@ -167,3 +167,43 @@ export const getTransfer = async (id: number) => {
 export type TransferDetail = NonNullable<
   Awaited<ReturnType<typeof getTransfer>>
 >;
+
+/** Transfers on the road towards the scope's branch, or anywhere for all branches. */
+export const countIncomingInTransit = async (scope: Scope): Promise<number> => {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(stockTransfer)
+    .where(
+      and(
+        eq(stockTransfer.status, "in_transit"),
+        scopeCondition(scope, "incoming")
+      )
+    );
+
+  return row?.count ?? 0;
+};
+
+/** Units of a product in transit, by receiving branch id. */
+export const getProductInTransit = async (
+  productId: number
+): Promise<Map<string, number>> => {
+  const rows = await getDb()
+    .select({
+      branchId: stockTransfer.toBranchId,
+      units: sql<number>`sum(${stockTransferLine.quantitySent})::int`,
+    })
+    .from(stockTransferLine)
+    .innerJoin(
+      stockTransfer,
+      eq(stockTransfer.id, stockTransferLine.transferId)
+    )
+    .where(
+      and(
+        eq(stockTransferLine.productId, productId),
+        eq(stockTransfer.status, "in_transit")
+      )
+    )
+    .groupBy(stockTransfer.toBranchId);
+
+  return new Map(rows.map((row) => [row.branchId, row.units]));
+};

@@ -21,6 +21,7 @@ import {
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct, getProductLevels } from "@/lib/queries/products";
 import { stockStatus } from "@/lib/queries/stock-status";
+import { getProductInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { param, queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
@@ -89,8 +90,9 @@ const ProductPage = async ({
     notFound();
   }
 
-  const [levels, scope, branches] = await Promise.all([
+  const [levels, inTransit, scope, branches] = await Promise.all([
     getProductLevels(item.id),
+    getProductInTransit(item.id),
     getScope(viewer),
     listBranches(),
   ]);
@@ -103,6 +105,11 @@ const ProductPage = async ({
   );
 
   const totalOnHand = levels.reduce((sum, level) => sum + level.onHand, 0);
+
+  const totalInTransit = [...inTransit.values()].reduce(
+    (sum, units) => sum + units,
+    0
+  );
 
   const margin =
     item.sellPrice > 0
@@ -219,6 +226,9 @@ const ProductPage = async ({
             <span className="text-ink-2 tabular text-sm">
               {formatCount(totalOnHand)}{" "}
               {item.unit === "each" ? "units" : item.unit} in total
+              {totalInTransit > 0
+                ? ` · ${formatCount(totalInTransit)} on the way`
+                : ""}
             </span>
           }
           flush
@@ -234,6 +244,7 @@ const ProductPage = async ({
                 <Th>Branch</Th>
                 <Th>Location</Th>
                 <Th numeric>On hand</Th>
+                <Th numeric>On the way</Th>
                 <Th numeric>Reorder at</Th>
                 <Th>Status</Th>
               </tr>
@@ -241,6 +252,7 @@ const ProductPage = async ({
             <tbody>
               {levels.map((level) => {
                 const reorderPoint = level.reorderOverride ?? item.reorderPoint;
+                const onTheWay = inTransit.get(level.branchId) ?? 0;
 
                 return (
                   <tr
@@ -266,6 +278,9 @@ const ProductPage = async ({
                     </Td>
                     <Td numeric weight="medium">
                       {formatCount(level.onHand)}
+                    </Td>
+                    <Td numeric tone={onTheWay > 0 ? "good" : "faint"}>
+                      {onTheWay > 0 ? `+${formatCount(onTheWay)}` : "—"}
                     </Td>
                     <Td numeric tone="muted">
                       {formatCount(reorderPoint)}

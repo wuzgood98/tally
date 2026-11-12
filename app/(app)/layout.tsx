@@ -16,6 +16,7 @@ import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import { canManageStaff } from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
+import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 import { COMPANY_NAME, ROLE_LABELS } from "@/lib/site";
@@ -28,7 +29,11 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     getScope(viewer),
   ]);
 
-  const totals = await getOverviewTotals(scope);
+  const [totals, incoming] = await Promise.all([
+    getOverviewTotals(scope),
+    countIncomingInTransit(scope),
+  ]);
+
   const homeBranch = branches.find((item) => item.id === viewer.branchId);
 
   const nav = (
@@ -49,7 +54,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       <NavLink href="/receipts" icon={<PackagePlus />}>
         Receive goods
       </NavLink>
-      <NavLink href="/transfers" icon={<Truck />}>
+      <NavLink badge={incoming} href="/transfers" icon={<Truck />}>
         Transfers
       </NavLink>
       <NavLink href="/adjustments" icon={<ClipboardList />}>

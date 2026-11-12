@@ -1,18 +1,57 @@
+import { Truck } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { ReorderTable } from "@/components/stock/reorder-table";
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
+import { canDispatchTransfer } from "@/lib/permissions";
 import { getReorderLines } from "@/lib/queries/overview";
 import type { ReorderLine } from "@/lib/queries/overview";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
+import type { BranchSummary, Scope } from "@/lib/scope";
+import { queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
+import type { Viewer } from "@/lib/session";
+import { topUpLinesParam } from "@/lib/stock/top-up";
 
 export const metadata: Metadata = { title: "Low stock" };
 
 /** Enough for every line at a large store; the list is grouped, not paged. */
 const LIMIT = 2000;
+
+/**
+ * A pre-filled transfer from the warehouse to the store on screen, for people
+ * who can send from the warehouse. Null when that doesn't apply.
+ */
+const warehouseTopUpHref = (
+  viewer: Viewer,
+  scope: Scope,
+  branches: readonly BranchSummary[],
+  lines: readonly ReorderLine[]
+): string | null => {
+  const warehouse = branches.find((item) => item.kind === "warehouse");
+
+  const store = branches.find(
+    (item) => scope.kind === "branch" && item.id === scope.branchId
+  );
+
+  if (
+    warehouse === undefined ||
+    store?.kind !== "store" ||
+    !canDispatchTransfer(viewer, warehouse.id)
+  ) {
+    return null;
+  }
+
+  const prefill = topUpLinesParam(lines);
+
+  return prefill === ""
+    ? null
+    : `/transfers/new${queryString({ from: warehouse.id, lines: prefill, to: store.id })}`;
+};
 
 const LowStockPage = async () => {
   const viewer = await requireViewer();
@@ -33,10 +72,19 @@ const LowStockPage = async () => {
   ].toSorted(([, a], [, b]) => b.length - a.length);
 
   const out = lines.filter((line) => line.onHand === 0).length;
+  const topUpHref = warehouseTopUpHref(viewer, scope, branches, lines);
 
   return (
     <>
       <PageHeader
+        actions={
+          topUpHref === null ? undefined : (
+            <Link className={buttonVariants({ size: "md" })} href={topUpHref}>
+              <Truck aria-hidden="true" />
+              Transfer from warehouse
+            </Link>
+          )
+        }
         description={`${formatCount(lines.length)} lines at or below their reorder point, ${formatCount(out)} of them empty, grouped by supplier · ${scopeLabel(scope, branches)}`}
         title="Low stock"
       />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { MovementTable } from "@/components/stock/movement-table";
+import { OnTheWayPanel } from "@/components/stock/on-the-way-panel";
 import { ReorderTable } from "@/components/stock/reorder-table";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -15,11 +16,14 @@ import {
   getReorderLines,
   getWeekReceipts,
 } from "@/lib/queries/overview";
+import { listTransfers } from "@/lib/queries/transfers";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
+import { queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 
 const REORDER_PREVIEW = 8;
 const RECENT_MOVEMENTS = 8;
+const ON_THE_WAY_PREVIEW = 5;
 
 const SeeAll = ({
   href,
@@ -44,13 +48,15 @@ const OverviewPage = async () => {
   const allBranches = scope.kind === "all";
   const branchId = allBranches ? undefined : scope.branchId;
 
-  const [totals, week, reorder, movements, health] = await Promise.all([
-    getOverviewTotals(scope),
-    getWeekReceipts(scope),
-    getReorderLines(scope, REORDER_PREVIEW),
-    listMovements({ branchId }, RECENT_MOVEMENTS),
-    allBranches ? getBranchHealth() : Promise.resolve([]),
-  ]);
+  const [totals, week, reorder, movements, health, incoming] =
+    await Promise.all([
+      getOverviewTotals(scope),
+      getWeekReceipts(scope),
+      getReorderLines(scope, REORDER_PREVIEW),
+      listMovements({ branchId }, RECENT_MOVEMENTS),
+      allBranches ? getBranchHealth() : Promise.resolve([]),
+      listTransfers(scope, { direction: "incoming", status: "in_transit" }, 1),
+    ]);
 
   // Rendered on the server only, so there is no client clock to disagree with.
   const today = formatLongDate(new Date());
@@ -148,6 +154,15 @@ const OverviewPage = async () => {
               </tbody>
             </Table>
           </Panel>
+        ) : null}
+
+        {incoming.total > 0 ? (
+          <OnTheWayPanel
+            className="xl:col-span-2"
+            href={`/transfers${queryString({ direction: allBranches ? null : "incoming", status: "in_transit" })}`}
+            rows={incoming.rows.slice(0, ON_THE_WAY_PREVIEW)}
+            total={incoming.total}
+          />
         ) : null}
 
         <Panel

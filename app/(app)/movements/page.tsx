@@ -15,13 +15,23 @@ import { requireViewer } from "@/lib/session";
 export const metadata: Metadata = { title: "Movements" };
 
 const PAGE = 50;
-const KINDS = ["all", "receipt", "adjustment", "opening"] as const;
+
+const KINDS = [
+  "all",
+  "receipt",
+  "adjustment",
+  "transfer_out",
+  "transfer_in",
+  "opening",
+] as const;
 
 const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   adjustment: "Adjustments",
   all: "Everything",
   opening: "Opening balances",
   receipt: "Deliveries",
+  transfer_in: "Transfers in",
+  transfer_out: "Transfers out",
 };
 
 const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
