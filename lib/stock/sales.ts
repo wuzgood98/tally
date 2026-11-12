@@ -140,11 +140,15 @@ const loadSaleReferences = async (
   return new Map(products.map((row) => [row.id, row]));
 };
 
-export const recordSale = async (
-  db: Db,
-  actor: Actor,
-  rawInput: SaleRawInput
-): Promise<SaleResult> => {
+/** Who a sale is recorded against: a person at the in-app till, or a POS till. */
+interface SaleSource {
+  readonly cashierId: string | null;
+  readonly tillId: number | null;
+}
+
+type SaleInput = z.infer<typeof saleInput>;
+
+const parseSale = (rawInput: SaleRawInput): SaleInput => {
   const parsed = saleInput.safeParse(rawInput);
 
   if (!parsed.success) {
@@ -154,12 +158,15 @@ export const recordSale = async (
     );
   }
 
-  const input = parsed.data;
+  return parsed.data;
+};
 
-  if (!canSell(actor, input.branchId)) {
-    throw new StockError("forbidden", "You can't sell at this branch.");
-  }
-
+/** The part every sale shares, once the caller is known to be allowed. */
+const writeSale = async (
+  db: Db,
+  source: SaleSource,
+  input: SaleInput
+): Promise<SaleResult> => {
   const earlier = await findByClientRef(db, input.branchId, input.clientRef);
 
   if (earlier !== null) {
@@ -199,10 +206,11 @@ export const recordSale = async (
         .insert(sale)
         .values({
           branchId: input.branchId,
-          cashierId: actor.id,
+          cashierId: source.cashierId,
           clientRef: input.clientRef,
           number,
           paymentMethod: input.paymentMethod,
+          tillId: source.tillId,
           total,
         })
         .onConflictDoNothing({ target: [sale.branchId, sale.clientRef] })
@@ -224,7 +232,7 @@ export const recordSale = async (
           quantity: -line.quantity,
           saleId: header.id,
           unitCost: line.unitCost,
-          userId: actor.id,
+          userId: source.cashierId,
         });
       }
       /* oxlint-enable no-await-in-loop, react-doctor/async-await-in-loop */
@@ -250,4 +258,40 @@ export const recordSale = async (
 
     return first;
   }
+};
+
+/** A sale rung up by a signed-in person on the in-app till. */
+export const recordSale = async (
+  db: Db,
+  actor: Actor,
+  rawInput: SaleRawInput
+): Promise<SaleResult> => {
+  const input = parseSale(rawInput);
+
+  if (!canSell(actor, input.branchId)) {
+    throw new StockError("forbidden", "You can't sell at this branch.");
+  }
+
+  return await writeSale(db, { cashierId: actor.id, tillId: null }, input);
+};
+
+/** An authenticated POS till: it can only ever sell at its own store. */
+export interface TillIdentity {
+  readonly tillId: number;
+  readonly branchId: string;
+}
+
+/** A sale posted by a POS till through the sales API. */
+export const recordTillSale = async (
+  db: Db,
+  identity: TillIdentity,
+  rawInput: Omit<SaleRawInput, "branchId">
+): Promise<SaleResult> => {
+  const input = parseSale({ ...rawInput, branchId: identity.branchId });
+
+  return await writeSale(
+    db,
+    { cashierId: null, tillId: identity.tillId },
+    input
+  );
 };

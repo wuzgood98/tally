@@ -431,7 +431,10 @@ export const sale = pgTable(
     branchId: text("branch_id")
       .notNull()
       .references(() => branch.id),
+    /** Who rang it up on the in-app till; null for sales from a POS system. */
     cashierId: text("cashier_id").references(() => user.id),
+    /** The POS till that sent it through the sales API, if any. */
+    tillId: integer("till_id").references(() => till.id),
     /**
      * The till's own id for this sale. A till that retries after a dropped
      * connection sends the same one, and gets the first sale back.
@@ -474,6 +477,35 @@ export const saleLine = pgTable(
     check("sale_line_quantity_positive", sql`${table.quantity} > 0`),
     check("sale_line_price_non_negative", sql`${table.unitPrice} >= 0`),
     check("sale_line_cost_non_negative", sql`${table.unitCost} >= 0`),
+  ]
+);
+
+/**
+ * A POS till allowed to post sales through the API. Head office creates one
+ * per physical till and gets its key once; only a SHA-256 hash is stored, so
+ * a database leak doesn't leak working keys. Revoking stops it at once.
+ */
+export const till = pgTable(
+  "till",
+  {
+    branchId: text("branch_id")
+      .notNull()
+      .references(() => branch.id),
+    createdAt: createdAt(),
+    createdById: text("created_by_id").references(() => user.id),
+    id: serial("id").primaryKey(),
+    /** SHA-256 of the key, hex. */
+    keyHash: text("key_hash").notNull(),
+    /** The key's first characters, so people can tell keys apart. */
+    keyPrefix: text("key_prefix").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    /** What the shop calls it, e.g. "Till 3, ground floor". */
+    name: text("name").notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("till_key_hash_idx").on(table.keyHash),
+    index("till_branch_idx").on(table.branchId),
   ]
 );
 

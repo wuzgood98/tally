@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
-import { branch, product, sale, saleLine, user } from "@/lib/db/schema";
+import { branch, product, sale, saleLine, till, user } from "@/lib/db/schema";
 import type { Scope } from "@/lib/scope";
 
 export const SALES_PAGE_SIZE = 50;
@@ -21,7 +21,8 @@ export const listSales = async (scope: Scope, page: number) => {
     getDb()
       .select({
         branchName: branch.name,
-        cashier: user.name,
+        // A POS sale has no cashier in Tally: name the till instead.
+        cashier: sql<string | null>`coalesce(${user.name}, ${till.name})`,
         createdAt: sale.createdAt,
         id: sale.id,
         number: sale.number,
@@ -36,6 +37,7 @@ export const listSales = async (scope: Scope, page: number) => {
       .from(sale)
       .innerJoin(branch, eq(branch.id, sale.branchId))
       .leftJoin(user, eq(user.id, sale.cashierId))
+      .leftJoin(till, eq(till.id, sale.tillId))
       .where(where)
       .orderBy(desc(sale.createdAt), desc(sale.id))
       .limit(SALES_PAGE_SIZE)
@@ -74,7 +76,8 @@ export const getSale = async (id: number) => {
     .select({
       branchId: sale.branchId,
       branchName: branch.name,
-      cashier: user.name,
+      // A POS sale has no cashier in Tally: name the till instead.
+      cashier: sql<string | null>`coalesce(${user.name}, ${till.name})`,
       clientRef: sale.clientRef,
       createdAt: sale.createdAt,
       id: sale.id,
@@ -85,6 +88,7 @@ export const getSale = async (id: number) => {
     .from(sale)
     .innerJoin(branch, eq(branch.id, sale.branchId))
     .leftJoin(user, eq(user.id, sale.cashierId))
+    .leftJoin(till, eq(till.id, sale.tillId))
     .where(eq(sale.id, id));
 
   if (header === undefined) {

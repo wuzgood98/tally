@@ -2,6 +2,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  MonitorSmartphone,
   Package,
   PackagePlus,
   Receipt,
@@ -16,7 +17,11 @@ import { signOut } from "@/app/login/actions";
 import { TallyMark } from "@/components/brand/tally-mark";
 import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
-import { canManageStaff, sellableBranchIds } from "@/lib/permissions";
+import {
+  canManageStaff,
+  canManageTills,
+  sellableBranchIds,
+} from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
 import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
@@ -82,6 +87,11 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       {canManageStaff(viewer) ? (
         <NavLink href="/staff" icon={<Users />}>
           Staff
+        </NavLink>
+      ) : null}
+      {canManageTills(viewer) ? (
+        <NavLink href="/tills" icon={<MonitorSmartphone />}>
+          Tills
         </NavLink>
       ) : null}
     </>

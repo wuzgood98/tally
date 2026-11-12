@@ -5,7 +5,8 @@ import type { NextRequest } from "next/server";
 /**
  * An optimistic check only: no session cookie means straight to sign-in,
  * without rendering anything. Every page and action still checks the
- * session for real (lib/session.ts).
+ * session for real (lib/session.ts). The sales API (`/api/v1`) is for POS
+ * tills, which authenticate with a till key instead of a session.
  */
 export const proxy = (request: NextRequest) => {
   if (getSessionCookie(request) !== null) {
@@ -24,6 +25,6 @@ export const proxy = (request: NextRequest) => {
 
 export const config = {
   matcher: [
-    "/((?!login|api/auth|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|robots.txt).*)",
+    "/((?!login|api/auth|api/v1|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|robots.txt).*)",
   ],
 };

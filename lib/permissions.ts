@@ -92,6 +92,9 @@ export const canManageCatalogue = (actor: Actor): boolean =>
 
 export const canManageStaff = (actor: Actor): boolean => actor.role === "admin";
 
+/** Till keys let a machine post sales, so only head office hands them out. */
+export const canManageTills = (actor: Actor): boolean => actor.role === "admin";
+
 const ownBranches = (actor: Actor, allBranchIds: readonly string[]): string[] =>
   actor.role === "admin"
     ? [...allBranchIds]
