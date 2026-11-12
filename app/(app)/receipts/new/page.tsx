@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getPickedProduct } from "@/app/(app)/lookup-action";
 import { ReceiveForm } from "@/components/stock/receive-form";
 import { PageHeader } from "@/components/ui/page-header";
+import { noStockBranchMessage } from "@/lib/access-messages";
 import { operableBranchIds } from "@/lib/permissions";
 import { listSuppliers } from "@/lib/queries/products";
 import { getScope, listBranches } from "@/lib/scope";
@@ -33,7 +34,7 @@ const NewReceiptPage = async ({ searchParams }: PageProps<"/receipts/new">) => {
   if (options.length === 0) {
     return (
       <PageHeader
-        description="Your account isn't attached to a branch. Ask head office to set one."
+        description={noStockBranchMessage(viewer.role)}
         title="Receive goods"
       />
     );

@@ -25,6 +25,9 @@ import {
   category,
   goodsReceipt,
   product,
+  sale,
+  saleLine,
+  saleReturn,
   stockLevel,
   stockMovement,
   stockTransfer,
@@ -43,6 +46,8 @@ import type { Actor } from "@/lib/permissions";
 import { adjustStock } from "@/lib/stock/adjust";
 import { StockError } from "@/lib/stock/errors";
 import { receiveGoods } from "@/lib/stock/receive";
+import { returnSale } from "@/lib/stock/returns";
+import { recordSale } from "@/lib/stock/sales";
 import {
   cancelTransfer,
   dispatchTransfer,
@@ -210,8 +215,14 @@ const seedCatalogue = async (
   });
 };
 
-const seedStaff = async (db: Db): Promise<Map<string, Actor>> => {
+interface SeedStaff {
+  readonly managers: ReadonlyMap<string, Actor>;
+  readonly cashiers: ReadonlyMap<string, Actor>;
+}
+
+const seedStaff = async (db: Db): Promise<SeedStaff> => {
   const managers = new Map<string, Actor>();
+  const cashiers = new Map<string, Actor>();
 
   for (const [index, person] of STAFF.entries()) {
     const id = `seed-user-${String(index + 1).padStart(2, "0")}`;
@@ -232,9 +243,17 @@ const seedStaff = async (db: Db): Promise<Map<string, Actor>> => {
         role: "manager",
       });
     }
+
+    if (person.role === "cashier" && person.branchId) {
+      cashiers.set(person.branchId, {
+        branchId: person.branchId,
+        id,
+        role: "cashier",
+      });
+    }
   }
 
-  return managers;
+  return { cashiers, managers };
 };
 
 /** How many of a product a shelf starts with: mostly healthy, some low, a few empty. */
@@ -344,9 +363,39 @@ type HistoryEvent =
       /** A carton goes missing on the way. */
       readonly short: boolean;
     }
-  | { readonly at: Date; readonly kind: "cancel"; readonly key: number };
+  | { readonly at: Date; readonly kind: "cancel"; readonly key: number }
+  | {
+      readonly at: Date;
+      readonly kind: "sale";
+      readonly branchId: string;
+      /** Sell more than the record holds, so "Needs a count" has an example. */
+      readonly oversell: boolean;
+    }
+  | { readonly at: Date; readonly kind: "return"; readonly branchId: string };
 
 const WAREHOUSE_ID = "TMA";
+
+/** Sales per store per day, inclusive range: scaled down so PGlite seeds quickly. */
+const SALES_PER_DAY = [2, 4] as const;
+const RETURNS_PER_STORE = 4;
+
+/** Mobile money is as common as cash in Ghana; cards much less so. */
+const PAYMENT_MIX = [
+  "mobile_money",
+  "mobile_money",
+  "mobile_money",
+  "cash",
+  "cash",
+  "cash",
+  "card",
+] as const;
+
+const RETURN_REASONS = [
+  "Wrong size; customer exchanged it",
+  "Bought two by mistake",
+  "Faulty out of the box",
+  "Customer changed their mind, unopened",
+] as const;
 
 /** Hours from dispatch to the receiving branch counting it in. */
 const TRANSIT_HOURS = new Map([
@@ -426,6 +475,44 @@ const planTransfers = (
   return events;
 };
 
+/** A few sales per store per day, today included, and a handful of returns. */
+const planSales = (
+  random: Random,
+  during: (day: number) => Date
+): HistoryEvent[] => {
+  const events: HistoryEvent[] = [];
+
+  for (const seedBranch of BRANCHES) {
+    if (seedBranch.kind === "warehouse") {
+      continue;
+    }
+
+    for (let day = 0; day <= HISTORY_DAYS; day += 1) {
+      const sales = random.int(SALES_PER_DAY[0], SALES_PER_DAY[1]);
+
+      for (let i = 0; i < sales; i += 1) {
+        events.push({
+          at: during(day),
+          branchId: seedBranch.id,
+          kind: "sale",
+          oversell:
+            seedBranch.id === "SPX" && day === HISTORY_DAYS - 1 && i === 0,
+        });
+      }
+    }
+
+    for (let i = 0; i < RETURNS_PER_STORE; i += 1) {
+      events.push({
+        at: during(random.int(3, HISTORY_DAYS)),
+        branchId: seedBranch.id,
+        kind: "return",
+      });
+    }
+  }
+
+  return events;
+};
+
 const planHistory = (
   random: Random,
   supplierIds: readonly number[],
@@ -463,7 +550,10 @@ const planHistory = (
     }
   }
 
-  events.push(...planTransfers(random, during, now));
+  events.push(
+    ...planTransfers(random, during, now),
+    ...planSales(random, during)
+  );
 
   return events
     .filter((event) => event.at.getTime() < now.getTime())
@@ -669,17 +759,166 @@ const runTransferEvent = async (
   await backdateTransfer(db, transfer.id, "arrival", event.at);
 };
 
+type SaleEvent = Extract<HistoryEvent, { readonly kind: "sale" | "return" }>;
+
+/**
+ * A basket from what the store actually holds, so the demo isn't full of
+ * negative lines. An oversell sells two more than the record shows instead.
+ */
+const pickBasket = async (
+  db: Db,
+  random: Random,
+  products: readonly SeededProduct[],
+  branchId: string,
+  oversell: boolean
+): Promise<{ productId: number; quantity: number }[]> => {
+  const wanted = [
+    ...new Set(Array.from({ length: 6 }, () => random.pick(products).id)),
+  ];
+
+  const held = await db
+    .select({ onHand: stockLevel.onHand, productId: stockLevel.productId })
+    .from(stockLevel)
+    .where(
+      and(
+        eq(stockLevel.branchId, branchId),
+        inArray(stockLevel.productId, wanted)
+      )
+    )
+    .orderBy(stockLevel.productId);
+
+  if (oversell) {
+    const [smallest] = held
+      .filter((row) => row.onHand > 0)
+      .toSorted((a, b) => a.onHand - b.onHand);
+
+    return smallest === undefined
+      ? []
+      : [{ productId: smallest.productId, quantity: smallest.onHand + 2 }];
+  }
+
+  return held.slice(0, random.int(1, 4)).flatMap((row) => {
+    const quantity = random.int(1, 3);
+
+    return row.onHand >= quantity
+      ? [{ productId: row.productId, quantity }]
+      : [];
+  });
+};
+
+const runSaleEvent = async (
+  db: Db,
+  random: Random,
+  products: readonly SeededProduct[],
+  staff: SeedStaff,
+  salesByBranch: Map<string, number[]>,
+  event: SaleEvent
+): Promise<void> => {
+  const sold = salesByBranch.get(event.branchId) ?? [];
+
+  if (event.kind === "sale") {
+    const cashier =
+      staff.cashiers.get(event.branchId) ?? staff.managers.get(event.branchId);
+
+    const lines = await pickBasket(
+      db,
+      random,
+      products,
+      event.branchId,
+      event.oversell
+    );
+
+    if (cashier === undefined || lines.length === 0) {
+      return;
+    }
+
+    const recorded = await recordSale(db, cashier, {
+      branchId: event.branchId,
+      clientRef: `SEED-${event.branchId}-${String(sold.length + 1).padStart(5, "0")}`,
+      lines,
+      paymentMethod: random.pick(PAYMENT_MIX),
+    });
+
+    await db
+      .update(sale)
+      .set({ createdAt: event.at })
+      .where(eq(sale.id, recorded.id));
+    await db
+      .update(stockMovement)
+      .set({ createdAt: event.at })
+      .where(eq(stockMovement.saleId, recorded.id));
+    salesByBranch.set(event.branchId, [...sold, recorded.id]);
+
+    return;
+  }
+
+  const manager = staff.managers.get(event.branchId);
+
+  if (manager === undefined || sold.length === 0) {
+    return;
+  }
+
+  const saleId = random.pick(sold);
+
+  const [line] = await db
+    .select({ productId: saleLine.productId })
+    .from(saleLine)
+    .where(eq(saleLine.saleId, saleId))
+    .orderBy(saleLine.productId)
+    .limit(1);
+
+  if (line === undefined) {
+    return;
+  }
+
+  try {
+    const recorded = await returnSale(db, manager, {
+      lines: [
+        {
+          disposition: random.chance(0.3) ? "damaged" : "restock",
+          productId: line.productId,
+          quantity: 1,
+        },
+      ],
+      reason: random.pick(RETURN_REASONS),
+      saleId,
+    });
+
+    await db
+      .update(saleReturn)
+      .set({ createdAt: event.at })
+      .where(eq(saleReturn.id, recorded.id));
+    await db
+      .update(stockMovement)
+      .set({ createdAt: event.at })
+      .where(eq(stockMovement.saleReturnId, recorded.id));
+  } catch (error) {
+    // Already returned in full: skip it, as a real customer couldn't do it twice.
+    if (!(error instanceof StockError)) {
+      throw error;
+    }
+  }
+};
+
 const runHistory = async (
   db: Db,
   random: Random,
   products: readonly SeededProduct[],
-  managers: ReadonlyMap<string, Actor>,
+  staff: SeedStaff,
   events: readonly HistoryEvent[]
 ): Promise<void> => {
+  const { managers } = staff;
   const bySupplier = Map.groupBy(products, (item) => item.supplierId);
   const transfers = new Map<number, SeededTransfer>();
+  const salesByBranch = new Map<string, number[]>();
 
   for (const event of events) {
+    if (event.kind === "sale" || event.kind === "return") {
+      await runSaleEvent(db, random, products, staff, salesByBranch, event);
+
+      continue;
+    }
+
     if (
       event.kind === "dispatch" ||
       event.kind === "arrival" ||
@@ -798,7 +1037,7 @@ export const seed = async (db: Db, now = new Date()): Promise<SeedSummary> => {
     seedCatalogue(db, random),
   ]);
 
-  const managers = await seedStaff(db);
+  const staff = await seedStaff(db);
   await seedOpeningStock(
     db,
     random,
@@ -811,7 +1050,7 @@ export const seed = async (db: Db, now = new Date()): Promise<SeedSummary> => {
     db,
     random,
     products,
-    managers,
+    staff,
     planHistory(random, supplierIds, now)
   );
 

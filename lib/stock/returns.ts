@@ -67,20 +67,31 @@ const returnableLines = async (
   tx: Tx,
   saleId: number
 ): Promise<Map<number, Returnable>> => {
+  // Returned so far, per product, as a joined aggregate rather than a
+  // correlated subquery: in a single-table select Drizzle leaves column names
+  // unprefixed, so an outer "sale_id" would bind to the inner table instead.
+  const returned = tx
+    .select({
+      productId: saleReturnLine.productId,
+      quantity: sql<number>`sum(${saleReturnLine.quantity})::int`.as(
+        "returned_quantity"
+      ),
+    })
+    .from(saleReturnLine)
+    .innerJoin(saleReturn, eq(saleReturn.id, saleReturnLine.returnId))
+    .where(eq(saleReturn.saleId, saleId))
+    .groupBy(saleReturnLine.productId)
+    .as("returned");
+
   const rows = await tx
     .select({
       productId: saleLine.productId,
-      returned: sql<number>`coalesce((
-        select sum(${saleReturnLine.quantity})
-        from ${saleReturnLine}
-        join ${saleReturn} on ${saleReturn.id} = ${saleReturnLine.returnId}
-        where ${saleReturn.saleId} = ${saleLine.saleId}
-          and ${saleReturnLine.productId} = ${saleLine.productId}
-      ), 0)::int`,
+      returned: sql<number>`coalesce(${returned.quantity}, 0)::int`,
       sold: saleLine.quantity,
       unitPrice: saleLine.unitPrice,
     })
     .from(saleLine)
+    .leftJoin(returned, eq(returned.productId, saleLine.productId))
     .where(eq(saleLine.saleId, saleId));
 
   return new Map(

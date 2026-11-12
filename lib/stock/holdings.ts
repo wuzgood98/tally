@@ -19,16 +19,19 @@ export const companyUnitsHeld = async (
   productId: number
 ): Promise<number> => {
   // One statement: inside a transaction, queries share a single connection.
+  // The product id goes in as a parameter, never as ${product.id}: in a
+  // single-table select Drizzle leaves column names unprefixed, and inside
+  // these subqueries "id" would bind to stock_transfer.id instead.
   const [row] = await executor
     .select({
       units: sql<number>`(
         (select coalesce(sum(greatest(${stockLevel.onHand}, 0)), 0)
           from ${stockLevel}
-          where ${stockLevel.productId} = ${product.id})
+          where ${stockLevel.productId} = ${productId})
         + (select coalesce(sum(${stockTransferLine.quantitySent}), 0)
           from ${stockTransferLine}
           join ${stockTransfer} on ${stockTransfer.id} = ${stockTransferLine.transferId}
-          where ${stockTransferLine.productId} = ${product.id}
+          where ${stockTransferLine.productId} = ${productId}
             and ${stockTransfer.status} = 'in_transit')
       )::int`,
     })

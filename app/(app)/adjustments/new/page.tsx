@@ -5,6 +5,7 @@ import { getPickedProduct } from "@/app/(app)/lookup-action";
 import { AdjustForm } from "@/components/stock/adjust-form";
 import type { BranchRules } from "@/components/stock/adjust-form";
 import { PageHeader } from "@/components/ui/page-header";
+import { noStockBranchMessage } from "@/lib/access-messages";
 import { canAdjust, operableBranchIds } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
 import { intParam, param } from "@/lib/search-params";
@@ -52,7 +53,7 @@ const NewAdjustmentPage = async ({
   if (rules.length === 0) {
     return (
       <PageHeader
-        description="Your account isn't attached to a branch. Ask head office to set one."
+        description={noStockBranchMessage(viewer.role)}
         title="Adjust stock"
       />
     );

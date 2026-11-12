@@ -5,6 +5,7 @@ import { getPickedProduct } from "@/app/(app)/lookup-action";
 import { TransferForm } from "@/components/stock/transfer-form";
 import type { TransferDraftLine } from "@/components/stock/transfer-line-row";
 import { PageHeader } from "@/components/ui/page-header";
+import { noStockBranchMessage } from "@/lib/access-messages";
 import { operableBranchIds } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
 import { param } from "@/lib/search-params";
@@ -83,7 +84,7 @@ const NewTransferPage = async ({
   if (sources.length === 0) {
     return (
       <PageHeader
-        description="Your account isn't attached to a branch. Ask head office to set one."
+        description={noStockBranchMessage(viewer.role)}
         title="New transfer"
       />
     );

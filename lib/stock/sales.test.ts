@@ -338,6 +338,32 @@ describe("returnSale", () => {
     expect(error.message).toMatch(/returned in full/u);
   });
 
+  it("counts only this sale's returns, not other sales of the same product", async () => {
+    const first = await sell([{ productId: world.products.rice, quantity: 1 }]);
+
+    const second = await sell([
+      { productId: world.products.rice, quantity: 1 },
+    ]);
+
+    const one = (id: number) => ({
+      lines: [
+        {
+          disposition: "restock" as const,
+          productId: world.products.rice,
+          quantity: 1,
+        },
+      ],
+      reason: "Duplicate purchase",
+      saleId: id,
+    });
+
+    await returnSale(world.db, world.spintexManager, one(first.id));
+
+    await expect(
+      returnSale(world.db, world.spintexManager, one(second.id))
+    ).resolves.toMatchObject({ refund: RICE_PRICE });
+  });
+
   it("refuses items that weren't on the sale", async () => {
     const error = await rejection(
       returnSale(world.db, world.spintexManager, {

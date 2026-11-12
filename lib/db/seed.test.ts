@@ -4,21 +4,35 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { isValidGtin } from "@/lib/barcode";
 import { connectPglite } from "@/lib/db/client";
 import type { Connection } from "@/lib/db/client";
-import { product, stockTransfer, stockTransferLine } from "@/lib/db/schema";
+import {
+  product,
+  sale,
+  saleReturnLine,
+  stockLevel,
+  stockTransfer,
+  stockTransferLine,
+} from "@/lib/db/schema";
 import { seed } from "@/lib/db/seed";
 import {
   ledgerMismatches,
   movementsOutOfOrder,
+  saleMismatches,
   transferMismatches,
 } from "@/test/db";
 
 let connection: Connection;
 
+/**
+ * The seed runs a month of deliveries, transfers and sales through the real
+ * domain code: about 30 s alone, longer while other test files share the CPU.
+ */
+const SEED_TIMEOUT_MS = 180_000;
+
 beforeAll(async () => {
   connection = connectPglite();
   await connection.migrate();
   await seed(connection.db, new Date("2026-11-12T12:00:00Z"));
-});
+}, SEED_TIMEOUT_MS);
 
 afterAll(async () => {
   await connection.close();
@@ -57,6 +71,40 @@ describe("seed", () => {
 
   it("keeps movement ids in time order, as the ledger lists them", async () => {
     expect(await movementsOutOfOrder(connection.db)).toEqual([]);
+  });
+
+  it("keeps every sale's and return's movements equal to its lines", async () => {
+    expect(await saleMismatches(connection.db)).toEqual([]);
+  });
+
+  it("seeds a month of sales, including today, and both kinds of return", async () => {
+    const [sales] = await connection.db
+      .select({
+        today: sql<number>`count(*) filter (where ${sale.createdAt} >= '2026-11-12')::int`,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(sale);
+
+    expect(sales?.total).toBeGreaterThan(300);
+    expect(sales?.today).toBeGreaterThan(0);
+
+    const dispositions = await connection.db
+      .selectDistinct({ disposition: saleReturnLine.disposition })
+      .from(saleReturnLine);
+
+    expect(dispositions.map((row) => row.disposition).toSorted()).toEqual([
+      "damaged",
+      "restock",
+    ]);
+  });
+
+  it("leaves exactly one line needing a count: the deliberate oversell", async () => {
+    const negative = await connection.db
+      .select({ branchId: stockLevel.branchId })
+      .from(stockLevel)
+      .where(sql`${stockLevel.onHand} < 0`);
+
+    expect(negative).toEqual([{ branchId: "SPX" }]);
   });
 
   it("gives every barcode a valid check digit", async () => {
