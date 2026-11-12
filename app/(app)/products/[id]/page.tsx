@@ -5,12 +5,11 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { StockSettingsForm } from "@/components/catalogue/stock-settings-form";
+import { BranchStockTable } from "@/components/stock/branch-stock-table";
 import { MovementTable } from "@/components/stock/movement-table";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { StockBadge } from "@/components/ui/stock-badge";
-import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import {
@@ -20,8 +19,8 @@ import {
 } from "@/lib/permissions";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct, getProductLevels } from "@/lib/queries/products";
+import { getProductOnOrder } from "@/lib/queries/purchase-orders";
 import { getProductUnitsSold } from "@/lib/queries/sales";
-import { stockStatus } from "@/lib/queries/stock-status";
 import { getProductInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { param, queryString } from "@/lib/search-params";
@@ -75,6 +74,48 @@ const noticeFor = (
   return param(query, "saved") === "1" ? NOTICES.saved : null;
 };
 
+const sumOf = (byBranch: ReadonlyMap<string, number>): number => {
+  let total = 0;
+
+  for (const units of byBranch.values()) {
+    total += units;
+  }
+
+  return total;
+};
+
+/** "1,240 units in total · 30 on the way · 120 on order" */
+const LevelsSummary = ({
+  onHand,
+  unit,
+  inTransit,
+  onOrder,
+}: {
+  readonly onHand: number;
+  readonly unit: string;
+  readonly inTransit: ReadonlyMap<string, number>;
+  readonly onOrder: ReadonlyMap<string, number>;
+}) => {
+  const parts = [
+    `${formatCount(onHand)} ${unit === "each" ? "units" : unit} in total`,
+  ];
+
+  const travelling = sumOf(inTransit);
+  const ordered = sumOf(onOrder);
+
+  if (travelling > 0) {
+    parts.push(`${formatCount(travelling)} on the way`);
+  }
+
+  if (ordered > 0) {
+    parts.push(`${formatCount(ordered)} on order`);
+  }
+
+  return (
+    <span className="text-ink-2 tabular text-sm">{parts.join(" · ")}</span>
+  );
+};
+
 const ProductPage = async ({
   params,
   searchParams,
@@ -92,13 +133,16 @@ const ProductPage = async ({
     notFound();
   }
 
-  const [levels, inTransit, sold, scope, branches] = await Promise.all([
-    getProductLevels(item.id),
-    getProductInTransit(item.id),
-    getProductUnitsSold(item.id, SALES_DAYS),
-    getScope(viewer),
-    listBranches(),
-  ]);
+  const [levels, inTransit, onOrder, sold, scope, branches] = await Promise.all(
+    [
+      getProductLevels(item.id),
+      getProductInTransit(item.id),
+      getProductOnOrder(item.id),
+      getProductUnitsSold(item.id, SALES_DAYS),
+      getScope(viewer),
+      listBranches(),
+    ]
+  );
 
   const historyBranch = scope.kind === "branch" ? scope.branchId : undefined;
 
@@ -108,11 +152,6 @@ const ProductPage = async ({
   );
 
   const totalOnHand = levels.reduce((sum, level) => sum + level.onHand, 0);
-
-  const totalInTransit = [...inTransit.values()].reduce(
-    (sum, units) => sum + units,
-    0
-  );
 
   const margin =
     item.sellPrice > 0
@@ -226,91 +265,27 @@ const ProductPage = async ({
       <div className="grid gap-6">
         <Panel
           action={
-            <span className="text-ink-2 tabular text-sm">
-              {formatCount(totalOnHand)}{" "}
-              {item.unit === "each" ? "units" : item.unit} in total
-              {totalInTransit > 0
-                ? ` · ${formatCount(totalInTransit)} on the way`
-                : ""}
-            </span>
+            <LevelsSummary
+              inTransit={inTransit}
+              onHand={totalOnHand}
+              onOrder={onOrder}
+              unit={item.unit}
+            />
           }
           flush
           id="levels"
           title="Stock by branch"
         >
-          <Table>
-            <caption className="sr-only">
-              Stock of {item.name} at each branch
-            </caption>
-            <thead>
-              <tr>
-                <Th>Branch</Th>
-                <Th>Location</Th>
-                <Th numeric>On hand</Th>
-                <Th numeric>On the way</Th>
-                <Th numeric>Sold, {SALES_DAYS} days</Th>
-                <Th numeric>Reorder at</Th>
-                <Th>Status</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {levels.map((level) => {
-                const reorderPoint = level.reorderOverride ?? item.reorderPoint;
-                const onTheWay = inTransit.get(level.branchId) ?? 0;
-
-                return (
-                  <tr
-                    className={
-                      level.branchId === historyBranch
-                        ? "bg-brand-soft/40"
-                        : undefined
-                    }
-                    key={level.branchId}
-                  >
-                    <Td nowrap>
-                      <span className="font-medium">{level.branchName}</span>
-                      {level.branchKind === "warehouse" ? (
-                        <span className="text-ink-3 block text-xs">
-                          Warehouse
-                        </span>
-                      ) : null}
-                    </Td>
-                    <Td tone="muted">
-                      <span className="font-mono text-xs">
-                        {level.binLocation ?? "—"}
-                      </span>
-                    </Td>
-                    <Td numeric weight="medium">
-                      {formatCount(level.onHand)}
-                    </Td>
-                    <Td numeric tone={onTheWay > 0 ? "good" : "faint"}>
-                      {onTheWay > 0 ? `+${formatCount(onTheWay)}` : "—"}
-                    </Td>
-                    <Td numeric tone="muted">
-                      {level.branchKind === "warehouse"
-                        ? "—"
-                        : formatCount(sold.get(level.branchId) ?? 0)}
-                    </Td>
-                    <Td numeric tone="muted">
-                      {formatCount(reorderPoint)}
-                      {level.reorderOverride === null ? null : (
-                        <span className="sr-only"> (set for this branch)</span>
-                      )}
-                    </Td>
-                    <Td>
-                      {level.stocked ? (
-                        <StockBadge
-                          status={stockStatus(level.onHand, reorderPoint)}
-                        />
-                      ) : (
-                        <span className="text-ink-3 text-xs">Not stocked</span>
-                      )}
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+          <BranchStockTable
+            highlightBranchId={historyBranch}
+            inTransit={inTransit}
+            levels={levels}
+            onOrder={onOrder}
+            productName={item.name}
+            reorderPoint={item.reorderPoint}
+            salesDays={SALES_DAYS}
+            sold={sold}
+          />
         </Panel>
 
         {settingsLevel ? (

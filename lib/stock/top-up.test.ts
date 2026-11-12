@@ -20,6 +20,18 @@ describe("topUpQuantity", () => {
     ).toBe(5);
   });
 
+  it("counts what is already on order from a supplier", () => {
+    expect(
+      topUpQuantity({
+        inTransit: 4,
+        onHand: 3,
+        onOrder: 6,
+        productId: 1,
+        reorderPoint: 10,
+      })
+    ).toBe(7);
+  });
+
   it("never asks for a negative amount", () => {
     expect(
       topUpQuantity({

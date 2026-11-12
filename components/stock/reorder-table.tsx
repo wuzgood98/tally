@@ -29,6 +29,7 @@ export const ReorderTable = ({
         <Th numeric>On hand</Th>
         <Th numeric>Reorder at</Th>
         <Th numeric>On the way</Th>
+        <Th numeric>On order</Th>
         <Th>Status</Th>
       </tr>
     </thead>
@@ -60,6 +61,9 @@ export const ReorderTable = ({
           </Td>
           <Td numeric tone={line.inTransit > 0 ? "good" : "faint"}>
             {line.inTransit > 0 ? `+${formatCount(line.inTransit)}` : "—"}
+          </Td>
+          <Td numeric tone={line.onOrder > 0 ? "good" : "faint"}>
+            {line.onOrder > 0 ? `+${formatCount(line.onOrder)}` : "—"}
           </Td>
           <Td>
             <StockBadge status={stockStatus(line.onHand, line.reorderPoint)} />

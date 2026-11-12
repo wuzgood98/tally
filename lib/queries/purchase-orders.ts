@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { getDb } from "@/lib/db";
@@ -154,3 +154,28 @@ export const getPurchaseOrder = async (id: number) => {
 export type PurchaseOrderDetail = NonNullable<
   Awaited<ReturnType<typeof getPurchaseOrder>>
 >;
+
+/** Units of one product still due on approved purchase orders, by branch id. */
+export const getProductOnOrder = async (
+  productId: number
+): Promise<Map<string, number>> => {
+  const rows = await getDb()
+    .select({
+      branchId: purchaseOrder.branchId,
+      units: sql<number>`sum(${purchaseOrderLine.quantity} - ${purchaseOrderLine.quantityReceived})::int`,
+    })
+    .from(purchaseOrderLine)
+    .innerJoin(
+      purchaseOrder,
+      eq(purchaseOrder.id, purchaseOrderLine.purchaseOrderId)
+    )
+    .where(
+      and(
+        eq(purchaseOrderLine.productId, productId),
+        inArray(purchaseOrder.status, ["approved", "partly_received"])
+      )
+    )
+    .groupBy(purchaseOrder.branchId);
+
+  return new Map(rows.map((row) => [row.branchId, row.units]));
+};

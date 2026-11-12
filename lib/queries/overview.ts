@@ -7,6 +7,8 @@ import {
   category,
   goodsReceipt,
   product,
+  purchaseOrder,
+  purchaseOrderLine,
   stockLevel,
   stockTransfer,
   stockTransferLine,
@@ -102,6 +104,9 @@ export interface ReorderLine {
   readonly reorderPoint: number;
   /** Units already on a transfer to this branch, so nobody orders them twice. */
   readonly inTransit: number;
+  /** Units still due on approved purchase orders for this branch. */
+  readonly onOrder: number;
+  readonly supplierId: number | null;
   readonly supplierName: string | null;
   readonly categoryName: string;
 }
@@ -128,11 +133,20 @@ export const getReorderLines = async (
           and ${stockTransfer.toBranchId} = ${stockLevel.branchId}
           and ${stockTransferLine.productId} = ${stockLevel.productId}
       )`.as("reorder_in_transit"),
+      onOrder: sql<number>`(
+        select coalesce(sum(${purchaseOrderLine.quantity} - ${purchaseOrderLine.quantityReceived}), 0)::int
+        from ${purchaseOrderLine}
+        join ${purchaseOrder} on ${purchaseOrder.id} = ${purchaseOrderLine.purchaseOrderId}
+        where ${purchaseOrder.status} in ('approved', 'partly_received')
+          and ${purchaseOrder.branchId} = ${stockLevel.branchId}
+          and ${purchaseOrderLine.productId} = ${stockLevel.productId}
+      )`.as("reorder_on_order"),
       name: product.name,
       onHand: stockLevel.onHand,
       productId: product.id,
       reorderPoint: effectiveReorderPoint,
       sku: product.sku,
+      supplierId: supplier.id,
       supplierName: supplier.name,
     })
     .from(stockLevel)

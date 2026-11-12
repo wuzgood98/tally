@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
-import { canDispatchTransfer } from "@/lib/permissions";
+import { canDispatchTransfer, canDraftPurchaseOrder } from "@/lib/permissions";
 import { getReorderLines } from "@/lib/queries/overview";
 import type { ReorderLine } from "@/lib/queries/overview";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
@@ -53,6 +53,29 @@ const warehouseTopUpHref = (
     : `/transfers/new${queryString({ from: warehouse.id, lines: prefill, to: store.id })}`;
 };
 
+/** A supplier group's line count, and a pre-filled order when one can be raised. */
+const SupplierActions = ({
+  href,
+  lines,
+}: {
+  readonly href: string | null;
+  readonly lines: number;
+}) => (
+  <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+    <span className="text-ink-2 tabular text-sm">
+      {formatCount(lines)} {lines === 1 ? "line" : "lines"}
+    </span>
+    {href === null ? null : (
+      <Link
+        className="text-brand text-sm font-medium hover:underline"
+        href={href}
+      >
+        Order from this supplier
+      </Link>
+    )}
+  </span>
+);
+
 const LowStockPage = async () => {
   const viewer = await requireViewer();
 
@@ -92,6 +115,21 @@ const LowStockPage = async () => {
 
   const topUpHref = warehouseTopUpHref(viewer, scope, branches, lines);
 
+  // A purchase order is for one branch, so ordering needs a branch on screen.
+  const orderBranchId =
+    scope.kind === "branch" && canDraftPurchaseOrder(viewer, scope.branchId)
+      ? scope.branchId
+      : null;
+
+  const orderHref = (supplierLines: readonly ReorderLine[]): string | null => {
+    const supplierId = supplierLines[0]?.supplierId ?? null;
+    const prefill = topUpLinesParam(supplierLines);
+
+    return orderBranchId === null || supplierId === null || prefill === ""
+      ? null
+      : `/purchase-orders/new${queryString({ branch: orderBranchId, lines: prefill, supplier: supplierId })}`;
+  };
+
   return (
     <>
       <PageHeader
@@ -117,10 +155,10 @@ const LowStockPage = async () => {
           {bySupplier.map(([supplierName, supplierLines]) => (
             <Panel
               action={
-                <span className="text-ink-2 tabular text-sm">
-                  {formatCount(supplierLines.length)}{" "}
-                  {supplierLines.length === 1 ? "line" : "lines"}
-                </span>
+                <SupplierActions
+                  href={orderHref(supplierLines)}
+                  lines={supplierLines.length}
+                />
               }
               flush
               id={`supplier-${supplierName.replaceAll(/\W+/gu, "-").toLowerCase()}`}
