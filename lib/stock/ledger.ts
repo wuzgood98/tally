@@ -24,6 +24,7 @@ export interface MovementInput {
   readonly adjustmentReason?: AdjustmentReason;
   readonly unitCost?: number;
   readonly receiptId?: number;
+  readonly transferId?: number;
   readonly note?: string | null;
   readonly userId?: string | null;
 }
@@ -93,6 +94,7 @@ export const applyMovement = async (
       productId: input.productId,
       quantity: input.quantity,
       receiptId: input.receiptId,
+      transferId: input.transferId,
       unitCost: input.unitCost,
       userId: input.userId ?? null,
     })

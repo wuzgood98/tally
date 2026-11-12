@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   canAdjust,
+  canCancelTransfer,
+  canDispatchTransfer,
   canManageCatalogue,
   canReceive,
+  canReceiveTransfer,
   canSetReorderPoint,
   operableBranchIds,
 } from "@/lib/permissions";
@@ -39,6 +42,25 @@ describe("permissions", () => {
       expect(canAdjust(storekeeper, "SPX", reason)).toBe(false);
       expect(canAdjust(manager, "SPX", reason)).toBe(true);
     }
+  });
+
+  it("lets branch staff send and receive transfers at their own branch", () => {
+    for (const actor of [manager, storekeeper]) {
+      expect(canDispatchTransfer(actor, "SPX")).toBe(true);
+      expect(canReceiveTransfer(actor, "SPX")).toBe(true);
+      expect(canDispatchTransfer(actor, "KSI")).toBe(false);
+      expect(canReceiveTransfer(actor, "KSI")).toBe(false);
+    }
+
+    expect(canDispatchTransfer(admin, "TMA")).toBe(true);
+    expect(canReceiveTransfer(admin, "KSI")).toBe(true);
+  });
+
+  it("keeps cancelling a transfer for managers at the sending branch", () => {
+    expect(canCancelTransfer(manager, "SPX")).toBe(true);
+    expect(canCancelTransfer(storekeeper, "SPX")).toBe(false);
+    expect(canCancelTransfer(manager, "KSI")).toBe(false);
+    expect(canCancelTransfer(admin, "KSI")).toBe(true);
   });
 
   it("reserves reorder points and the catalogue", () => {

@@ -4,9 +4,10 @@
  *
  * - Head office (admin): everything, at every branch.
  * - Branch manager: runs their own branch's stock; sees other branches.
- * - Storekeeper: receives goods and writes off damaged or expired stock at
- *   their own branch. Anything that could hide a loss (theft, recounts,
- *   "found" stock, internal use) needs a manager.
+ * - Storekeeper: receives goods, sends and receives transfers, and writes off
+ *   damaged or expired stock at their own branch. Anything that could hide a
+ *   loss (theft, recounts, "found" stock, internal use) needs a manager, and so
+ *   does calling back a transfer already on the road.
  */
 
 import type { AdjustmentReason, Role } from "@/lib/db/schema";
@@ -48,6 +49,22 @@ export const adjustableReasons = (
   reasons: readonly AdjustmentReason[]
 ): AdjustmentReason[] =>
   reasons.filter((reason) => canAdjust(actor, branchId, reason));
+
+/** Sending stock: the receiving branch counts it in, which checks the sender. */
+export const canDispatchTransfer = (
+  actor: Actor,
+  fromBranchId: string
+): boolean => worksAt(actor, fromBranchId);
+
+/** Counting a transfer in, including recording units lost on the way. */
+export const canReceiveTransfer = (actor: Actor, toBranchId: string): boolean =>
+  worksAt(actor, toBranchId);
+
+/** Calling back a transfer still in transit returns its stock to the sender. */
+export const canCancelTransfer = (
+  actor: Actor,
+  fromBranchId: string
+): boolean => actor.role !== "storekeeper" && worksAt(actor, fromBranchId);
 
 export const canSetReorderPoint = (actor: Actor, branchId: string): boolean =>
   actor.role !== "storekeeper" && worksAt(actor, branchId);

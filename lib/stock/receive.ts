@@ -4,20 +4,15 @@
  * cost, and updates the product's moving average cost.
  */
 
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Db, Tx } from "@/lib/db/client";
-import {
-  branch,
-  goodsReceipt,
-  product,
-  stockLevel,
-  supplier,
-} from "@/lib/db/schema";
+import { branch, goodsReceipt, product, supplier } from "@/lib/db/schema";
 import { canReceive } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
+import { companyUnitsHeld } from "@/lib/stock/holdings";
 import { applyMovement, nextDocumentNumber } from "@/lib/stock/ledger";
 
 /** One delivery rarely has more lines than this; it also bounds the work. */
@@ -105,16 +100,13 @@ const updateAverageCost = async (
     );
   }
 
-  const [held] = await tx
-    .select({ units: sql<number>`coalesce(sum(${stockLevel.onHand}), 0)::int` })
-    .from(stockLevel)
-    .where(eq(stockLevel.productId, productId));
+  const heldUnits = await companyUnitsHeld(tx, productId);
 
   await tx
     .update(product)
     .set({
       averageCost: movingAverageCost(
-        held?.units ?? 0,
+        heldUnits,
         row.averageCost,
         quantity,
         unitCost

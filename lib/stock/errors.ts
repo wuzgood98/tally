@@ -4,6 +4,8 @@
  */
 
 export type StockErrorCode =
+  /** The document changed under you, e.g. a transfer someone already received. */
+  | "conflict"
   | "forbidden"
   | "insufficient_stock"
   | "invalid_input"

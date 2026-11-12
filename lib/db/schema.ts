@@ -222,6 +222,8 @@ export const movementKindEnum = pgEnum("movement_kind", [
   "opening",
   "receipt",
   "adjustment",
+  "transfer_out",
+  "transfer_in",
 ]);
 
 export const adjustmentReasonEnum = pgEnum("adjustment_reason", [
@@ -253,7 +255,9 @@ export const stockMovement = pgTable(
     /** Signed change in units: positive in, negative out. Never zero. */
     quantity: integer("quantity").notNull(),
     receiptId: integer("receipt_id").references(() => goodsReceipt.id),
-    /** Cost per unit for receipts, in pesewas. */
+    /** Set for transfer movements only: the transfer this stock left or arrived on. */
+    transferId: integer("transfer_id").references(() => stockTransfer.id),
+    /** Cost per unit for receipts and transfers, in pesewas. */
     unitCost: integer("unit_cost"),
     userId: text("user_id").references(() => user.id),
   },
@@ -269,6 +273,12 @@ export const stockMovement = pgTable(
       "stock_movement_reason_matches_kind",
       sql`(${table.kind} = 'adjustment') = (${table.adjustmentReason} is not null)`
     ),
+    // Compared as text: Postgres can't use an enum value in the transaction that adds it.
+    check(
+      "stock_movement_transfer_matches_kind",
+      sql`(${table.kind}::text in ('transfer_out', 'transfer_in')) = (${table.transferId} is not null)`
+    ),
+    index("stock_movement_transfer_idx").on(table.transferId),
   ]
 );
 
@@ -298,6 +308,90 @@ export const goodsReceipt = pgTable(
   ]
 );
 
+export const transferStatusEnum = pgEnum("transfer_status", [
+  "in_transit",
+  "received",
+  "cancelled",
+]);
+
+/**
+ * Stock moving between two branches. Dispatch takes it out of the sending
+ * branch; until it is received (or cancelled) it is "in transit" and belongs
+ * to no branch's on_hand, so the lines below are the only record of it.
+ */
+export const stockTransfer = pgTable(
+  "stock_transfer",
+  {
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledById: text("cancelled_by_id").references(() => user.id),
+    /** When the goods were dispatched. */
+    createdAt: createdAt(),
+    dispatchedById: text("dispatched_by_id").references(() => user.id),
+    fromBranchId: text("from_branch_id")
+      .notNull()
+      .references(() => branch.id),
+    id: serial("id").primaryKey(),
+    /** Dispatch note; a cancellation's reason is kept in `receive_note`. */
+    note: text("note"),
+    /** Human document number, numbered by the sending branch: TRF-TMA-000042. */
+    number: text("number").notNull(),
+    /** What the receiving (or cancelling) person wrote, e.g. why units are short. */
+    receiveNote: text("receive_note"),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    receivedById: text("received_by_id").references(() => user.id),
+    status: transferStatusEnum("status").notNull().default("in_transit"),
+    toBranchId: text("to_branch_id")
+      .notNull()
+      .references(() => branch.id),
+    /** Sum of quantity sent × unit cost over the lines, in pesewas. */
+    totalCost: integer("total_cost").notNull(),
+  },
+  (table) => [
+    uniqueIndex("stock_transfer_number_idx").on(table.number),
+    index("stock_transfer_from_idx").on(table.fromBranchId, table.createdAt),
+    index("stock_transfer_to_idx").on(table.toBranchId, table.status),
+    check(
+      "stock_transfer_distinct_branches",
+      sql`${table.fromBranchId} <> ${table.toBranchId}`
+    ),
+    check(
+      "stock_transfer_received_matches_status",
+      sql`(${table.status}::text = 'received') = (${table.receivedAt} is not null)`
+    ),
+    check(
+      "stock_transfer_cancelled_matches_status",
+      sql`(${table.status}::text = 'cancelled') = (${table.cancelledAt} is not null)`
+    ),
+  ]
+);
+
+export const stockTransferLine = pgTable(
+  "stock_transfer_line",
+  {
+    productId: integer("product_id")
+      .notNull()
+      .references(() => product.id),
+    /** Null until received. Sent minus received is lost in transit. */
+    quantityReceived: integer("quantity_received"),
+    quantitySent: integer("quantity_sent").notNull(),
+    transferId: integer("transfer_id")
+      .notNull()
+      .references(() => stockTransfer.id),
+    /** The product's average cost at dispatch, in pesewas: values goods in transit. */
+    unitCost: integer("unit_cost").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.transferId, table.productId] }),
+    index("stock_transfer_line_product_idx").on(table.productId),
+    check("stock_transfer_line_sent_positive", sql`${table.quantitySent} > 0`),
+    check(
+      "stock_transfer_line_received_in_range",
+      sql`${table.quantityReceived} is null or (${table.quantityReceived} >= 0 and ${table.quantityReceived} <= ${table.quantitySent})`
+    ),
+    check("stock_transfer_line_cost_non_negative", sql`${table.unitCost} >= 0`),
+  ]
+);
+
 /** Per-branch counters for document numbers, claimed inside the transaction. */
 export const documentCounter = pgTable(
   "document_counter",
@@ -316,5 +410,7 @@ export type Role = (typeof roleEnum.enumValues)[number];
 export type AdjustmentReason = (typeof adjustmentReasonEnum.enumValues)[number];
 
 export type MovementKind = (typeof movementKindEnum.enumValues)[number];
+
+export type TransferStatus = (typeof transferStatusEnum.enumValues)[number];
 
 export type Unit = (typeof unitEnum.enumValues)[number];

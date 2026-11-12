@@ -1,7 +1,7 @@
 /**
  * A fresh in-memory Postgres (PGlite) per test file, migrated with the real
  * migrations and given a small, known world: two stores, one supplier, three
- * products and one person in each role.
+ * products, head office, and a manager and storekeeper at each store.
  */
 
 import { eq, sql } from "drizzle-orm";
@@ -15,10 +15,13 @@ import {
   product,
   stockLevel,
   stockMovement,
+  stockTransfer,
+  stockTransferLine,
   supplier,
   user,
 } from "@/lib/db/schema";
 import type { Actor } from "@/lib/permissions";
+import { StockError } from "@/lib/stock/errors";
 
 export interface TestWorld {
   readonly connection: Connection;
@@ -32,6 +35,8 @@ export interface TestWorld {
   readonly admin: Actor;
   readonly spintexManager: Actor;
   readonly spintexStorekeeper: Actor;
+  readonly kumasiManager: Actor;
+  readonly kumasiStorekeeper: Actor;
 }
 
 export const SPINTEX = "SPX";
@@ -124,18 +129,38 @@ export const createTestWorld = async (): Promise<TestWorld> => {
       name: "Kofi Boateng",
       role: "storekeeper",
     },
+    {
+      branchId: KUMASI,
+      email: "kmgr@tally.test",
+      id: "u-kmgr",
+      name: "Yaw Owusu",
+      role: "manager",
+    },
+    {
+      branchId: KUMASI,
+      email: "ksk@tally.test",
+      id: "u-ksk",
+      name: "Abena Darko",
+      role: "storekeeper",
+    },
   ] as const;
 
   await db.insert(user).values([...people]);
 
-  const [admin, spintexManager, spintexStorekeeper] = people.map(
-    ({ id, role, branchId }): Actor => ({ branchId, id, role })
-  );
+  const [
+    admin,
+    spintexManager,
+    spintexStorekeeper,
+    kumasiManager,
+    kumasiStorekeeper,
+  ] = people.map(({ id, role, branchId }): Actor => ({ branchId, id, role }));
 
   if (
     admin === undefined ||
     spintexManager === undefined ||
-    spintexStorekeeper === undefined
+    spintexStorekeeper === undefined ||
+    kumasiManager === undefined ||
+    kumasiStorekeeper === undefined
   ) {
     throw new Error("Fixture insert failed.");
   }
@@ -144,6 +169,8 @@ export const createTestWorld = async (): Promise<TestWorld> => {
     admin,
     connection,
     db,
+    kumasiManager,
+    kumasiStorekeeper,
     products: { kettle: kettle.id, old: old.id, rice: rice.id },
     spintexManager,
     spintexStorekeeper,
@@ -193,4 +220,61 @@ export const averageCostOf = async (
     .where(eq(product.id, productId));
 
   return row?.averageCost ?? Number.NaN;
+};
+
+/**
+ * Every transfer whose movements disagree with its lines. Dispatch must take
+ * out exactly what was sent; receiving must add exactly what was counted at
+ * the receiving branch; cancelling must return everything to the sender; and
+ * nothing may arrive while a transfer is still in transit.
+ */
+export const transferMismatches = async (db: Db): Promise<unknown[]> => {
+  const result = await db.execute(sql`
+    with lines as (
+      select transfer_id,
+        sum(quantity_sent)::int as sent,
+        sum(coalesce(quantity_received, 0))::int as received,
+        count(*) filter (where quantity_received is null)::int as uncounted,
+        count(*)::int as line_count
+      from ${stockTransferLine} group by transfer_id
+    ), moves as (
+      select transfer_id,
+        coalesce(sum(quantity) filter (where kind = 'transfer_out'), 0)::int as moved_out,
+        coalesce(sum(quantity) filter (where kind = 'transfer_in'), 0)::int as moved_in,
+        bool_and(kind <> 'transfer_out' or quantity < 0) as outs_negative,
+        array_agg(distinct branch_id) filter (where kind = 'transfer_in') as in_branches
+      from ${stockMovement} where transfer_id is not null group by transfer_id
+    )
+    select t.number, t.status, l.sent, l.received, l.uncounted, m.moved_out, m.moved_in, m.in_branches
+    from ${stockTransfer} t
+    join lines l on l.transfer_id = t.id
+    left join moves m on m.transfer_id = t.id
+    where coalesce(m.moved_out, 0) <> -l.sent
+      or not coalesce(m.outs_negative, true)
+      or case t.status
+        when 'in_transit' then coalesce(m.moved_in, 0) <> 0 or l.uncounted <> l.line_count
+        when 'received' then coalesce(m.moved_in, 0) <> l.received or l.uncounted <> 0
+          or (l.received > 0 and m.in_branches <> array[t.to_branch_id])
+        else coalesce(m.moved_in, 0) <> l.sent or m.in_branches <> array[t.from_branch_id]
+      end
+  `);
+
+  return queryRows.parse(result).rows;
+};
+
+/** Awaits a promise expected to fail with a StockError, and returns that error. */
+export const rejection = async (
+  promise: Promise<unknown>
+): Promise<StockError> => {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof StockError) {
+      return error;
+    }
+
+    throw error;
+  }
+
+  throw new Error("Expected the promise to reject with a StockError.");
 };

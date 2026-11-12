@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { adjustStock } from "@/lib/stock/adjust";
-import { StockError } from "@/lib/stock/errors";
 import { movingAverageCost, receiveGoods } from "@/lib/stock/receive";
 import {
   averageCostOf,
@@ -9,6 +8,7 @@ import {
   KUMASI,
   ledgerMismatches,
   onHand,
+  rejection,
   SPINTEX,
 } from "@/test/db";
 import type { TestWorld } from "@/test/db";
@@ -33,20 +33,6 @@ const receive = async (
     lines,
     supplierId: world.supplierId,
   });
-
-const rejection = async (promise: Promise<unknown>): Promise<StockError> => {
-  try {
-    await promise;
-  } catch (error) {
-    if (error instanceof StockError) {
-      return error;
-    }
-
-    throw error;
-  }
-
-  throw new Error("Expected the promise to reject with a StockError.");
-};
 
 describe("movingAverageCost", () => {
   it("weights the old average by the units already held", () => {

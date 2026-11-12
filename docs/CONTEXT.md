@@ -32,14 +32,16 @@ Built in Milestone 1:
 | Staff accounts | `/staff` | `lib/staff.ts` |
 | Branch switcher ("scope") | header on every page | `lib/scope.ts`, `app/(app)/scope-action.ts` |
 
-**Planned next** (proposed to the user, order not yet chosen):
+**Milestone 2, transfers between branches, is in progress.** Plan, in batches:
 
-1. Transfers between branches and from the warehouse, with goods in transit.
-2. Point-of-sale integration: sales take stock down as they happen.
-3. Purchase orders raised from the low-stock list, received against the order.
-4. Reports: stock value over time, fast and slow sellers, losses (shrinkage) by branch.
+1. **Done**: schema, migration `0001_transfers`, domain code (`lib/stock/transfer.ts`), permissions, the average-cost fix for goods in transit, tests.
+2. Sending UI: `/transfers` list (incoming / outgoing / in transit / received, follows scope), `/transfers/new`, read-only `/transfers/[id]`, nav entry.
+3. Receiving UI and integrations: receive form on `/transfers/[id]` (pre-filled with sent quantities; shortfall needs a note), cancel for sending managers, an overview "incoming transfers" card, new kinds and transfer links in `/movements`, in-transit quantity on product detail, an "on the way" column and a "Transfer from warehouse" pre-fill on `/low-stock`.
+4. Seed demo transfers (received, in transit to SPX and KSI, one short), update this file, full verification.
 
-Ask the user which milestone to start, then plan it in batches before writing code.
+Decisions the user accepted: storekeepers may dispatch and receive at their own branch; a short receipt is allowed with a required note and the shortfall is recorded as lost in transit on the transfer (not an adjustment at either branch); receiving more than was sent is refused (extras go in as a "found" adjustment); a manager at the sending branch (or head office) may cancel a transfer in transit, which returns the stock to the sender; branch *requests* for stock are out of scope (they belong with purchase orders).
+
+**Later milestones** (order not chosen): point-of-sale sales; purchase orders raised from the low-stock list; reports (stock value over time, fast and slow sellers, shrinkage by branch, including transit losses).
 
 ## Stack
 
@@ -54,8 +56,10 @@ Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), Rea
 - `branch`: ids are short codes used in document numbers. `SPX` Spintex, `WJA` Weija, `ASH` Ashaiman, `AMS` Amasaman, `KSI` Kumasi (Ahinsan), `TMA` Tema Distribution Centre (`kind: "warehouse"`).
 - `product`: `sku` (unique, uppercase), `barcode` (optional, unique, GTIN with a validated check digit), `sell_price` (shelf price including VAT), `average_cost` (moving weighted average across **all** branches, updated by receipts), `reorder_point` (company default), `active` (false = discontinued; can't be received).
 - `stock_level`: one row per (branch, product). `on_hand` (CHECK ≥ 0), `reorder_point` (branch override, null = product default), `bin_location`.
-- `stock_movement`: **the ledger**. Signed `quantity` (never zero), `balance_after`, `kind` (`opening` / `receipt` / `adjustment`), `adjustment_reason` (set if and only if `kind = adjustment`), `unit_cost` for receipts, `receipt_id`, `user_id`, `note`.
+- `stock_movement`: **the ledger**. Signed `quantity` (never zero), `balance_after`, `kind` (`opening` / `receipt` / `adjustment` / `transfer_out` / `transfer_in`), `adjustment_reason` (set if and only if `kind = adjustment`), `transfer_id` (set if and only if the kind is a transfer), `unit_cost` for receipts and transfers, `receipt_id`, `user_id`, `note`.
 - `goods_receipt`: the GRN header (`number` like `GRN-SPX-000042`, supplier, supplier reference, total cost). Its lines **are** its `stock_movement` rows; there is no separate line table.
+- `stock_transfer`: `number` like `TRF-TMA-000001` (numbered by the **sending** branch), `from_branch_id` ≠ `to_branch_id`, `status` (`in_transit` / `received` / `cancelled`, with CHECKs tying `received_at` / `cancelled_at` to it), dispatcher, receiver or canceller, `note` (dispatch), `receive_note` (shortfall or cancellation reason), `total_cost`.
+- `stock_transfer_line`: (`transfer_id`, `product_id`), `quantity_sent`, `quantity_received` (null until received; sent − received = lost in transit), `unit_cost` (average cost snapshotted at dispatch). Unlike GRNs, transfers need a line table: goods in transit are on no branch's `on_hand`, so the lines are their only record.
 - `document_counter`: per-branch, per-prefix sequence for document numbers, claimed inside the transaction.
 - Better Auth tables `user` / `session` / `account` / `verification`. `user.role` is a pg enum, `user.branch_id` is null for head office, and `user.banned` means deactivated.
 
@@ -67,9 +71,10 @@ These are invariants. New features must keep them; Milestone 2 features (transfe
 2. **Stock goes down only through one conditional UPDATE** (`on_hand + q >= 0` in the WHERE clause). No row updated means insufficient stock. This is what makes concurrent write-offs and sales safe.
 3. **Lock rows in a fixed order** (sorted by product id) when a transaction touches several products, so transactions can't deadlock.
 4. **The ledger is append-only.** Mistakes are corrected with a new adjustment, never by editing or deleting movements.
-5. **Permissions live in `lib/permissions.ts`** (pure, tested functions) and **every domain function checks them**. The UI calls the same functions only to hide controls. Rules: head office acts on any branch. Managers act on their own branch. Storekeepers may receive goods and write off `damaged` / `expired` at their own branch only. Theft, found, internal use, counts and reorder settings need a manager. Catalogue and staff are head office only. Anyone may _view_ any branch.
+5. **Permissions live in `lib/permissions.ts`** (pure, tested functions) and **every domain function checks them**. The UI calls the same functions only to hide controls. Rules: head office acts on any branch. Managers act on their own branch. Storekeepers may receive goods and write off `damaged` / `expired` at their own branch only. Storekeepers may also dispatch and receive transfers at their own branch. Theft, found, internal use, counts, reorder settings and cancelling a transfer need a manager. Catalogue and staff are head office only. Anyone may _view_ any branch.
 6. **Validate twice.** Server Actions parse untrusted input at the boundary (zod, `lib/form.ts` helpers). Domain functions take typed input (`z.input<typeof schema>`) and parse it again. Business-rule failures throw `StockError` (`lib/stock/errors.ts`) with a message written for the user. Actions catch **only** `StockError` and return `{ error }`; anything else is rethrown (a bug).
-7. Notes are required for theft, found and internal use (`NOTE_REQUIRED` in `lib/stock/reasons.ts`). Count adjustments compute the difference from a locked current balance; a count that matches is `no_change`, not an empty movement.
+7. **Goods in transit still belong to the company.** Dispatch is a `transfer_out` at the sender; receipt is a `transfer_in` at the receiver; cancelling is a `transfer_in` back at the sender. Anything counting company stock (average cost via `companyUnitsHeld` in `lib/stock/holdings.ts`, stock value) must add `in_transit` lines. Receiving and cancelling claim the transfer with a conditional UPDATE (`WHERE status = 'in_transit'`), so it settles once. Tests assert every transfer's movements match its lines (`transferMismatches` in `test/db.ts`).
+8. Notes are required for theft, found and internal use (`NOTE_REQUIRED` in `lib/stock/reasons.ts`). Count adjustments compute the difference from a locked current balance; a count that matches is `no_change`, not an empty movement.
 
 ## Database and environment
 
@@ -79,6 +84,7 @@ These are invariants. New features must keep them; Milestone 2 features (transfe
 - **Only one process may open `.data/pglite` at a time.** A dev server plus a script, or parallel build workers, corrupt it ("PGlite failed to initialize properly"). The fix is `pnpm db:reset` with the dev server stopped. This is why the connection and auth are created lazily, through `getDb()` and `getAuth()`; never connect at module import time.
 - `.env.local` holds `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL=http://localhost:3500`; `.env.example` documents every variable.
 - Demo accounts (sign-in page, demo mode): every account uses the password `akwaaba-demo`. Head office `efua.asante@akwaaba.example`; Spintex manager `ama.mensah@…`; Spintex storekeeper `kofi.boateng@…`; the full list is `STAFF` in `lib/db/seed-data.ts`. The seed is deterministic (fixed random seed).
+- New enum values: Postgres can't use an enum value in the transaction that adds it, and Drizzle runs migrations in one transaction. CHECK constraints that mention new values compare `kind::text` instead.
 - Tests give each file its own in-memory PGlite with real migrations (`test/db.ts` → `createTestWorld()`).
 
 ## Conventions and gotchas
