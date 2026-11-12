@@ -19,11 +19,20 @@ interface Option {
   readonly name: string;
 }
 
+/** The purchase order a delivery is received against: fixes the supplier. */
+export interface ReceivingOrder {
+  readonly id: number;
+  readonly supplierId: string;
+}
+
 interface ReceiveFormProps {
   readonly branches: readonly Option[];
   readonly suppliers: readonly Option[];
   readonly defaultBranchId: string;
   readonly initialProduct: PickedProduct | null;
+  /** Against a purchase order: its outstanding lines, at the agreed cost. */
+  readonly order?: ReceivingOrder;
+  readonly initialLines?: readonly DraftLine[];
 }
 
 interface SubmittedLine {
@@ -78,11 +87,14 @@ export const ReceiveForm = ({
   suppliers,
   defaultBranchId,
   initialProduct,
+  order,
+  initialLines,
 }: ReceiveFormProps) => {
   const [branchId, setBranchId] = useState(defaultBranchId);
 
   const [lines, setLines] = useState<readonly DraftLine[]>(
-    initialProduct === null ? [] : [newLine(initialProduct)]
+    () =>
+      initialLines ?? (initialProduct === null ? [] : [newLine(initialProduct)])
   );
 
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +161,12 @@ export const ReceiveForm = ({
         branchId,
         lines: submission.lines,
         note: formText(form, "note"),
-        supplierId: formInt(form, "supplierId"),
+        purchaseOrderId: order?.id,
+        // A disabled select isn't in the form data, so an order's supplier comes from it.
+        supplierId:
+          order === undefined
+            ? formInt(form, "supplierId")
+            : Number(order.supplierId),
         supplierReference: formText(form, "supplierReference"),
       });
 
@@ -180,7 +197,13 @@ export const ReceiveForm = ({
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
           Supplier
-          <select className="field" defaultValue="" name="supplierId" required>
+          <select
+            className="field"
+            defaultValue={order?.supplierId ?? ""}
+            disabled={order !== undefined}
+            name="supplierId"
+            required
+          >
             <option disabled value="">
               Choose a supplier
             </option>
@@ -206,13 +229,16 @@ export const ReceiveForm = ({
       </div>
 
       <div className="border-line bg-surface rounded-xl border">
-        <div className="border-line border-b p-4">
-          <ProductPicker
-            autoFocus={initialProduct === null}
-            label="Add products"
-            onPick={addProduct}
-          />
-        </div>
+        {/* Against an order, only what was ordered: extras go on their own receipt. */}
+        {order === undefined ? (
+          <div className="border-line border-b p-4">
+            <ProductPicker
+              autoFocus={initialProduct === null}
+              label="Add products"
+              onPick={addProduct}
+            />
+          </div>
+        ) : null}
         {lines.length === 0 ? (
           <p className="text-ink-2 p-6 text-center text-sm">
             Nothing on this delivery yet. Scan the first item.

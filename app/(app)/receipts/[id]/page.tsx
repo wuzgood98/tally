@@ -61,6 +61,17 @@ const ReceiptPage = async ({
       ) : null}
 
       <PageHeader
+        actions={
+          receipt.purchaseOrderId === null ? undefined : (
+            <Link
+              className="text-brand text-sm font-medium hover:underline"
+              href={`/purchase-orders/${receipt.purchaseOrderId}`}
+            >
+              Against{" "}
+              <span className="font-mono">{receipt.purchaseOrderNumber}</span>
+            </Link>
+          )
+        }
         description={`${receipt.supplierName} → ${receipt.branchName}`}
         eyebrow={
           <Link className="hover:text-ink hover:underline" href="/receipts">

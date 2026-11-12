@@ -6,6 +6,7 @@ import {
   branch,
   goodsReceipt,
   product,
+  purchaseOrder,
   stockMovement,
   supplier,
   user,
@@ -28,6 +29,7 @@ export const listReceipts = async (scope: Scope, page: number) => {
         id: goodsReceipt.id,
         lines: sql<number>`(select count(*)::int from ${stockMovement} where ${stockMovement.receiptId} = ${goodsReceipt.id})`,
         number: goodsReceipt.number,
+        purchaseOrderNumber: purchaseOrder.number,
         receivedBy: user.name,
         supplierName: supplier.name,
         supplierReference: goodsReceipt.supplierReference,
@@ -37,6 +39,10 @@ export const listReceipts = async (scope: Scope, page: number) => {
       .innerJoin(branch, eq(branch.id, goodsReceipt.branchId))
       .innerJoin(supplier, eq(supplier.id, goodsReceipt.supplierId))
       .leftJoin(user, eq(user.id, goodsReceipt.receivedById))
+      .leftJoin(
+        purchaseOrder,
+        eq(purchaseOrder.id, goodsReceipt.purchaseOrderId)
+      )
       .where(where)
       .orderBy(desc(goodsReceipt.createdAt), desc(goodsReceipt.id))
       .limit(RECEIPTS_PAGE_SIZE)
@@ -59,6 +65,8 @@ export const getReceipt = async (id: number) => {
       id: goodsReceipt.id,
       note: goodsReceipt.note,
       number: goodsReceipt.number,
+      purchaseOrderId: goodsReceipt.purchaseOrderId,
+      purchaseOrderNumber: purchaseOrder.number,
       receivedBy: user.name,
       supplierCountry: supplier.country,
       supplierName: supplier.name,
@@ -69,6 +77,7 @@ export const getReceipt = async (id: number) => {
     .innerJoin(branch, eq(branch.id, goodsReceipt.branchId))
     .innerJoin(supplier, eq(supplier.id, goodsReceipt.supplierId))
     .leftJoin(user, eq(user.id, goodsReceipt.receivedById))
+    .leftJoin(purchaseOrder, eq(purchaseOrder.id, goodsReceipt.purchaseOrderId))
     .where(eq(goodsReceipt.id, id));
 
   if (header === undefined) {

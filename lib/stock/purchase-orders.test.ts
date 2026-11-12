@@ -230,6 +230,16 @@ describe("receiving against an order", () => {
     expect(await statusOf(orderId)).toBe("approved");
   });
 
+  it("names the product when a delivery is more than is due", async () => {
+    const tooMany = await rejection(
+      deliver(orderId, [{ productId: world.products.rice, quantity: 31 }])
+    );
+
+    expect(tooMany.message).toBe(
+      "Only 30 Jasmine rice 5 kg still due on PO-SPX-000004. Receive the extra on a separate receipt."
+    );
+  });
+
   it("keeps the order open after a part delivery", async () => {
     const before = await onHand(world.db, SPINTEX, world.products.rice);
 

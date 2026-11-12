@@ -170,6 +170,16 @@ const assertReferencesExist = async (
   }
 };
 
+/** For messages: a delivery line's product, by name. */
+const productName = async (tx: Tx, productId: number): Promise<string> => {
+  const [row] = await tx
+    .select({ name: product.name })
+    .from(product)
+    .where(eq(product.id, productId));
+
+  return row?.name ?? "A product";
+};
+
 /**
  * Checks a delivery against its purchase order and adds it to the order's
  * lines, under a lock on the order. Refuses anything not ordered, or more than
@@ -223,24 +233,26 @@ const fillPurchaseOrder = async (
 
   const byProduct = new Map(ordered.map((line) => [line.productId, line]));
 
-  for (const line of input.lines) {
+  // The first line that doesn't fit the order, if any; named once below.
+  const misfit = input.lines.find((line) => {
     const orderLine = byProduct.get(line.productId);
 
-    if (orderLine === undefined) {
-      throw new StockError(
-        "invalid_input",
-        `A product on this delivery isn't on ${order.number}. Receive it on a separate receipt.`
-      );
-    }
+    return (
+      orderLine === undefined ||
+      line.quantity > orderLine.quantity - orderLine.quantityReceived
+    );
+  });
 
-    const outstanding = orderLine.quantity - orderLine.quantityReceived;
+  if (misfit !== undefined) {
+    const orderLine = byProduct.get(misfit.productId);
+    const name = await productName(tx, misfit.productId);
 
-    if (line.quantity > outstanding) {
-      throw new StockError(
-        "invalid_input",
-        `Only ${outstanding} of a product are still due on ${order.number}. Receive the extra on a separate receipt.`
-      );
-    }
+    throw new StockError(
+      "invalid_input",
+      orderLine === undefined
+        ? `${name} isn't on ${order.number}. Receive it on a separate receipt.`
+        : `Only ${orderLine.quantity - orderLine.quantityReceived} ${name} still due on ${order.number}. Receive the extra on a separate receipt.`
+    );
   }
 
   // Sorted by product id, like every other multi-row write.

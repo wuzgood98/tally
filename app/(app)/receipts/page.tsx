@@ -100,6 +100,11 @@ const ReceiptsPage = async ({ searchParams }: PageProps<"/receipts">) => {
                         {row.supplierReference}
                       </span>
                     ) : null}
+                    {row.purchaseOrderNumber === null ? null : (
+                      <span className="text-ink-3 block font-mono text-xs">
+                        {row.purchaseOrderNumber}
+                      </span>
+                    )}
                   </Td>
                   <Td numeric>{formatCount(row.lines)}</Td>
                   <Td numeric weight="medium">

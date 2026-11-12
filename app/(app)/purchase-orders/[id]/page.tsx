@@ -1,4 +1,4 @@
-import { CircleCheck, Pencil, Printer } from "lucide-react";
+import { CircleCheck, PackagePlus, Pencil, Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,6 +24,7 @@ import {
   canApprovePurchaseOrder,
   canCancelDraftPurchaseOrder,
   canDraftPurchaseOrder,
+  canReceive,
 } from "@/lib/permissions";
 import { getPurchaseOrder } from "@/lib/queries/purchase-orders";
 import type { PurchaseOrderDetail } from "@/lib/queries/purchase-orders";
@@ -89,7 +90,28 @@ const When = ({ at }: { readonly at: Date | null }) =>
     <time dateTime={isoString(at)}>{formatDateTime(at)}</time>
   );
 
-/** Edit, approve, cancel or close: whatever this person may do at this stage. */
+/** What this person may do with the order at its current stage. */
+const allowedActions = (order: PurchaseOrderDetail, viewer: Viewer) => {
+  const draft = order.status === "draft";
+
+  const open =
+    order.status === "approved" || order.status === "partly_received";
+
+  const headOffice = canApprovePurchaseOrder(viewer);
+
+  return {
+    approve: draft && headOffice,
+    cancel:
+      (draft && canCancelDraftPurchaseOrder(viewer, order.branchId)) ||
+      (order.status === "approved" && headOffice),
+    close: order.status === "partly_received" && headOffice,
+    edit: draft && canDraftPurchaseOrder(viewer, order.branchId),
+    receive: open && canReceive(viewer, order.branchId),
+    waiting: draft && !headOffice,
+  };
+};
+
+/** Receive, approve, edit, cancel or close: whatever this person may do now. */
 const Actions = ({
   order,
   viewer,
@@ -97,30 +119,32 @@ const Actions = ({
   readonly order: PurchaseOrderDetail;
   readonly viewer: Viewer;
 }) => {
-  const draft = order.status === "draft";
-  const headOffice = canApprovePurchaseOrder(viewer);
+  const allowed = allowedActions(order, viewer);
+  const { approve, cancel, close, edit, receive } = allowed;
 
-  const canCancel =
-    (draft && canCancelDraftPurchaseOrder(viewer, order.branchId)) ||
-    (order.status === "approved" && headOffice);
-
-  const canClose = order.status === "partly_received" && headOffice;
-  const canEdit = draft && canDraftPurchaseOrder(viewer, order.branchId);
-
-  if (!(canEdit || canCancel || canClose || (draft && headOffice))) {
+  if (!(approve || cancel || close || edit || receive)) {
     return null;
   }
 
   return (
     <Panel className="mb-6">
       <div className="flex flex-wrap items-start gap-3">
-        {draft && headOffice ? (
+        {receive ? (
+          <Link
+            className={buttonVariants({ size: "md" })}
+            href={`/purchase-orders/${order.id}/receive`}
+          >
+            <PackagePlus aria-hidden="true" />
+            Receive delivery
+          </Link>
+        ) : null}
+        {approve ? (
           <ApproveOrderButton
             orderId={order.id}
             total={formatCedis(order.totalCost)}
           />
         ) : null}
-        {canEdit ? (
+        {edit ? (
           <Link
             className={buttonVariants({ size: "md", variant: "outline" })}
             href={`/purchase-orders/${order.id}/edit`}
@@ -129,14 +153,10 @@ const Actions = ({
             Edit draft
           </Link>
         ) : null}
-        {canCancel ? (
-          <ReasonOrderAction kind="cancel" orderId={order.id} />
-        ) : null}
-        {canClose ? (
-          <ReasonOrderAction kind="close" orderId={order.id} />
-        ) : null}
+        {cancel ? <ReasonOrderAction kind="cancel" orderId={order.id} /> : null}
+        {close ? <ReasonOrderAction kind="close" orderId={order.id} /> : null}
       </div>
-      {draft && !headOffice ? (
+      {allowed.waiting ? (
         <p className="text-ink-2 mt-3 text-sm">
           Waiting for head office to approve it.
         </p>
