@@ -50,7 +50,7 @@ export const ReceiptLineRow = ({
         <input
           aria-invalid={quantityValid ? undefined : true}
           aria-label={`Quantity of ${product.name}`}
-          className="field tabular h-8 text-right"
+          className="field tabular h-8 min-w-20 text-right"
           inputMode="numeric"
           onChange={(event) => {
             onChange(product.id, { quantity: event.target.value });
@@ -65,7 +65,7 @@ export const ReceiptLineRow = ({
         <input
           aria-invalid={cost === null ? true : undefined}
           aria-label={`Unit cost of ${product.name} in cedis`}
-          className="field tabular h-8 text-right"
+          className="field tabular h-8 min-w-20 text-right"
           inputMode="decimal"
           onChange={(event) => {
             onChange(product.id, { cost: event.target.value });

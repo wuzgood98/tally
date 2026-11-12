@@ -35,11 +35,11 @@ Built in Milestone 1:
 **Milestone 2, transfers between branches, is in progress.** Plan, in batches:
 
 1. **Done**: schema, migration `0001_transfers`, domain code (`lib/stock/transfer.ts`), permissions, the average-cost fix for goods in transit, tests.
-2. Sending UI: `/transfers` list (incoming / outgoing / in transit / received, follows scope), `/transfers/new`, read-only `/transfers/[id]`, nav entry.
+2. **Done**: `/transfers` list (status filter; direction filter in single-branch scope), `/transfers/new` (`?from=&to=&lines=12:40,15:10` pre-fills; blocks quantities above what the sender holds), read-only `/transfers/[id]`, nav entry. Queries in `lib/queries/transfers.ts` (aliased `branch` / `user` joins via `alias()`). Walked through in the browser (storekeeper sending, blocked over-quantity, 390px).
 3. Receiving UI and integrations: receive form on `/transfers/[id]` (pre-filled with sent quantities; shortfall needs a note), cancel for sending managers, an overview "incoming transfers" card, new kinds and transfer links in `/movements`, in-transit quantity on product detail, an "on the way" column and a "Transfer from warehouse" pre-fill on `/low-stock`.
 4. Seed demo transfers (received, in transit to SPX and KSI, one short), update this file, full verification.
 
-Decisions the user accepted: storekeepers may dispatch and receive at their own branch; a short receipt is allowed with a required note and the shortfall is recorded as lost in transit on the transfer (not an adjustment at either branch); receiving more than was sent is refused (extras go in as a "found" adjustment); a manager at the sending branch (or head office) may cancel a transfer in transit, which returns the stock to the sender; branch *requests* for stock are out of scope (they belong with purchase orders).
+Decisions the user accepted: storekeepers may dispatch and receive at their own branch; a short receipt is allowed with a required note and the shortfall is recorded as lost in transit on the transfer (not an adjustment at either branch); receiving more than was sent is refused (extras go in as a "found" adjustment); a manager at the sending branch (or head office) may cancel a transfer in transit, which returns the stock to the sender; branch _requests_ for stock are out of scope (they belong with purchase orders).
 
 **Later milestones** (order not chosen): point-of-sale sales; purchase orders raised from the low-stock list; reports (stock value over time, fast and slow sellers, shrinkage by branch, including transit losses).
 
@@ -103,6 +103,7 @@ These are invariants. New features must keep them; Milestone 2 features (transfe
 - **Drizzle subqueries**: aliased subquery columns are emitted without a table prefix. Give aliases unique names (`level_on_hand`), or joined columns with the same name become ambiguous (this caused a 500 on the products list in single-branch view).
 - **Server pages**: `getViewer()` calls `connection()` so signed-in pages are never prerendered. Await `params`, `searchParams` and `requireViewer()` together with `Promise.all`.
 - Domain code (`lib/stock`, `lib/catalogue.ts`, `lib/staff.ts`) takes a `Db` parameter and never imports the app's connection, so tests can pass an in-memory database. Server-only query modules (`lib/queries/*`) use `getDb()`.
+- **Phone width**: an `sr-only` span is `position: absolute`, so inside a scrolling table wrapper that isn't positioned it escapes the clip and widens the page. Scroll wrappers are `relative overflow-x-auto` (the `Table` component does this). Line-item forms use `grid grid-cols-1` so their table wrapper can shrink below its content width.
 - Barcode scanners type the code and press Enter. `ProductPicker` treats an exact barcode or SKU as an instant add; scanning the same item again increments its quantity.
 
 ## Verifying a change

@@ -158,7 +158,7 @@ export const ReceiveForm = ({
   };
 
   return (
-    <form className="grid gap-6" onSubmit={onSubmit}>
+    <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
       <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-3">
         <label className="grid gap-1.5 text-sm font-medium">
           Receiving at
@@ -218,7 +218,7 @@ export const ReceiveForm = ({
             Nothing on this delivery yet. Scan the first item.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full text-sm">
               <caption className="sr-only">Products on this delivery</caption>
               <thead>
@@ -284,7 +284,8 @@ export const ReceiveForm = ({
             {" "}
             · {formatCount(lines.length)}{" "}
             {lines.length === 1 ? "line" : "lines"},{" "}
-            {formatCount(summary.units)} units
+            {formatCount(summary.units)}{" "}
+            {summary.units === 1 ? "unit" : "units"}
           </span>
         </p>
         <div className="flex items-center gap-3">

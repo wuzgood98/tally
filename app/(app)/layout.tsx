@@ -6,6 +6,7 @@ import {
   PackagePlus,
   ScrollText,
   TriangleAlert,
+  Truck,
   Users,
 } from "lucide-react";
 
@@ -47,6 +48,9 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       </NavLink>
       <NavLink href="/receipts" icon={<PackagePlus />}>
         Receive goods
+      </NavLink>
+      <NavLink href="/transfers" icon={<Truck />}>
+        Transfers
       </NavLink>
       <NavLink href="/adjustments" icon={<ClipboardList />}>
         Adjustments

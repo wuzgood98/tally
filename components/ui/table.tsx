@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /** Scrolls sideways on narrow screens instead of squashing columns. */
 export const Table = ({ className, ...props }: ComponentProps<"table">) => (
-  <div className="overflow-x-auto">
+  <div className="relative overflow-x-auto">
     <table
       className={cn("w-full border-collapse text-sm", className)}
       {...props}
