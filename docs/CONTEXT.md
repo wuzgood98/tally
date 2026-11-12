@@ -15,7 +15,7 @@ The user is a frontend engineer, and this is their first "real world" project af
 
 ## Status
 
-**Milestones 1 and 2 are done**: built, tested (78 tests), lint-clean, production build passing, smoke-tested for every role and scope, walked through in the browser at desktop and 390px. Milestone 1 (the core stock loop) is on `main` at https://github.com/wuzgood98/tally. Milestone 2 (transfers) is committed on the branch `milestone-2-transfers`, not yet pushed or merged. Commit only when the user asks.
+**Milestones 1 and 2 are done**: built, tested (78 tests), lint-clean, production build passing, smoke-tested for every role and scope, walked through in the browser at desktop and 390px. Both are committed and pushed to `main` at https://github.com/wuzgood98/tally. Commit only when the user asks.
 
 | Area | Route(s) | Domain code |
 | --- | --- | --- |
