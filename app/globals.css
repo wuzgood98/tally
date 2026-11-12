@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Tally: a working tool for store floors and back offices. Warm paper and ink,
+ * one deep green for action, amber for "running low", brick red for "out".
+ * IBM Plex Sans for words, Plex Mono for SKUs, barcodes and every number that
+ * needs to line up. Follows the device: light, or dark after hours.
+ */
+
+@theme inline {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "Cascadia Mono", monospace;
+
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-ink);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--ink-2);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--danger);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--accent);
+
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--accent);
+  --color-brand-soft: var(--accent-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-good: var(--good);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+}
+
+@theme {
+  --ease-out-quick: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root {
+  --paper: #f5f3ee;
+  --surface: #ffffff;
+  --surface-2: #eeebe3;
+  --ink: #1a1c19;
+  --ink-2: #55594f;
+  --ink-3: #80847a;
+  --line: #e1ddd2;
+  --line-strong: #c9c4b6;
+  --accent: #0d6b46;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2f0e8;
+  --warn: #8f5a00;
+  --warn-soft: #fbefd5;
+  --danger: #b0301c;
+  --danger-soft: #fae5e0;
+  --good: #1f7a49;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121411;
+    --surface: #1a1d19;
+    --surface-2: #232722;
+    --ink: #ebeae4;
+    --ink-2: #a6aa9f;
+    --ink-3: #7c8076;
+    --line: #2c312b;
+    --line-strong: #3d433c;
+    --accent: #4cc48b;
+    --accent-ink: #0b1a12;
+    --accent-soft: #173326;
+    --warn: #f1b24a;
+    --warn-soft: #33270f;
+    --danger: #f2846f;
+    --danger-soft: #3a1c16;
+    --good: #63cf94;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility press {
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    outline-color 150ms ease,
+    scale 140ms var(--ease-out-quick);
+
+  &:active:not(:disabled, [aria-disabled="true"]) {
+    scale: 0.97;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:active:not(:disabled, [aria-disabled="true"]) {
+      scale: none;
+    }
+  }
+}
+
+/* Native form controls styled once, so forms stay plain HTML. */
+@utility field {
+  @apply border-input bg-surface text-ink placeholder:text-ink-3 h-9 w-full rounded-md border px-3 text-sm;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+
+  &:focus-visible {
+    @apply border-brand outline-none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  &[aria-invalid="true"] {
+    @apply border-danger;
+  }
+
+  &:disabled {
+    @apply opacity-60;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+
+  html {
+    @apply font-sans;
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  select.field {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2380847a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.7rem center;
+    background-repeat: no-repeat;
+    padding-right: 2rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
