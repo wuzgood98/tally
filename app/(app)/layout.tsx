@@ -15,6 +15,7 @@ import {
   Truck,
   Users,
 } from "lucide-react";
+import { cookies } from "next/headers";
 
 import { signOut } from "@/app/login/actions";
 import { TallyMark } from "@/components/brand/tally-mark";
@@ -41,13 +42,15 @@ import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 import { COMPANY_NAME, ROLE_LABELS } from "@/lib/site";
+import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 
 const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const viewer = await requireViewer();
 
-  const [branches, scope] = await Promise.all([
+  const [branches, scope, jar] = await Promise.all([
     listBranches(),
     getScope(viewer),
+    cookies(),
   ]);
 
   // Warehouses this person sends from: their open requests are a to-do list.
@@ -173,6 +176,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       branches={branches.map(({ id, kind, name }) => ({ id, kind, name }))}
       groups={paletteCommands(viewer, branches)}
       scope={scope.kind === "all" ? "all" : scope.branchId}
+      theme={parseTheme(jar.get(THEME_COOKIE)?.value)}
     >
       <div className="bg-paper lg:grid lg:min-h-svh lg:grid-cols-[14.5rem_minmax(0,1fr)] lg:py-2 lg:pr-2 print:block print:bg-transparent print:p-0">
         <a

@@ -84,6 +84,10 @@ const switchScope = vi.fn(async (_scope: string) => {
   /* the app's action sets the scope cookie */
 });
 
+const setTheme = vi.fn(async (_theme: string) => {
+  /* the app's action sets the theme cookie */
+});
+
 const BRANCHES = [
   { id: "SPX", kind: "store", name: "Spintex" },
   { id: "KSI", kind: "store", name: "Kumasi" },
@@ -143,9 +147,11 @@ const renderPalette = () =>
       onNavigate={push}
       onSignOut={signOut}
       branches={BRANCHES}
+      onSetTheme={setTheme}
       onSwitchScope={switchScope}
       scope="SPX"
       search={search}
+      theme="system"
     >
       <PaletteFieldTrigger />
       <PaletteIconTrigger />
@@ -159,6 +165,7 @@ beforeEach(() => {
   signOut.mockClear();
   search.mockClear();
   switchScope.mockClear();
+  setTheme.mockClear();
 });
 
 const openAndType = async (text: string) => {
@@ -333,6 +340,20 @@ describe("CommandPalette", () => {
     await user.click(screen.getByRole("option", { name: "Switch to Kumasi" }));
 
     expect(switchScope).toHaveBeenCalledWith("KSI");
+  });
+
+  it("picks a theme from the theme page", async () => {
+    const user = await openAndType("dark");
+
+    expect(
+      screen.getByRole("option", { name: /^Theme/u }).textContent
+    ).toContain("Match this device");
+
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByRole("combobox"), "dark");
+    await user.keyboard("{Enter}");
+
+    expect(setTheme).toHaveBeenCalledWith("dark");
   });
 
   it("doesn't search for a single letter", async () => {

@@ -59,10 +59,13 @@ import {
   resultScore,
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
+import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
+import type { Theme } from "@/lib/theme";
 
 import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
 import { ProductResults } from "./palette-products";
+import { ThemeGroup, ThemePage } from "./palette-theme";
 
 const SHORTCUT = "mod+k";
 const TITLE = "Search or jump to";
@@ -141,6 +144,10 @@ const placeholderFor = (subPage: string | undefined): string => {
     return "Find a branch… (Backspace to go back)";
   }
 
+  if (subPage === THEME_PAGE) {
+    return "Choose a theme… (Backspace to go back)";
+  }
+
   return "Search pages, products and document numbers…";
 };
 
@@ -154,6 +161,8 @@ export interface CommandPaletteProps {
   /** "all", or the id of the branch every screen shows. */
   readonly scope: string;
   readonly onSwitchScope: (scope: string) => Promise<void>;
+  readonly theme: Theme;
+  readonly onSetTheme: (theme: Theme) => Promise<void>;
 }
 
 /**
@@ -171,6 +180,8 @@ export const CommandPalette = ({
   branches,
   scope,
   onSwitchScope,
+  theme,
+  onSetTheme,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
@@ -222,6 +233,15 @@ export const CommandPalette = ({
     if (resultPage !== null) {
       palette.close();
       onNavigate(resultPage);
+
+      return;
+    }
+
+    const nextTheme = themeOf(value);
+
+    if (nextTheme !== null) {
+      await onSetTheme(nextTheme);
+      palette.close();
 
       return;
     }
@@ -316,6 +336,7 @@ export const CommandPalette = ({
                   )
                 )}
                 <BranchGroup branches={branches} query={query} scope={scope} />
+                <ThemeGroup theme={theme} />
                 {groups.map((group) =>
                   group.label === ACCOUNT_GROUP ? (
                     <CommandGroupOf group={group} key={group.label} />
@@ -334,6 +355,7 @@ export const CommandPalette = ({
                 )}
               </CommandPage>
               <BranchPage branches={branches} scope={scope} />
+              <ThemePage theme={theme} />
             </CommandList>
           </Command>
         </DialogContent>
