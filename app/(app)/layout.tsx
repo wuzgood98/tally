@@ -1,5 +1,6 @@
 import {
   ClipboardList,
+  Inbox,
   LayoutDashboard,
   LogOut,
   MonitorSmartphone,
@@ -20,12 +21,14 @@ import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import {
   canApprovePurchaseOrder,
+  canDispatchTransfer,
   canManageStaff,
   canManageTills,
   sellableBranchIds,
 } from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
 import { countDraftPurchaseOrders } from "@/lib/queries/purchase-orders";
+import { countOpenRequests } from "@/lib/queries/requests";
 import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
@@ -39,14 +42,23 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     getScope(viewer),
   ]);
 
-  const [totals, incoming, draftsToApprove] = await Promise.all([
-    getOverviewTotals(scope),
-    countIncomingInTransit(scope),
-    // Only head office approves, so only head office sees the count.
-    canApprovePurchaseOrder(viewer)
-      ? countDraftPurchaseOrders()
-      : Promise.resolve(0),
-  ]);
+  // Warehouses this person sends from: their open requests are a to-do list.
+  const fulfilFrom = branches.flatMap((item) =>
+    item.kind === "warehouse" && canDispatchTransfer(viewer, item.id)
+      ? [item.id]
+      : []
+  );
+
+  const [totals, incoming, draftsToApprove, requestsToFulfil] =
+    await Promise.all([
+      getOverviewTotals(scope),
+      countIncomingInTransit(scope),
+      // Only head office approves, so only head office sees the count.
+      canApprovePurchaseOrder(viewer)
+        ? countDraftPurchaseOrders()
+        : Promise.resolve(0),
+      countOpenRequests(fulfilFrom),
+    ]);
 
   const homeBranch = branches.find((item) => item.id === viewer.branchId);
 
@@ -91,6 +103,9 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
         icon={<ShoppingCart />}
       >
         Purchase orders
+      </NavLink>
+      <NavLink badge={requestsToFulfil} href="/requests" icon={<Inbox />}>
+        Requests
       </NavLink>
       <NavLink href="/adjustments" icon={<ClipboardList />}>
         Adjustments

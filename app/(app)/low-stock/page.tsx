@@ -1,4 +1,4 @@
-import { Truck } from "lucide-react";
+import { Inbox, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -7,7 +7,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
-import { canDispatchTransfer, canDraftPurchaseOrder } from "@/lib/permissions";
+import {
+  canDispatchTransfer,
+  canDraftPurchaseOrder,
+  canRequestStock,
+} from "@/lib/permissions";
 import { getReorderLines } from "@/lib/queries/overview";
 import type { ReorderLine } from "@/lib/queries/overview";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
@@ -22,35 +26,50 @@ export const metadata: Metadata = { title: "Low stock" };
 /** Enough for every line at a large store; the list is grouped, not paged. */
 const LIMIT = 2000;
 
+interface WarehouseAction {
+  readonly href: string;
+  readonly label: string;
+  readonly direct: boolean;
+}
+
 /**
- * A pre-filled transfer from the warehouse to the store on screen, for people
- * who can send from the warehouse. Null when that doesn't apply.
+ * Topping up the store on screen from the warehouse: people who can send
+ * from the warehouse get a pre-filled transfer; the store's manager gets a
+ * pre-filled request instead. Null when neither applies or nothing's needed.
  */
-const warehouseTopUpHref = (
+const warehouseAction = (
   viewer: Viewer,
   scope: Scope,
   branches: readonly BranchSummary[],
   lines: readonly ReorderLine[]
-): string | null => {
+): WarehouseAction | null => {
   const warehouse = branches.find((item) => item.kind === "warehouse");
 
   const store = branches.find(
     (item) => scope.kind === "branch" && item.id === scope.branchId
   );
 
-  if (
-    warehouse === undefined ||
-    store?.kind !== "store" ||
-    !canDispatchTransfer(viewer, warehouse.id)
-  ) {
+  const prefill = topUpLinesParam(lines);
+
+  if (warehouse === undefined || store?.kind !== "store" || prefill === "") {
     return null;
   }
 
-  const prefill = topUpLinesParam(lines);
+  if (canDispatchTransfer(viewer, warehouse.id)) {
+    return {
+      direct: true,
+      href: `/transfers/new${queryString({ from: warehouse.id, lines: prefill, to: store.id })}`,
+      label: "Transfer from warehouse",
+    };
+  }
 
-  return prefill === ""
-    ? null
-    : `/transfers/new${queryString({ from: warehouse.id, lines: prefill, to: store.id })}`;
+  return canRequestStock(viewer, store.id)
+    ? {
+        direct: false,
+        href: `/requests/new${queryString({ branch: store.id, lines: prefill })}`,
+        label: "Request from warehouse",
+      }
+    : null;
 };
 
 /** A supplier group's line count, and a pre-filled order when one can be raised. */
@@ -113,7 +132,7 @@ const LowStockPage = async () => {
       ? `, ${formatCount(needCount)} ${needCount === 1 ? "needs" : "need"} a count`
       : "";
 
-  const topUpHref = warehouseTopUpHref(viewer, scope, branches, lines);
+  const topUp = warehouseAction(viewer, scope, branches, lines);
 
   // A purchase order is for one branch, so ordering needs a branch on screen.
   const orderBranchId =
@@ -134,10 +153,14 @@ const LowStockPage = async () => {
     <>
       <PageHeader
         actions={
-          topUpHref === null ? undefined : (
-            <Link className={buttonVariants({ size: "md" })} href={topUpHref}>
-              <Truck aria-hidden="true" />
-              Transfer from warehouse
+          topUp === null ? undefined : (
+            <Link className={buttonVariants({ size: "md" })} href={topUp.href}>
+              {topUp.direct ? (
+                <Truck aria-hidden="true" />
+              ) : (
+                <Inbox aria-hidden="true" />
+              )}
+              {topUp.label}
             </Link>
           )
         }

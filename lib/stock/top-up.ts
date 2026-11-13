@@ -14,6 +14,8 @@ export interface TopUpLine {
   readonly inTransit: number;
   /** Still due on approved purchase orders. */
   readonly onOrder?: number;
+  /** Asked of the warehouse on requests it hasn't answered yet. */
+  readonly requested?: number;
 }
 
 export const topUpQuantity = (line: TopUpLine): number =>
@@ -21,7 +23,8 @@ export const topUpQuantity = (line: TopUpLine): number =>
     line.reorderPoint * TOP_UP_FACTOR -
       line.onHand -
       line.inTransit -
-      (line.onOrder ?? 0),
+      (line.onOrder ?? 0) -
+      (line.requested ?? 0),
     0
   );
 

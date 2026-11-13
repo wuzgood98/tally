@@ -32,6 +32,18 @@ describe("topUpQuantity", () => {
     ).toBe(7);
   });
 
+  it("counts what the store has already asked the warehouse for", () => {
+    expect(
+      topUpQuantity({
+        inTransit: 0,
+        onHand: 3,
+        productId: 1,
+        reorderPoint: 10,
+        requested: 12,
+      })
+    ).toBe(5);
+  });
+
   it("never asks for a negative amount", () => {
     expect(
       topUpQuantity({

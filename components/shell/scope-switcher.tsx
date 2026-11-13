@@ -33,13 +33,15 @@ export const ScopeSwitcher = ({
   value,
   homeBranchId,
 }: ScopeSwitcherProps) => (
-  <form action={setScope} className="flex items-center gap-2">
+  // min-w-0 lets the switcher shrink on a phone: a long branch name such as
+  // "Tema Distribution Centre (yours)" must not push sign-out off the screen.
+  <form action={setScope} className="flex min-w-0 items-center gap-2">
     <label className="sr-only" htmlFor="scope">
       Show stock for
     </label>
     <Store aria-hidden="true" className="text-ink-3 size-4 shrink-0" />
     <select
-      className="field h-8 w-auto min-w-44 text-sm font-medium"
+      className="field h-8 w-auto max-w-full min-w-0 text-sm font-medium sm:min-w-44"
       defaultValue={value}
       id="scope"
       name="scope"

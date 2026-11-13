@@ -10,6 +10,8 @@ import {
   purchaseOrder,
   purchaseOrderLine,
   stockLevel,
+  stockRequest,
+  stockRequestLine,
   stockTransfer,
   stockTransferLine,
   supplier,
@@ -106,6 +108,8 @@ export interface ReorderLine {
   readonly inTransit: number;
   /** Units still due on approved purchase orders for this branch. */
   readonly onOrder: number;
+  /** Units on this branch's open requests to the warehouse. */
+  readonly requested: number;
   readonly supplierId: number | null;
   readonly supplierName: string | null;
   readonly categoryName: string;
@@ -141,6 +145,14 @@ export const getReorderLines = async (
           and ${purchaseOrder.branchId} = ${stockLevel.branchId}
           and ${purchaseOrderLine.productId} = ${stockLevel.productId}
       )`.as("reorder_on_order"),
+      requested: sql<number>`(
+        select coalesce(sum(${stockRequestLine.quantity}), 0)::int
+        from ${stockRequestLine}
+        join ${stockRequest} on ${stockRequest.id} = ${stockRequestLine.requestId}
+        where ${stockRequest.status} = 'requested'
+          and ${stockRequest.branchId} = ${stockLevel.branchId}
+          and ${stockRequestLine.productId} = ${stockLevel.productId}
+      )`.as("reorder_requested"),
       name: product.name,
       onHand: stockLevel.onHand,
       productId: product.id,
