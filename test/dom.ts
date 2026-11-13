@@ -38,6 +38,20 @@ globalThis.ResizeObserver ??= class {
   disconnect = noop;
 };
 
+// `presentation="auto"` asks whether this is a small touch screen: it isn't.
+globalThis.matchMedia ??= (query: string): MediaQueryList => ({
+  addEventListener: noop,
+  // oxlint-disable-next-line typescript/no-deprecated -- MediaQueryList still requires it
+  addListener: noop,
+  dispatchEvent: () => false,
+  matches: false,
+  media: query,
+  onchange: null,
+  removeEventListener: noop,
+  // oxlint-disable-next-line typescript/no-deprecated -- MediaQueryList still requires it
+  removeListener: noop,
+});
+
 document.head.append(
   Object.assign(document.createElement("style"), {
     textContent: "[popover] { display: block !important }",

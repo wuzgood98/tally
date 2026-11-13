@@ -4,11 +4,34 @@
 @import "shadcn/tailwind.css";
 
 /*
+ * Dark when the person chose it (data-theme="dark" on <html>, from the theme
+ * cookie), or when the device is dark and they didn't choose light. Screens
+ * only, so printing is always dark ink on paper.
+ */
+@custom-variant dark {
+  @media screen {
+    &:where([data-theme="dark"], [data-theme="dark"] *) {
+      @slot;
+    }
+  }
+
+  @media screen and (prefers-color-scheme: dark) {
+    &:where(
+      :root:not([data-theme="light"]),
+      :root:not([data-theme="light"]) *
+    ) {
+      @slot;
+    }
+  }
+}
+
+/*
  * Tally, "Night shift": a precise instrument for the back office after
  * closing. Graphite with an inset canvas, one ice-blue accent, amber for
  * "running low", coral for "out". Geist for words, Geist Mono for SKUs,
  * barcodes and every number that needs to line up. Designed dark-first; light
- * mirrors it in cool greys. Follows the device. Printing is always light.
+ * mirrors it in cool greys. Follows the device unless someone picks a theme in the palette.
+ * Printing is always light.
  */
 
 @theme inline {
@@ -118,8 +141,8 @@
 }
 
 /* Night shift. Screens only: anything printed stays dark ink on paper. */
-@media screen and (prefers-color-scheme: dark) {
-  :root {
+:root {
+  @variant dark {
     --paper: #08090a;
     --canvas: #0f1012;
     --surface: #141518;
@@ -186,6 +209,11 @@
     transparent 75%
   );
   background-repeat: no-repeat;
+}
+
+/* Room under a bottom sheet's last row, clear of the phone's home bar. */
+@utility pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 /* A row you can see is interactive, without moving it. */
@@ -267,6 +295,24 @@
   html {
     @apply font-sans;
     color-scheme: light dark;
+  }
+
+  /*
+   * A chosen theme also fixes native controls and ui-sdk's light-dark()
+   * colours, which the build rewrites to read these two variables.
+   */
+  html[data-theme="light"] {
+    color-scheme: light;
+    --lightningcss-light: initial;
+    --lightningcss-dark: ;
+  }
+
+  @media screen {
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --lightningcss-light: ;
+      --lightningcss-dark: initial;
+    }
   }
 
   body {
