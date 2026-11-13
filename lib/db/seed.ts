@@ -42,6 +42,12 @@ import {
   STAFF,
   SUPPLIERS,
 } from "@/lib/db/seed-data";
+import {
+  isPurchasingEvent,
+  planPurchasing,
+  runPurchasingEvent,
+} from "@/lib/db/seed-purchasing";
+import type { PurchasingEvent } from "@/lib/db/seed-purchasing";
 import type { Actor } from "@/lib/permissions";
 import { adjustStock } from "@/lib/stock/adjust";
 import { StockError } from "@/lib/stock/errors";
@@ -127,6 +133,8 @@ const chunks = <T>(items: readonly T[], size: number): T[][] => {
 
 interface SeededProduct {
   readonly id: number;
+  /** False for the discontinued lines, which can't be ordered or requested. */
+  readonly active: boolean;
   readonly cost: number;
   readonly reorder: number;
   readonly supplierId: number;
@@ -152,7 +160,7 @@ const seedCatalogue = async (
   const categoryIds = new Map(categories.map((row) => [row.name, row.id]));
 
   const rows: (typeof product.$inferInsert)[] = [];
-  const meta: Omit<SeededProduct, "id">[] = [];
+  const meta: Omit<SeededProduct, "id" | "active">[] = [];
 
   for (const [categoryIndex, seedCategory] of CATALOGUE.entries()) {
     let sequence = 0;
@@ -211,18 +219,21 @@ const seedCatalogue = async (
       throw new Error("Product metadata out of step with inserted rows.");
     }
 
-    return { ...info, id: row.id };
+    return { ...info, active: !discontinued.has(index), id: row.id };
   });
 };
 
 interface SeedStaff {
   readonly managers: ReadonlyMap<string, Actor>;
   readonly cashiers: ReadonlyMap<string, Actor>;
+  /** Approves purchase orders. */
+  readonly headOffice: Actor;
 }
 
 const seedStaff = async (db: Db): Promise<SeedStaff> => {
   const managers = new Map<string, Actor>();
   const cashiers = new Map<string, Actor>();
+  let headOffice: Actor | null = null;
 
   for (const [index, person] of STAFF.entries()) {
     const id = `seed-user-${String(index + 1).padStart(2, "0")}`;
@@ -244,6 +255,10 @@ const seedStaff = async (db: Db): Promise<SeedStaff> => {
       });
     }
 
+    if (person.role === "admin" && headOffice === null) {
+      headOffice = { branchId: null, id, role: "admin" };
+    }
+
     if (person.role === "cashier" && person.branchId) {
       cashiers.set(person.branchId, {
         branchId: person.branchId,
@@ -253,7 +268,11 @@ const seedStaff = async (db: Db): Promise<SeedStaff> => {
     }
   }
 
-  return { cashiers, managers };
+  if (headOffice === null) {
+    throw new Error("The demo staff need someone at head office.");
+  }
+
+  return { cashiers, headOffice, managers };
 };
 
 /** How many of a product a shelf starts with: mostly healthy, some low, a few empty. */
@@ -371,7 +390,8 @@ type HistoryEvent =
       /** Sell more than the record holds, so "Needs a count" has an example. */
       readonly oversell: boolean;
     }
-  | { readonly at: Date; readonly kind: "return"; readonly branchId: string };
+  | { readonly at: Date; readonly kind: "return"; readonly branchId: string }
+  | PurchasingEvent;
 
 const WAREHOUSE_ID = "TMA";
 
@@ -550,9 +570,18 @@ const planHistory = (
     }
   }
 
+  const purchasing = planPurchasing(random, during, now);
+
   events.push(
     ...planTransfers(random, during, now),
-    ...planSales(random, during)
+    ...planSales(random, during),
+    ...purchasing.events,
+    ...purchasing.arrivals.map(({ at, transferKey }): HistoryEvent => ({
+      at,
+      key: transferKey,
+      kind: "arrival",
+      short: false,
+    }))
   );
 
   return events
@@ -912,7 +941,31 @@ const runHistory = async (
   const transfers = new Map<number, SeededTransfer>();
   const salesByBranch = new Map<string, number[]>();
 
+  const purchasing = {
+    db,
+    headOffice: staff.headOffice,
+    managers,
+    orders: new Map(),
+    products,
+    random,
+    registerTransfer: async (
+      key: number,
+      transfer: SeededTransfer,
+      at: Date
+    ): Promise<void> => {
+      await backdateTransfer(db, transfer.id, "dispatch", at);
+      transfers.set(key, transfer);
+    },
+    requests: new Map(),
+  };
+
   for (const event of events) {
+    if (isPurchasingEvent(event)) {
+      await runPurchasingEvent(purchasing, event);
+
+      continue;
+    }
+
     if (event.kind === "sale" || event.kind === "return") {
       await runSaleEvent(db, random, products, staff, salesByBranch, event);
 

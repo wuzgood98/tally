@@ -6,9 +6,11 @@ import { connectPglite } from "@/lib/db/client";
 import type { Connection } from "@/lib/db/client";
 import {
   product,
+  purchaseOrder,
   sale,
   saleReturnLine,
   stockLevel,
+  stockRequest,
   stockTransfer,
   stockTransferLine,
 } from "@/lib/db/schema";
@@ -16,6 +18,7 @@ import { seed } from "@/lib/db/seed";
 import {
   ledgerMismatches,
   movementsOutOfOrder,
+  purchaseOrderMismatches,
   saleMismatches,
   transferMismatches,
 } from "@/test/db";
@@ -105,6 +108,65 @@ describe("seed", () => {
       .where(sql`${stockLevel.onHand} < 0`);
 
     expect(negative).toEqual([{ branchId: "SPX" }]);
+  });
+
+  it("keeps every purchase order's received quantities equal to its deliveries", async () => {
+    expect(await purchaseOrderMismatches(connection.db)).toEqual([]);
+  });
+
+  it("seeds purchase orders in every state", async () => {
+    const rows = await connection.db
+      .select({
+        branchId: purchaseOrder.branchId,
+        status: purchaseOrder.status,
+      })
+      .from(purchaseOrder)
+      .orderBy(purchaseOrder.status, purchaseOrder.branchId);
+
+    const branchesWith = (status: string) =>
+      rows.flatMap((row) => (row.status === status ? [row.branchId] : []));
+
+    expect(branchesWith("received")).toHaveLength(6);
+    expect(branchesWith("partly_received")).toHaveLength(5);
+    expect(branchesWith("closed")).toEqual(["SPX"]);
+    expect(branchesWith("approved")).toEqual(["TMA"]);
+    expect(branchesWith("draft")).toEqual(["SPX"]);
+    expect(branchesWith("cancelled")).toEqual(["KSI"]);
+  });
+
+  it("seeds requests fulfilled, open and cancelled", async () => {
+    const rows = await connection.db
+      .select({
+        branchId: stockRequest.branchId,
+        status: stockRequest.status,
+      })
+      .from(stockRequest)
+      .orderBy(stockRequest.status, stockRequest.branchId);
+
+    const branchesWith = (status: string) =>
+      rows.flatMap((row) => (row.status === status ? [row.branchId] : []));
+
+    expect(branchesWith("fulfilled")).toEqual([
+      "AMS",
+      "ASH",
+      "KSI",
+      "SPX",
+      "WJA",
+    ]);
+    expect(branchesWith("requested")).toEqual(["WJA"]);
+    expect(branchesWith("cancelled")).toEqual(["AMS"]);
+
+    const sent = await connection.db
+      .select({ status: stockTransfer.status })
+      .from(stockRequest)
+      .innerJoin(
+        stockTransfer,
+        sql`${stockTransfer.id} = ${stockRequest.transferId}`
+      );
+
+    expect(sent.map((row) => row.status)).toEqual(
+      Array.from({ length: 5 }, () => "received")
+    );
   });
 
   it("gives every barcode a valid check digit", async () => {
