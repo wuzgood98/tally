@@ -6,6 +6,7 @@ import { setScope } from "@/app/(app)/scope-action";
 import { Select } from "@/components/ui/select";
 import type { SelectOption } from "@/components/ui/select";
 import type { BranchSummary } from "@/lib/scope";
+import { cn } from "@/lib/utils";
 
 interface ScopeSwitcherProps {
   readonly stores: readonly BranchSummary[];
@@ -30,20 +31,24 @@ export const ScopeSwitcher = ({
   value,
   homeBranchId,
 }: ScopeSwitcherProps) => {
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
 
   return (
     // min-w-0 lets the switcher shrink on a phone: a long branch name such as
     // "Tema Distribution Centre (yours)" must not push sign-out off the screen.
-    <div className="flex min-w-0 items-center">
+    <div aria-busy={pending || undefined} className="flex min-w-0 items-center">
       <Select
         aria-label="Show stock for"
         className="min-w-0"
         defaultValue={value}
         leading={
+          // Breathes while the new branch's numbers load.
           <span
             aria-hidden="true"
-            className="bg-brand ring-brand-soft size-1.5 shrink-0 rounded-full ring-3"
+            className={cn(
+              "bg-brand ring-brand-soft size-1.5 shrink-0 rounded-full ring-3",
+              pending && "pending-pulse"
+            )}
           />
         }
         onValueChange={(next) => {

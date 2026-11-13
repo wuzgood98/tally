@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import Link from "next/link";
 
+import { PeriodLabel } from "@/components/reports/period-label";
 import { buttonVariants } from "@/components/ui/button";
 import { REPORT_RANGES } from "@/lib/reports/period";
 import type { ReportRange } from "@/lib/reports/period";
@@ -38,7 +39,7 @@ export const ReportToolbar = ({
           href={`${path}?days=${days}`}
           key={days}
         >
-          {days} days
+          <PeriodLabel>{days} days</PeriodLabel>
         </Link>
       ))}
     </nav>

@@ -93,7 +93,7 @@ export const SegmentedControl = ({
     )}
     {...props}
   >
-    <SegmentedControlIndicator className="bg-surface absolute top-(--segmented-control-indicator-top) left-(--segmented-control-indicator-left) -z-10 h-(--segmented-control-indicator-height) w-(--segmented-control-indicator-width) rounded-md shadow-sm transition-[left,width] duration-200 ease-out motion-reduce:transition-none" />
+    <SegmentedControlIndicator className="bg-surface ease-in-out-strong absolute top-(--segmented-control-indicator-top) left-(--segmented-control-indicator-left) -z-10 h-(--segmented-control-indicator-height) w-(--segmented-control-indicator-width) rounded-md shadow-sm transition-[left,width] duration-200 motion-reduce:transition-none" />
     {children}
   </SegmentedControlPrimitive>
 );

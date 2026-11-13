@@ -216,6 +216,22 @@
   }
 }
 
+/* Something is on its way: a slow breath, only once a wait is noticeable. */
+@utility pending-pulse {
+  animation: pending-pulse 900ms ease-in-out 150ms infinite alternate;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
+@keyframes pending-pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
 /* Native form controls styled once, so forms stay plain HTML. */
 @utility field {
   @apply border-input bg-surface text-ink placeholder:text-ink-3 h-9 w-full rounded-md border px-3 text-sm;
@@ -275,13 +291,13 @@
     padding-right: 2rem;
   }
 
+  /* Transitions handle reduced motion per utility, keeping fades and dropping movement. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
     }
   }
 }

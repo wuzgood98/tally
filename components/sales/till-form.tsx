@@ -29,6 +29,12 @@ interface TillFormProps {
   readonly defaultStoreId: string;
 }
 
+/** The line a repeat scan last bumped; each new count restarts its flash. */
+interface Bump {
+  readonly productId: number;
+  readonly count: number;
+}
+
 const totals = (lines: readonly BasketLine[]) => {
   let total = 0;
   let units = 0;
@@ -66,12 +72,20 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
   const [error, setError] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<SaleResult | null>(null);
   const [pending, startTransition] = useTransition();
+  const [bump, setBump] = useState<Bump | null>(null);
   const clientRef = useRef<string | null>(null);
   const scanArea = useRef<HTMLDivElement>(null);
   const summary = totals(lines);
 
   /** Scanning the same product again adds one more. */
   const addProduct = (product: PickedProduct) => {
+    if (lines.some((line) => line.product.id === product.id)) {
+      setBump((previous) => ({
+        count: (previous?.count ?? 0) + 1,
+        productId: product.id,
+      }));
+    }
+
     setLines((current) => {
       const existing = current.find((line) => line.product.id === product.id);
 
@@ -209,6 +223,9 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
                   {lines.map((line) => (
                     <TillLineRow
                       branchId={storeId}
+                      flash={
+                        bump?.productId === line.product.id ? bump.count : 0
+                      }
                       key={line.product.id}
                       line={line}
                       onChange={update}

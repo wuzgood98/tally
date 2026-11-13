@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import { Input } from "@/components/ui/input";
@@ -19,22 +20,47 @@ interface TillLineRowProps {
   readonly branchId: string;
   readonly onChange: (productId: number, quantity: string) => void;
   readonly onRemove: (productId: number) => void;
+  /** Bumps on every repeat scan of this product; each new value flashes the row. */
+  readonly flash?: number;
 }
+
+const FLASH_MS = 600;
+
+/** The project's --ease-out-quick. */
+const FLASH_EASING = "cubic-bezier(0.23, 1, 0.32, 1)";
 
 export const TillLineRow = ({
   line,
   branchId,
   onChange,
   onRemove,
+  flash = 0,
 }: TillLineRowProps) => {
+  const row = useRef<HTMLTableRowElement>(null);
   const { product } = line;
   const quantity = wholeNumber(line.quantity);
   const valid = quantity !== null && quantity > 0;
   const onShelf = product.onHand[branchId] ?? 0;
   const beyondRecord = valid && quantity > onShelf;
 
+  // A repeat scan only changes one digit, so wash the row to show it landed.
+  // Colour only, so it stays on under reduced motion.
+  useEffect(() => {
+    const element = row.current;
+
+    if (flash === 0 || element === null) {
+      return;
+    }
+
+    const tint = getComputedStyle(element).getPropertyValue("--accent-soft");
+    element.animate(
+      [{ backgroundColor: tint }, { backgroundColor: "transparent" }],
+      { duration: FLASH_MS, easing: FLASH_EASING }
+    );
+  }, [flash]);
+
   return (
-    <tr className="border-line border-b last:border-0">
+    <tr className="border-line border-b last:border-0" ref={row}>
       <td className="min-w-52 px-4 py-2">
         <span className="font-medium">{product.name}</span>
         <span className="text-ink-3 block font-mono text-xs">
