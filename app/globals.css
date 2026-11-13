@@ -188,6 +188,11 @@
   background-repeat: no-repeat;
 }
 
+/* Room under a bottom sheet's last row, clear of the phone's home bar. */
+@utility pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
 /* A row you can see is interactive, without moving it. */
 @utility row-hover {
   @media (hover: hover) and (pointer: fine) {

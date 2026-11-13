@@ -127,6 +127,27 @@ Planned batches:
    - Overview: "Stock value at cost" links to `/reports/stock-value`, and the best sellers panel has "Fast and slow" (`/reports/sellers?days=7`), both only for people who can see reports. The overview's figure stays units × today's average cost (stock on the shelves); the report's "on the shelves" book value is the ledger's running sum, so the two differ only by rounding and cost changes while goods were on the road (within about 1%).
    - Verified: lint, types, 165 tests, production build; curl smoke test of every report page and CSV as head office (all branches and one), each kind of manager (a manager with another branch in the switcher cookie still gets only their own), a storekeeper and a cashier (404, no links); browser at desktop and 390px.
 
+**Command palette (Ctrl/Cmd+K)**, in progress.
+
+Decisions the user accepted (November 2026):
+
+- **Entry point:** the sidebar's "Find a product…" box (`ProductSearch`) is replaced by a search-field-looking button ("Search or jump to…", showing the shortcut) that opens the palette; at phone width the header gets a search icon button. The palette is ui-sdk's `Command` in a `Dialog` with `presentation="auto"` (a bottom sheet on small touch screens). Ctrl/Cmd+K is the only shortcut: no per-command shortcuts, so nothing fights barcode scanners or the till.
+- **Contents:** Go to (every nav destination, plus the three reports), Create (receipt, adjustment, transfer, purchase order, request, product, sale at the till), live product results, fuzzy document-number search, Switch branch, theme (System / Light / Dark), Sign out. No actions for the page you're on (such as "Approve this PO") in v1.
+- **Before typing:** only Go to and Create (and Sign out). No "Recent".
+- **Permissions:** commands and results follow `lib/permissions.ts` and the detail pages' own visibility rules, worked out on the server. A command never leads to a 404 or an empty "you can't do this here" page.
+- **Products:** up to 8 results through `lookup-action`, showing on hand at the current scope; an exact barcode or SKU match on top (scan, then Enter); discontinued products shown with a tag; a last row "See all results for 'x'" → `/products?q=x`. Enter opens `/products/[id]`.
+- **Documents:** fuzzy number matching (suffix or contains: `000042`, `spx-42`) across PO, GRN, TRF, REQ, RET and sales, up to 5, with type, branch and status.
+- **Order:** matching Go to / Create / branch commands first; then Documents before Products when the query looks like a document number (a known prefix, or mostly digits), Products before Documents otherwise.
+- **Switch branch:** a sub-page listing "All branches" and every branch (current one ticked), plus "Switch to Kumasi" at the top level when the query names a branch; through `setScope`.
+- **Theme:** a new cookie read on the server so `<html data-theme>` renders without a flash; the dark tokens apply under `[data-theme=dark]` as well as the media query; print stays dark-on-paper.
+
+Batches (check in with the user between them):
+
+1. **Done**: shell. `paletteCommands(viewer, branches)` (`lib/palette.ts`, pure, tested) mirrors the nav and the guards on each "new" page. `CommandPalette` (`components/shell/command-palette.tsx`) takes `onNavigate`, `onSignOut` and `searchProducts` as props so tests need no module mocks; `CommandPaletteProvider` wires Next's router and the server actions. The sidebar shows `PaletteFieldTrigger`, the phone header `PaletteIconTrigger`; both share one dialog controller, and `useShortcut("mod+k")` toggles it. Filtering is `paletteScore` (`lib/palette-filter.ts`): every typed word must start a word of the label or a keyword. ui-sdk's default fuzzy filter matched letters scattered through keywords ("rep" → Sales via "receipts").
+   - ui-sdk gotchas: `web.css` gives `Command` a fixed width and `CommandList` a max height, so the palette overrides both; `CommandEmpty` is always rendered (a live region) and only gets `data-empty` when nothing matches, so pad it under `data-empty:` only. jsdom needs a `matchMedia` stub for `presentation="auto"` (`test/dom.ts`).
+   - ui-sdk 0.1.0-beta.1's `Command` gives agents `setValue`, `setQuery` and `setPages` but no way to run a command; an `it.fails` test records it.
+2. products; 3. documents; 4. switch branch; 5. theme.
+
 ## Stack
 
 Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), React 19.3, TypeScript 5, Tailwind CSS v4, Drizzle ORM 0.45 on PostgreSQL, Better Auth 1.7 (email and password plus the admin plugin), zod 4, Vitest 5, Ultracite 8.2 (Oxlint + Oxfmt), pnpm, Windows. Versions are in `package.json`; read the bundled Next docs before using any Next API (see `AGENTS.md`).
