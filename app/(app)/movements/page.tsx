@@ -13,7 +13,7 @@ import { listMovements } from "@/lib/queries/movements";
 import { getProduct } from "@/lib/queries/products";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { enumParam, intParam, queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Movements" };
 
@@ -42,7 +42,11 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
 };
 
 const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
+
   const kind = enumParam(params, "kind", KINDS, "all");
   const productId = intParam(params, "product", 0) || undefined;
   const before = intParam(params, "before", 0) || undefined;

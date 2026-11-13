@@ -5,6 +5,7 @@ import { cache } from "react";
 
 import { getDb } from "@/lib/db";
 import { branch } from "@/lib/db/schema";
+import { visibleBranchIds } from "@/lib/permissions";
 import type { Viewer } from "@/lib/session";
 
 /**
@@ -40,6 +41,18 @@ export const listBranches = cache(
 
 export const getScope = async (viewer: Viewer): Promise<Scope> => {
   const branches = await listBranches();
+
+  const visible = visibleBranchIds(
+    viewer,
+    branches.map((item) => item.id)
+  );
+
+  // Someone who can't see every branch (a cashier) is fixed to theirs,
+  // whatever the cookie says.
+  if (visible.length < branches.length) {
+    return { branchId: visible[0] ?? "", kind: "branch" };
+  }
+
   const jar = await cookies();
   const chosen = jar.get(SCOPE_COOKIE)?.value;
 
@@ -47,7 +60,7 @@ export const getScope = async (viewer: Viewer): Promise<Scope> => {
     return { kind: "all" };
   }
 
-  if (chosen !== undefined && branches.some((item) => item.id === chosen)) {
+  if (chosen !== undefined && visible.includes(chosen)) {
     return { branchId: chosen, kind: "branch" };
   }
 

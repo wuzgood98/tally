@@ -9,12 +9,15 @@ import { operableBranchIds } from "@/lib/permissions";
 import { listSuppliers } from "@/lib/queries/products";
 import { getScope, listBranches } from "@/lib/scope";
 import { intParam, param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Receive goods" };
 
 const NewReceiptPage = async ({ searchParams }: PageProps<"/receipts/new">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
 
   const [branches, suppliers, scope] = await Promise.all([
     listBranches(),

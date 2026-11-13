@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 
@@ -8,6 +8,7 @@ import { getAuth } from "@/lib/auth";
 import { databaseReady } from "@/lib/db";
 import { roleEnum } from "@/lib/db/schema";
 import type { Role } from "@/lib/db/schema";
+import { canBrowseBackOffice } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 
 export interface Viewer extends Actor {
@@ -44,6 +45,20 @@ export const requireViewer = async (): Promise<Viewer> => {
 
   if (!viewer) {
     redirect("/login");
+  }
+
+  return viewer;
+};
+
+/**
+ * For back-office pages: someone signed in who may browse them. A cashier
+ * gets a 404, as with Reports, so the page doesn't hint that it exists.
+ */
+export const requireBackOffice = async (): Promise<Viewer> => {
+  const viewer = await requireViewer();
+
+  if (!canBrowseBackOffice(viewer)) {
+    notFound();
   }
 
   return viewer;

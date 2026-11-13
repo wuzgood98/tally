@@ -4,7 +4,8 @@
  *
  * - Head office (admin): everything, at every branch.
  * - Branch manager: runs their own branch's stock; sees other branches.
- * - Cashier: sells at their own branch's tills, and nothing else.
+ * - Cashier: sells at their own branch's tills, and nothing else: they see
+ *   only their store, and only the till, its sales and the products.
  * - Storekeeper: receives goods, sends and receives transfers, and writes off
  *   damaged or expired stock at their own branch. Anything that could hide a
  *   loss (theft, recounts, "found" stock, internal use) needs a manager, and so
@@ -143,3 +144,26 @@ export const sellableBranchIds = (
   allBranchIds: readonly string[]
 ): string[] =>
   actor.role === "storekeeper" ? [] : ownBranches(actor, allBranchIds);
+
+/**
+ * Branches this actor may look at: every one, except for a cashier, who sees
+ * only their own store.
+ */
+export const visibleBranchIds = (
+  actor: Actor,
+  allBranchIds: readonly string[]
+): string[] =>
+  actor.role === "cashier"
+    ? allBranchIds.filter((id) => id === actor.branchId)
+    : [...allBranchIds];
+
+export const canSeeBranch = (actor: Actor, branchId: string): boolean =>
+  actor.role !== "cashier" || actor.branchId === branchId;
+
+/**
+ * Receipts, transfers, requests, adjustments, movements, low stock, purchase
+ * orders and the overview: everyone but cashiers, who have the till, its
+ * sales and the products.
+ */
+export const canBrowseBackOffice = (actor: Actor): boolean =>
+  actor.role !== "cashier";

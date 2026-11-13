@@ -16,7 +16,7 @@ import { canDispatchTransfer, canRequestStock } from "@/lib/permissions";
 import { getStockRequest } from "@/lib/queries/requests";
 import type { StockRequestDetail } from "@/lib/queries/requests";
 import { param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 const requestId = (raw: string): number | null => {
   const id = Number(raw);
@@ -27,6 +27,7 @@ const requestId = (raw: string): number | null => {
 export const generateMetadata = async ({
   params,
 }: PageProps<"/requests/[id]">): Promise<Metadata> => {
+  await requireBackOffice();
   const route = await params;
   const id = requestId(route.id);
   const request = id === null ? null : await getStockRequest(id);
@@ -115,7 +116,7 @@ const RequestPage = async ({
   searchParams,
 }: PageProps<"/requests/[id]">) => {
   const [viewer, route, query] = await Promise.all([
-    requireViewer(),
+    requireBackOffice(),
     params,
     searchParams,
   ]);

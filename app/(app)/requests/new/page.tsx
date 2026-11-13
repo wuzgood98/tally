@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { canRequestStock } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
 import { lineParam, param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import { MAX_REQUEST_LINES } from "@/lib/stock/requests";
 
 export const metadata: Metadata = { title: "Request stock" };
@@ -38,7 +38,10 @@ const loadLines = async (text: string): Promise<RequestDraftLine[]> => {
 };
 
 const NewRequestPage = async ({ searchParams }: PageProps<"/requests/new">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
 
   const [branches, scope, initialLines] = await Promise.all([
     listBranches(),

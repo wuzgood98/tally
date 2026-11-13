@@ -10,7 +10,7 @@ import { Panel } from "@/components/ui/panel";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
-import { canApproveReturn } from "@/lib/permissions";
+import { canApproveReturn, canSeeBranch } from "@/lib/permissions";
 import { getSale, getSaleReturns } from "@/lib/queries/sales";
 import { intParam } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
@@ -25,11 +25,16 @@ const saleId = (raw: string): number | null => {
 export const generateMetadata = async ({
   params,
 }: PageProps<"/sales/[id]">): Promise<Metadata> => {
-  const route = await params;
+  const [viewer, route] = await Promise.all([requireViewer(), params]);
   const id = saleId(route.id);
   const found = id === null ? null : await getSale(id);
 
-  return { title: found?.number ?? "Sale" };
+  return {
+    title:
+      found !== null && canSeeBranch(viewer, found.branchId)
+        ? found.number
+        : "Sale",
+  };
 };
 
 const SalePage = async ({ params, searchParams }: PageProps<"/sales/[id]">) => {
@@ -42,7 +47,8 @@ const SalePage = async ({ params, searchParams }: PageProps<"/sales/[id]">) => {
   const id = saleId(route.id);
   const found = id === null ? null : await getSale(id);
 
-  if (!found) {
+  // Another store's sale is a 404 for a cashier, as if it didn't exist.
+  if (!found || !canSeeBranch(viewer, found.branchId)) {
     notFound();
   }
 

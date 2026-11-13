@@ -29,11 +29,13 @@ import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import { paletteCommands } from "@/lib/palette";
 import {
   canApprovePurchaseOrder,
+  canBrowseBackOffice,
   canDispatchTransfer,
   canManageStaff,
   canManageTills,
   canViewReports,
   sellableBranchIds,
+  visibleBranchIds,
 } from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
 import { countDraftPurchaseOrders } from "@/lib/queries/purchase-orders";
@@ -72,6 +74,15 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     ]);
 
   const homeBranch = branches.find((item) => item.id === viewer.branchId);
+  const backOffice = canBrowseBackOffice(viewer);
+
+  // Only someone who sees every branch gets the switcher; a cashier sees
+  // their store's name instead.
+  const switchesBranch =
+    visibleBranchIds(
+      viewer,
+      branches.map((item) => item.id)
+    ).length === branches.length;
 
   const sellsSomewhere =
     sellableBranchIds(
@@ -81,9 +92,11 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
 
   const today = (
     <>
-      <NavLink href="/" icon={<LayoutDashboard />}>
-        Overview
-      </NavLink>
+      {backOffice ? (
+        <NavLink href="/" icon={<LayoutDashboard />}>
+          Overview
+        </NavLink>
+      ) : null}
       {sellsSomewhere ? (
         <NavLink href="/till" icon={<ScanBarcode />}>
           Till
@@ -95,11 +108,8 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     </>
   );
 
-  const stock = (
+  const stockBackOffice = (
     <>
-      <NavLink href="/products" icon={<Package />}>
-        Products
-      </NavLink>
       <NavLink
         badge={totals.lowLines + totals.outLines}
         href="/low-stock"
@@ -131,16 +141,27 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     </>
   );
 
+  const stock = (
+    <>
+      <NavLink href="/products" icon={<Package />}>
+        Products
+      </NavLink>
+      {backOffice ? stockBackOffice : null}
+    </>
+  );
+
   const office = (
     <>
-      <NavLink
-        badge={draftsToApprove}
-        href="/purchase-orders"
-        icon={<ShoppingCart />}
-        urgent
-      >
-        Purchase orders
-      </NavLink>
+      {backOffice ? (
+        <NavLink
+          badge={draftsToApprove}
+          href="/purchase-orders"
+          icon={<ShoppingCart />}
+          urgent
+        >
+          Purchase orders
+        </NavLink>
+      ) : null}
       {canViewReports(viewer) ? (
         <NavLink href="/reports" icon={<ChartLine />}>
           Reports
@@ -162,7 +183,8 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const groups = [
     { items: today, label: "Today" },
     { items: stock, label: "Stock" },
-    { items: office, label: "Office" },
+    // Reports, Staff and Tills are back office too, so a cashier has none.
+    ...(backOffice ? [{ items: office, label: "Office" }] : []),
   ];
 
   const initials = viewer.name
@@ -241,16 +263,28 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
                 <TallyMark className="text-brand size-6" />
                 <span className="font-semibold">Tally</span>
               </div>
-              <ScopeSwitcher
-                // The palette can change the scope too; remount to show it.
-                key={scope.kind === "all" ? "all" : scope.branchId}
-                stores={branches.filter((item) => item.kind === "store")}
-                warehouses={branches.filter(
-                  (item) => item.kind === "warehouse"
-                )}
-                homeBranchId={viewer.branchId}
-                value={scope.kind === "all" ? "all" : scope.branchId}
-              />
+              {switchesBranch ? (
+                <ScopeSwitcher
+                  // The palette can change the scope too; remount to show it.
+                  key={scope.kind === "all" ? "all" : scope.branchId}
+                  stores={branches.filter((item) => item.kind === "store")}
+                  warehouses={branches.filter(
+                    (item) => item.kind === "warehouse"
+                  )}
+                  homeBranchId={viewer.branchId}
+                  value={scope.kind === "all" ? "all" : scope.branchId}
+                />
+              ) : (
+                <p className="text-ink-2 flex min-w-0 items-center gap-2 text-sm">
+                  <span
+                    aria-hidden="true"
+                    className="bg-brand ring-brand-soft size-1.5 shrink-0 rounded-full ring-3"
+                  />
+                  <span className="truncate">
+                    {homeBranch?.name ?? "Your store"}
+                  </span>
+                </p>
+              )}
               <div className="flex shrink-0 items-center gap-1 lg:hidden">
                 <PaletteIconTrigger />
                 <form action={signOut}>

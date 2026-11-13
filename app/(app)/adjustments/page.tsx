@@ -10,14 +10,18 @@ import { operableBranchIds } from "@/lib/permissions";
 import { listMovements } from "@/lib/queries/movements";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { intParam, queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Adjustments" };
 
 const PAGE = 50;
 
 const AdjustmentsPage = async ({ searchParams }: PageProps<"/adjustments">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
+
   const before = intParam(params, "before", 0) || undefined;
 
   const [branches, scope] = await Promise.all([

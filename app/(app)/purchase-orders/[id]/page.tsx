@@ -29,7 +29,7 @@ import {
 import { getPurchaseOrder } from "@/lib/queries/purchase-orders";
 import type { PurchaseOrderDetail } from "@/lib/queries/purchase-orders";
 import { param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import type { Viewer } from "@/lib/session";
 
 const orderId = (raw: string): number | null => {
@@ -41,6 +41,7 @@ const orderId = (raw: string): number | null => {
 export const generateMetadata = async ({
   params,
 }: PageProps<"/purchase-orders/[id]">): Promise<Metadata> => {
+  await requireBackOffice();
   const route = await params;
   const id = orderId(route.id);
   const order = id === null ? null : await getPurchaseOrder(id);
@@ -170,7 +171,7 @@ const PurchaseOrderPage = async ({
   searchParams,
 }: PageProps<"/purchase-orders/[id]">) => {
   const [viewer, route, query] = await Promise.all([
-    requireViewer(),
+    requireBackOffice(),
     params,
     searchParams,
   ]);

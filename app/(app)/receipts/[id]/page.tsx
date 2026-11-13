@@ -10,7 +10,7 @@ import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { getReceipt } from "@/lib/queries/receipts";
 import { param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 const receiptId = (raw: string): number | null => {
   const id = Number(raw);
@@ -21,6 +21,7 @@ const receiptId = (raw: string): number | null => {
 export const generateMetadata = async ({
   params,
 }: PageProps<"/receipts/[id]">): Promise<Metadata> => {
+  await requireBackOffice();
   const route = await params;
   const id = receiptId(route.id);
   const receipt = id === null ? null : await getReceipt(id);
@@ -33,7 +34,7 @@ const ReceiptPage = async ({
   searchParams,
 }: PageProps<"/receipts/[id]">) => {
   const [, route, query] = await Promise.all([
-    requireViewer(),
+    requireBackOffice(),
     params,
     searchParams,
   ]);

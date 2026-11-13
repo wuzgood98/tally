@@ -152,6 +152,22 @@ Batches (check in with the user between them):
 4. **Done**: switch branch. The Branch group (`BranchGroup`, `components/shell/palette-branches.tsx`) sits just above Account: "Switch branch…" (showing the current one) opens a `CommandPage` listing All branches and every branch, the current one ticked; "Switch to Kumasi" rows render only once something is typed (with an empty search ui-sdk shows every item without calling the filter, so hiding them through the filter doesn't work). Both go through the existing `setScope` action (`onSwitchScope`, values parsed by `scopeOf` in `lib/palette-branches.ts`). Everyone sees it, as with the header switcher. `ScopeSwitcher` is keyed on the scope in the layout: it uses `defaultValue`, so without the key it kept showing the old branch after the palette changed it.
 5. **Done**: theme. `tally-theme` cookie (`lib/theme.ts`; "system" deletes it), set by `setTheme` (`app/theme-action.ts`, signed-in only) and read in the root layout, which renders `<html data-theme="light|dark">` (none for system) and the matching `theme-color` (`generateViewport`), so the first paint is right. The root layout reading a cookie makes every route render per request, `/login` included. In `globals.css` one `@custom-variant dark` is true for `data-theme="dark"`, or for a dark device without `data-theme="light"`, on screen only: the Night shift tokens (`:root { @variant dark { … } }`) and Tailwind's `dark:` utilities both use it, so printing stays dark ink on paper. A chosen theme also sets `color-scheme` and the `--lightningcss-light/dark` variables, which is how the build's rewrite of ui-sdk's `light-dark()` colours picks a side. The palette's Appearance group opens a theme page: Match this device, Light, Dark.
 
+**Cashier visibility**, in progress on the branch `cashier-visibility` (off `command-palette`).
+
+Until now pages checked actions, not viewing: any signed-in person could open any document and switch to any branch. Decisions the user accepted (November 2026):
+
+- **Only cashiers are limited.** Managers, storekeepers and head office keep seeing every branch.
+- A cashier sees **Till, Sales and Products, for their own store**. `/` sends them to the Till. Every back-office page (Overview, Receipts, Transfers, Requests, Adjustments, Movements, Low stock, Purchase orders; Reports, Staff and Tills already were) is gone from the nav and the palette and is a 404 by URL; so is another store's sale.
+- **Sales:** every sale at their store, whoever rang it up.
+- **Products:** name, SKU, barcode, shelf price, on hand at their store and at other branches; no cost, margin, supplier, reorder settings or history. The till's product lookup stops sending average cost to a cashier's browser.
+- **Branch switcher:** replaced by their store's name as text; no Branch group in the palette.
+- **One rule:** `visibleBranchIds` and `canBrowseBackOffice` in `lib/permissions.ts`; pages, queries, actions and the palette use them.
+
+Batches:
+
+1. **Done**: `visibleBranchIds`, `canSeeBranch`, `canBrowseBackOffice` (`lib/permissions.ts`, tested) and `requireBackOffice()` (`lib/session.ts`: `requireViewer` plus a 404 for a cashier). Every page under adjustments, low-stock, movements, purchase-orders, receipts, requests and transfers calls `requireBackOffice()`, in the page and in `generateMetadata` where it loads the record (a 404's title must not name the document), not in a layout: a layout's check can be skipped by a request for just the page segment. `/sales/[id]` 404s another store's sale (`canSeeBranch`), title included. `/` redirects a cashier to `/till`. `getScope` fixes anyone who can't see every branch to their own, whatever the `tally-scope` cookie says, and `setScope` refuses them. The nav drops back-office links (and the Office group) for a cashier, and the header shows their store's name instead of the switcher. Checked with curl as the Spintex cashier: every back-office route 404s, other stores' sales 404 while Spintex's open, a forged scope cookie still shows Spintex.
+2. lists, searches and the palette; 3. curl smoke test as a cashier across every route, and the browser check.
+
 ## Stack
 
 Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), React 19.3, TypeScript 5, Tailwind CSS v4, Drizzle ORM 0.45 on PostgreSQL, Better Auth 1.7 (email and password plus the admin plugin), zod 4, Vitest 5, Ultracite 8.2 (Oxlint + Oxfmt), pnpm, Windows. Versions are in `package.json`; read the bundled Next docs before using any Next API (see `AGENTS.md`).

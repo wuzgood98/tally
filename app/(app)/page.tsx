@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { BestSellersPanel } from "@/components/sales/best-sellers-panel";
 import { MovementTable } from "@/components/stock/movement-table";
@@ -11,7 +12,7 @@ import { Stat, StatGroup } from "@/components/ui/stat";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatLongDate } from "@/lib/format";
 import { formatCedis, formatCedisCompact } from "@/lib/money";
-import { canViewReports } from "@/lib/permissions";
+import { canBrowseBackOffice, canViewReports } from "@/lib/permissions";
 import { listMovements } from "@/lib/queries/movements";
 import {
   getBranchHealth,
@@ -88,6 +89,11 @@ const HealthTrack = ({
 
 const OverviewPage = async () => {
   const viewer = await requireViewer();
+
+  // A cashier's home is the till; the overview is back office.
+  if (!canBrowseBackOffice(viewer)) {
+    redirect("/till");
+  }
 
   const [branches, scope] = await Promise.all([
     listBranches(),

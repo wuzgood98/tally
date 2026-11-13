@@ -9,7 +9,7 @@ import { noStockBranchMessage } from "@/lib/access-messages";
 import { operableBranchIds } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
 import { lineParam, param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import { MAX_TRANSFER_LINES } from "@/lib/stock/transfer";
 
 export const metadata: Metadata = { title: "New transfer" };
@@ -40,7 +40,10 @@ const loadLines = async (text: string): Promise<TransferDraftLine[]> => {
 const NewTransferPage = async ({
   searchParams,
 }: PageProps<"/transfers/new">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
 
   const [branches, scope, initialLines] = await Promise.all([
     listBranches(),

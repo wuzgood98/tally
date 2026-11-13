@@ -13,12 +13,16 @@ import { operableBranchIds } from "@/lib/permissions";
 import { listReceipts, RECEIPTS_PAGE_SIZE } from "@/lib/queries/receipts";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { intParam, queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Goods received" };
 
 const ReceiptsPage = async ({ searchParams }: PageProps<"/receipts">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
+
   const page = intParam(params, "page", 1);
 
   const [branches, scope] = await Promise.all([
