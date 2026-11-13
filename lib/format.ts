@@ -23,6 +23,12 @@ const longDate = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
 });
 
+const dayMonth = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: TIME_ZONE,
+});
+
 const count = new Intl.NumberFormat("en-GH");
 
 /** "12 Nov, 14:05" */
@@ -33,6 +39,10 @@ export const formatDate = (date: Date): string => dateOnly.format(date);
 
 /** "Thursday 12 November" */
 export const formatLongDate = (date: Date): string => longDate.format(date);
+
+/** "2026-11-13" (a report day) → "13 Nov". Accra's day is the UTC day. */
+export const formatDay = (day: string): string =>
+  dayMonth.format(new Date(`${day}T00:00:00Z`));
 
 /** 12345 → "12,345" */
 export const formatCount = (value: number): string => count.format(value);

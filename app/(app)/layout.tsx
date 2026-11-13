@@ -1,4 +1,5 @@
 import {
+  ChartLine,
   ClipboardList,
   Inbox,
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   canDispatchTransfer,
   canManageStaff,
   canManageTills,
+  canViewReports,
   sellableBranchIds,
 } from "@/lib/permissions";
 import { getOverviewTotals } from "@/lib/queries/overview";
@@ -113,6 +115,11 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       <NavLink href="/movements" icon={<ScrollText />}>
         Movements
       </NavLink>
+      {canViewReports(viewer) ? (
+        <NavLink href="/reports" icon={<ChartLine />}>
+          Reports
+        </NavLink>
+      ) : null}
       {canManageStaff(viewer) ? (
         <NavLink href="/staff" icon={<Users />}>
           Staff
