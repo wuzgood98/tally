@@ -378,3 +378,46 @@ export const rejection = async (
 
   throw new Error("Expected the promise to reject with a StockError.");
 };
+
+/**
+ * The company's book value (the ledger's running quantity × cost, plus goods
+ * in transit at their cost at dispatch) beside units held × average cost.
+ * They differ only by rounding, and by deliveries that moved the average
+ * while goods were on the road.
+ */
+export const bookValueTotals = async (
+  db: Db
+): Promise<{ book: number; atAverage: number }> => {
+  const result = await db.execute(sql`
+    with ledger as (
+      select product_id, sum(quantity::bigint * unit_cost) as value
+      from ${stockMovement} group by 1
+    ), transit as (
+      select l.product_id, sum(l.quantity_sent::bigint * l.unit_cost) as value,
+        sum(l.quantity_sent) as units
+      from ${stockTransferLine} l
+      join ${stockTransfer} t on t.id = l.transfer_id
+      where t.status = 'in_transit'
+      group by 1
+    ), held as (
+      select product_id, sum(on_hand) as units from ${stockLevel} group by 1
+    )
+    select
+      coalesce(sum(coalesce(l.value, 0) + coalesce(t.value, 0)), 0)::float8 as book,
+      coalesce(sum((coalesce(h.units, 0) + coalesce(t.units, 0))::bigint * p.average_cost), 0)::float8 as at_average
+    from ${product} p
+    left join ledger l on l.product_id = p.id
+    left join transit t on t.product_id = p.id
+    left join held h on h.product_id = p.id
+  `);
+
+  const [row] = z
+    .object({
+      rows: z.array(
+        z.object({ at_average: z.coerce.number(), book: z.coerce.number() })
+      ),
+    })
+    .parse(result).rows;
+
+  return { atAverage: row?.at_average ?? 0, book: row?.book ?? 0 };
+};

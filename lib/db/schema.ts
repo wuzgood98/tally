@@ -270,8 +270,13 @@ export const stockMovement = pgTable(
      * damaged write-off that follows it when the item can't be resold.
      */
     saleReturnId: integer("sale_return_id").references(() => saleReturn.id),
-    /** Cost per unit for receipts and transfers, in pesewas. */
-    unitCost: integer("unit_cost"),
+    /**
+     * Cost per unit this stock moved at, in pesewas: the supplier's cost for
+     * receipts, the cost at dispatch for transfers, and the average cost at
+     * that moment for everything else. The running sum of quantity × cost
+     * is the stock's book value, which the reports chart over time.
+     */
+    unitCost: integer("unit_cost").notNull(),
     userId: text("user_id").references(() => user.id),
   },
   (table) => [

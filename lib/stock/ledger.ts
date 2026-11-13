@@ -11,12 +11,21 @@
  * the till holding the item, so the record must be wrong, not the sale: it
  * goes through, the balance goes below zero, and the line is flagged for a
  * count. Nothing else may take stock below zero.
+ *
+ * Every movement records the cost it moved at: the caller's (a supplier's
+ * cost, or a transfer's cost at dispatch) or else the product's average cost
+ * right now. The running sum of quantity × cost is then the book value.
  */
 
 import { and, eq, sql } from "drizzle-orm";
 
 import type { Tx } from "@/lib/db/client";
-import { documentCounter, stockLevel, stockMovement } from "@/lib/db/schema";
+import {
+  documentCounter,
+  product,
+  stockLevel,
+  stockMovement,
+} from "@/lib/db/schema";
 import type { AdjustmentReason, MovementKind } from "@/lib/db/schema";
 import { StockError } from "@/lib/stock/errors";
 
@@ -27,6 +36,7 @@ export interface MovementInput {
   readonly quantity: number;
   readonly kind: MovementKind;
   readonly adjustmentReason?: AdjustmentReason;
+  /** Pesewas per unit; defaults to the product's average cost now. */
   readonly unitCost?: number;
   readonly receiptId?: number;
   readonly transferId?: number;
@@ -77,6 +87,20 @@ const changeBalance = async (
   return row?.onHand ?? null;
 };
 
+/** The product's average cost, for movements that don't bring their own. */
+const averageCostOf = async (tx: Tx, productId: number): Promise<number> => {
+  const [row] = await tx
+    .select({ averageCost: product.averageCost })
+    .from(product)
+    .where(eq(product.id, productId));
+
+  if (row === undefined) {
+    throw new StockError("not_found", "That product no longer exists.");
+  }
+
+  return row.averageCost;
+};
+
 export const applyMovement = async (
   tx: Tx,
   input: MovementInput
@@ -84,6 +108,8 @@ export const applyMovement = async (
   if (!Number.isSafeInteger(input.quantity) || input.quantity === 0) {
     throw new StockError("invalid_input", "Quantity must be a whole number.");
   }
+
+  const unitCost = input.unitCost ?? (await averageCostOf(tx, input.productId));
 
   const balanceAfter = await changeBalance(tx, input);
 
@@ -108,7 +134,7 @@ export const applyMovement = async (
       saleId: input.saleId,
       saleReturnId: input.saleReturnId,
       transferId: input.transferId,
-      unitCost: input.unitCost,
+      unitCost,
       userId: input.userId ?? null,
     })
     .returning({ id: stockMovement.id });

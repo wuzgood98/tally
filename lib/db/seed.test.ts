@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema";
 import { seed } from "@/lib/db/seed";
 import {
+  bookValueTotals,
   ledgerMismatches,
   movementsOutOfOrder,
   purchaseOrderMismatches,
@@ -167,6 +168,13 @@ describe("seed", () => {
     expect(sent.map((row) => row.status)).toEqual(
       Array.from({ length: 5 }, () => "received")
     );
+  });
+
+  it("keeps the ledger's book value within 1% of units × average cost", async () => {
+    const { atAverage, book } = await bookValueTotals(connection.db);
+
+    expect(atAverage).toBeGreaterThan(0);
+    expect(Math.abs(book - atAverage) / atAverage).toBeLessThan(0.01);
   });
 
   it("gives every barcode a valid check digit", async () => {
