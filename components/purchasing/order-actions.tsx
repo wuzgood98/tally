@@ -1,17 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import type { SubmitEvent } from "react";
-
 import {
   approveOrderAction,
   cancelOrderAction,
   closeOrderAction,
 } from "@/app/(app)/purchase-orders/actions";
-import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { formText } from "@/lib/form";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /** Approving is what sends the order, so it asks once more. */
 export const ApproveOrderButton = ({
@@ -20,77 +14,44 @@ export const ApproveOrderButton = ({
 }: {
   readonly orderId: number;
   readonly total: string;
-}) => {
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  if (!confirming) {
-    return (
-      <Button
-        onClick={() => {
-          setConfirming(true);
-        }}
-        size="md"
-        type="button"
-      >
-        Approve order
-      </Button>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-ink-2 text-sm">
-        Commit {total} with the supplier?
-      </span>
-      <Button
-        disabled={pending}
-        onClick={() => {
-          startTransition(async () => {
-            const result = await approveOrderAction(orderId);
-            setError(result.error);
-          });
-        }}
-        size="md"
-        type="button"
-      >
-        {pending ? "Approving…" : "Yes, approve"}
-      </Button>
-      <Button
-        disabled={pending}
-        onClick={() => {
-          setConfirming(false);
-        }}
-        size="md"
-        type="button"
-        variant="ghost"
-      >
-        Not yet
-      </Button>
-      {error === null ? null : (
-        <output className="text-danger w-full text-sm">{error}</output>
-      )}
-    </div>
-  );
-};
+}) => (
+  <ConfirmDialog
+    cancelLabel="Not yet"
+    confirmLabel="Approve order"
+    description={`This commits ${total} with the supplier. The order can be printed and sent once it's approved, and it can't go back to draft.`}
+    onConfirm={async () => await approveOrderAction(orderId)}
+    pendingLabel="Approving…"
+    title={`Approve this order for ${total}?`}
+    trigger="Approve order"
+  />
+);
 
 const KINDS = {
   cancel: {
     button: "Cancel order",
     confirm: "Cancel the order",
+    description:
+      "Nothing more will be received against it. If it was already sent, let the supplier know. This can't be undone.",
+    missing: "Say why the order is being cancelled.",
+    pending: "Cancelling…",
     placeholder: "e.g. Supplier can't deliver before the promo ends",
     prompt: "Why is it being cancelled?",
+    title: "Cancel this order?",
   },
   close: {
     button: "Close short",
     confirm: "Close it short",
+    description:
+      "What arrived stays received; the rest stops being expected. This can't be undone.",
+    missing: "Say why you're no longer waiting for the rest.",
+    pending: "Closing…",
     placeholder: "e.g. Supplier has discontinued the rest",
     prompt: "Why stop waiting for the rest?",
+    title: "Close this order short?",
   },
 } as const;
 
-/** Cancelling or closing short: a reason first, then it's done. */
+/** Cancelling or closing short: a dialog asks for the reason, then it's done. */
 export const ReasonOrderAction = ({
   orderId,
   kind,
@@ -98,82 +59,27 @@ export const ReasonOrderAction = ({
   readonly orderId: number;
   readonly kind: keyof typeof KINDS;
 }) => {
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const text = KINDS[kind];
-
-  if (!open) {
-    return (
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-        size="md"
-        type="button"
-        variant="destructive"
-      >
-        {text.button}
-      </Button>
-    );
-  }
-
-  const onSubmit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const note = formText(new FormData(event.currentTarget), "note");
-
-    if (note === "") {
-      setError("Give a reason.");
-
-      return;
-    }
-
-    startTransition(async () => {
-      const action = kind === "cancel" ? cancelOrderAction : closeOrderAction;
-      const result = await action({ note, purchaseOrderId: orderId });
-      setError(result.error);
-    });
-  };
+  const action = kind === "cancel" ? cancelOrderAction : closeOrderAction;
 
   return (
-    <form className="grid w-full gap-3" onSubmit={onSubmit}>
-      <Field>
-        <FieldLabel>{text.prompt}</FieldLabel>
-        <Input
-          autoComplete="off"
-          // The reason is the only thing to do next, so focusing it is the point.
-          // oxlint-disable-next-line jsx-a11y/no-autofocus
-          autoFocus
-          maxLength={500}
-          name="note"
-          placeholder={text.placeholder}
-        />
-      </Field>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <output aria-live="polite" className="text-danger mr-auto text-sm">
-          {error}
-        </output>
-        <Button
-          disabled={pending}
-          onClick={() => {
-            setOpen(false);
-            setError(null);
-          }}
-          size="md"
-          type="button"
-          variant="ghost"
-        >
-          Keep it
-        </Button>
-        <Button
-          disabled={pending}
-          size="md"
-          type="submit"
-          variant="destructive"
-        >
-          {pending ? "Saving…" : text.confirm}
-        </Button>
-      </div>
-    </form>
+    <ConfirmDialog
+      cancelLabel="Keep it"
+      confirmLabel={text.confirm}
+      description={text.description}
+      onConfirm={async (note) =>
+        await action({ note, purchaseOrderId: orderId })
+      }
+      pendingLabel={text.pending}
+      reason={{
+        label: text.prompt,
+        missing: text.missing,
+        placeholder: text.placeholder,
+      }}
+      title={text.title}
+      tone="danger"
+      trigger={text.button}
+      triggerVariant="destructive"
+    />
   );
 };
