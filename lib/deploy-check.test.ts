@@ -11,6 +11,15 @@ describe("deployProblem", () => {
     expect(deployProblem({ DATABASE_URL: "  ", VERCEL: "1" })).not.toBeNull();
   });
 
+  it("accepts Vercel's POSTGRES_URL", () => {
+    expect(
+      deployProblem({
+        POSTGRES_URL: "postgres://db.example/tally",
+        VERCEL: "1",
+      })
+    ).toBeNull();
+  });
+
   it("lets a Vercel build with a database through", () => {
     expect(
       deployProblem({

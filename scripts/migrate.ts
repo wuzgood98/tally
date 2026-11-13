@@ -1,4 +1,4 @@
-/** Applies pending migrations to DATABASE_URL, or to the local PGlite database. */
+/** Applies pending migrations to DATABASE_URL (or POSTGRES_URL), or to the local PGlite database. */
 
 import { connectFromEnv } from "@/lib/db/client";
 

@@ -10,13 +10,14 @@ import { sql } from "drizzle-orm";
 
 import { connectFromEnv, PGLITE_DIR } from "@/lib/db/client";
 import { seed } from "@/lib/db/seed";
+import { databaseUrl } from "@/lib/db/url";
 
-if ((process.env.DATABASE_URL ?? "") === "") {
+if (databaseUrl(process.env) === null) {
   await rm(PGLITE_DIR, { force: true, recursive: true });
 } else {
   if (!process.argv.includes("--yes")) {
     console.error(
-      "This drops every table in DATABASE_URL. Run again with --yes to confirm."
+      "This drops every table in the Postgres database. Run again with --yes to confirm."
     );
     process.exit(1);
   }

@@ -2,6 +2,7 @@ import "server-only";
 import { connectFromEnv } from "@/lib/db/client";
 import type { Connection, Db } from "@/lib/db/client";
 import { isSeeded, seed } from "@/lib/db/seed";
+import { databaseUrl } from "@/lib/db/url";
 
 /**
  * One connection per server process, opened on the first query rather than
@@ -27,7 +28,7 @@ const getConnection = (): Connection => {
 export const getDb = (): Db => getConnection().db;
 
 export const databaseKind = (): Connection["kind"] =>
-  (process.env.DATABASE_URL ?? "") === "" ? "pglite" : "postgres";
+  databaseUrl(process.env) === null ? "pglite" : "postgres";
 
 /**
  * The local PGlite database prepares itself: it migrates, and seeds the demo

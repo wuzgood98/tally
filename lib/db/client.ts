@@ -1,6 +1,6 @@
 /**
- * Database connections. With DATABASE_URL set, Tally talks to a real Postgres
- * server. Without it, it runs PGlite (Postgres compiled to WebAssembly) in
+ * Database connections. With DATABASE_URL (or Vercel's POSTGRES_URL) set,
+ * Tally talks to a real Postgres server. Without it, it runs PGlite (Postgres compiled to WebAssembly) in
  * this process, stored in `.data/pglite`, so `pnpm dev` works with nothing
  * installed. Both run the same migrations, so the schema is identical.
  *
@@ -17,8 +17,10 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { Pool } from "pg";
+import type { PoolConfig } from "pg";
 
 import * as schema from "./schema.ts";
+import { databaseUrl } from "./url.ts";
 
 export type Schema = typeof schema;
 
@@ -61,8 +63,38 @@ export const connectPglite = (dataDir?: string): Connection => {
   };
 };
 
-export const connectPostgres = (connectionString: string): Connection => {
-  const pool = new Pool({ connectionString, max: 10 });
+/**
+ * Verified TLS for hosts that sign with their own certificate authority,
+ * such as Supabase: the server's certificate must chain to `caCert` (PEM)
+ * and match the host name. A literal backslash-n stands for a line break,
+ * for settings screens that only take one line. The URL's own sslmode is
+ * dropped, because node-postgres would let it override these options.
+ */
+const withCaCert = (connectionString: string, caCert: string): PoolConfig => {
+  const url = new URL(connectionString);
+
+  url.searchParams.delete("sslmode");
+  url.searchParams.delete("ssl");
+
+  return {
+    connectionString: url.toString(),
+    ssl: {
+      ca: caCert.replaceAll(String.raw`\n`, "\n"),
+      rejectUnauthorized: true,
+    },
+  };
+};
+
+export const connectPostgres = (
+  connectionString: string,
+  caCert?: string
+): Connection => {
+  const target =
+    caCert === undefined || caCert.trim() === ""
+      ? { connectionString }
+      : withCaCert(connectionString, caCert);
+
+  const pool = new Pool({ ...target, max: 10 });
   const db = drizzleNodePg({ casing: CASING, client: pool, schema });
 
   return {
@@ -79,11 +111,11 @@ export const connectPostgres = (connectionString: string): Connection => {
 
 export const PGLITE_DIR = path.join(process.cwd(), ".data", "pglite");
 
-/** The connection the app and scripts use, chosen by DATABASE_URL. */
+/** The connection the app and scripts use, chosen by `databaseUrl`. */
 export const connectFromEnv = (): Connection => {
-  const url = process.env.DATABASE_URL;
+  const url = databaseUrl(process.env);
 
-  return url !== undefined && url !== ""
-    ? connectPostgres(url)
-    : connectPglite(PGLITE_DIR);
+  return url === null
+    ? connectPglite(PGLITE_DIR)
+    : connectPostgres(url, process.env.DATABASE_CA_CERT);
 };
