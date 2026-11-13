@@ -5,6 +5,7 @@ import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { product, stockLevel } from "@/lib/db/schema";
 import type { Unit } from "@/lib/db/schema";
+import { canBrowseBackOffice } from "@/lib/permissions";
 import { requireViewer } from "@/lib/session";
 
 export interface PickedProduct {
@@ -13,7 +14,8 @@ export interface PickedProduct {
   readonly sku: string;
   readonly barcode: string | null;
   readonly unit: Unit;
-  readonly averageCost: number;
+  /** Null for someone who may not see costs (a cashier at the till). */
+  readonly averageCost: number | null;
   /** Shelf price including VAT, in pesewas: what the till charges. */
   readonly sellPrice: number;
   /** On hand per branch id; missing means never stocked there. */
@@ -30,7 +32,10 @@ export interface LookupResult {
 const MAX_MATCHES = 8;
 
 const withStock = async (
-  rows: readonly Omit<PickedProduct, "onHand">[]
+  rows: readonly (Omit<PickedProduct, "averageCost" | "onHand"> & {
+    readonly averageCost: number;
+  })[],
+  seesCosts: boolean
 ): Promise<PickedProduct[]> => {
   if (rows.length === 0) {
     return [];
@@ -58,7 +63,11 @@ const withStock = async (
     byProduct.set(level.productId, onHand);
   }
 
-  return rows.map((row) => ({ ...row, onHand: byProduct.get(row.id) ?? {} }));
+  return rows.map((row) => ({
+    ...row,
+    averageCost: seesCosts ? row.averageCost : null,
+    onHand: byProduct.get(row.id) ?? {},
+  }));
 };
 
 const columns = {
@@ -73,7 +82,8 @@ const columns = {
 
 /** Finds active products by scanned barcode, SKU or part of the name. */
 export const lookupProducts = async (text: string): Promise<LookupResult> => {
-  await requireViewer();
+  const viewer = await requireViewer();
+  const seesCosts = canBrowseBackOffice(viewer);
   const query = text.trim().slice(0, 100);
 
   if (!query) {
@@ -95,7 +105,7 @@ export const lookupProducts = async (text: string): Promise<LookupResult> => {
     .limit(1);
 
   if (exact !== undefined) {
-    const [picked] = await withStock([exact]);
+    const [picked] = await withStock([exact], seesCosts);
 
     return { exact: picked ?? null, matches: [] };
   }
@@ -109,14 +119,14 @@ export const lookupProducts = async (text: string): Promise<LookupResult> => {
     .orderBy(asc(product.name))
     .limit(MAX_MATCHES);
 
-  return { exact: null, matches: await withStock(rows) };
+  return { exact: null, matches: await withStock(rows, seesCosts) };
 };
 
 /** One product by id, for forms opened from a product page. */
 export const getPickedProduct = async (
   id: number
 ): Promise<PickedProduct | null> => {
-  await requireViewer();
+  const viewer = await requireViewer();
 
   const [row] = await getDb()
     .select(columns)
@@ -127,7 +137,7 @@ export const getPickedProduct = async (
     return null;
   }
 
-  const [picked] = await withStock([row]);
+  const [picked] = await withStock([row], canBrowseBackOffice(viewer));
 
   return picked ?? null;
 };

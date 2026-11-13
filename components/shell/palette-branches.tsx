@@ -53,48 +53,55 @@ export const BranchGroup = ({
   branches,
   scope,
   query,
-}: BranchProps & { readonly query: string }) => (
-  <CommandGroup className="pb-1">
-    <CommandGroupLabel className={labelClass}>Branch</CommandGroupLabel>
-    <CommandItem
-      className={itemClass}
-      keywords={["branch", "store", "warehouse", "scope", "show stock for"]}
-      label="Switch branch"
-      page={BRANCH_PAGE}
-      value="branch:page"
-    >
-      <CommandItemIcon className={iconClass}>
-        <Building2 aria-hidden="true" />
-      </CommandItemIcon>
-      <span className="grow truncate">Switch branch…</span>
-      <span className="text-ink-3 shrink-0 truncate text-xs">
-        {nameOf(branches, scope)}
-      </span>
-      <ChevronRight
-        aria-hidden="true"
-        className="text-ink-3 size-4 shrink-0 rtl:-scale-x-100"
-      />
-    </CommandItem>
-    {query.trim() === ""
-      ? null
-      : branches.map((item) =>
-          item.id === scope ? null : (
-            <CommandItem
-              className={itemClass}
-              key={item.id}
-              keywords={[item.id, branchKindLabel(item)]}
-              label={`Switch to ${item.name}`}
-              value={switchValue(item.id)}
-            >
-              <CommandItemIcon className={iconClass}>
-                <BranchIcon branch={item} />
-              </CommandItemIcon>
-              <span className="truncate">Switch to {item.name}</span>
-            </CommandItem>
-          )
-        )}
-  </CommandGroup>
-);
+}: BranchProps & { readonly query: string }) => {
+  // Nothing to switch between: someone fixed to their own store.
+  if (branches.length === 0) {
+    return null;
+  }
+
+  return (
+    <CommandGroup className="pb-1">
+      <CommandGroupLabel className={labelClass}>Branch</CommandGroupLabel>
+      <CommandItem
+        className={itemClass}
+        keywords={["branch", "store", "warehouse", "scope", "show stock for"]}
+        label="Switch branch"
+        page={BRANCH_PAGE}
+        value="branch:page"
+      >
+        <CommandItemIcon className={iconClass}>
+          <Building2 aria-hidden="true" />
+        </CommandItemIcon>
+        <span className="grow truncate">Switch branch…</span>
+        <span className="text-ink-3 shrink-0 truncate text-xs">
+          {nameOf(branches, scope)}
+        </span>
+        <ChevronRight
+          aria-hidden="true"
+          className="text-ink-3 size-4 shrink-0 rtl:-scale-x-100"
+        />
+      </CommandItem>
+      {query.trim() === ""
+        ? null
+        : branches.map((item) =>
+            item.id === scope ? null : (
+              <CommandItem
+                className={itemClass}
+                key={item.id}
+                keywords={[item.id, branchKindLabel(item)]}
+                label={`Switch to ${item.name}`}
+                value={switchValue(item.id)}
+              >
+                <CommandItemIcon className={iconClass}>
+                  <BranchIcon branch={item} />
+                </CommandItemIcon>
+                <span className="truncate">Switch to {item.name}</span>
+              </CommandItem>
+            )
+          )}
+    </CommandGroup>
+  );
+};
 
 interface PickRowProps {
   readonly current: boolean;
@@ -135,31 +142,37 @@ const PickRow = ({
 );
 
 /** Every branch, the one on screen ticked. */
-export const BranchPage = ({ branches, scope }: BranchProps) => (
-  <CommandPage value={BRANCH_PAGE}>
-    <CommandGroup className="pb-1">
-      <CommandGroupLabel className={labelClass}>
-        Show stock for
-      </CommandGroupLabel>
-      <PickRow
-        current={scope === ALL_BRANCHES}
-        hint="Company"
-        icon={<Building2 aria-hidden="true" />}
-        keywords={["company", "everything"]}
-        label="All branches"
-        value={pickValue(ALL_BRANCHES)}
-      />
-      {branches.map((item) => (
+export const BranchPage = ({ branches, scope }: BranchProps) => {
+  if (branches.length === 0) {
+    return null;
+  }
+
+  return (
+    <CommandPage value={BRANCH_PAGE}>
+      <CommandGroup className="pb-1">
+        <CommandGroupLabel className={labelClass}>
+          Show stock for
+        </CommandGroupLabel>
         <PickRow
-          current={scope === item.id}
-          hint={branchKindLabel(item)}
-          icon={<BranchIcon branch={item} />}
-          key={item.id}
-          keywords={[item.id, branchKindLabel(item)]}
-          label={item.name}
-          value={pickValue(item.id)}
+          current={scope === ALL_BRANCHES}
+          hint="Company"
+          icon={<Building2 aria-hidden="true" />}
+          keywords={["company", "everything"]}
+          label="All branches"
+          value={pickValue(ALL_BRANCHES)}
         />
-      ))}
-    </CommandGroup>
-  </CommandPage>
-);
+        {branches.map((item) => (
+          <PickRow
+            current={scope === item.id}
+            hint={branchKindLabel(item)}
+            icon={<BranchIcon branch={item} />}
+            key={item.id}
+            keywords={[item.id, branchKindLabel(item)]}
+            label={item.name}
+            value={pickValue(item.id)}
+          />
+        ))}
+      </CommandGroup>
+    </CommandPage>
+  );
+};

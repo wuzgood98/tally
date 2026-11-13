@@ -195,7 +195,12 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
 
   return (
     <CommandPaletteProvider
-      branches={branches.map(({ id, kind, name }) => ({ id, kind, name }))}
+      // No branch switching from the palette for someone fixed to theirs.
+      branches={
+        switchesBranch
+          ? branches.map(({ id, kind, name }) => ({ id, kind, name }))
+          : []
+      }
       groups={paletteCommands(viewer, branches)}
       scope={scope.kind === "all" ? "all" : scope.branchId}
       theme={parseTheme(jar.get(THEME_COOKIE)?.value)}

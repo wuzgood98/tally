@@ -8,7 +8,7 @@ import { pesewasToInput } from "@/lib/money";
  * that pre-fill it, so it lives outside the client component.
  */
 export const orderLine = (product: PickedProduct, quantity = 1): DraftLine => ({
-  cost: pesewasToInput(product.averageCost),
+  cost: product.averageCost === null ? "" : pesewasToInput(product.averageCost),
   product,
   quantity: String(quantity),
 });

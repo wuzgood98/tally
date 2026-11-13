@@ -46,7 +46,7 @@ interface SubmittedLine {
 }
 
 const newLine = (product: PickedProduct): DraftLine => ({
-  cost: pesewasToInput(product.averageCost),
+  cost: product.averageCost === null ? "" : pesewasToInput(product.averageCost),
   product,
   quantity: "1",
 });

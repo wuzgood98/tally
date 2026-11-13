@@ -1,4 +1,4 @@
-import { desc, ilike, sql } from "drizzle-orm";
+import { and, desc, ilike, inArray, or, sql } from "drizzle-orm";
 import type { AnyColumn, SQL } from "drizzle-orm";
 
 import type { Db } from "@/lib/db/client";
@@ -11,8 +11,10 @@ import {
   stockRequest,
   stockTransfer,
 } from "@/lib/db/schema";
-import { parseDocumentQuery } from "@/lib/document-query";
+import { DOCUMENT_PREFIXES, parseDocumentQuery } from "@/lib/document-query";
 import type { DocumentPrefix, DocumentQuery } from "@/lib/document-query";
+import { canBrowseBackOffice, visibleBranchIds } from "@/lib/permissions";
+import type { Actor } from "@/lib/permissions";
 import { PURCHASE_ORDER_STATUS_LABELS } from "@/lib/stock/purchase-order-status";
 import { STOCK_REQUEST_STATUS_LABELS } from "@/lib/stock/request-status";
 import { TRANSFER_STATUS_LABELS } from "@/lib/stock/transfer-status";
@@ -33,6 +35,33 @@ export interface DocumentResults {
   /** Typed like a document number: show documents before products. */
   readonly documentLike: boolean;
 }
+
+/** What this person may open: which branches' documents, and which kinds. */
+export interface DocumentAccess {
+  /** Null for every branch. */
+  readonly branchIds: readonly string[] | null;
+  readonly prefixes: readonly DocumentPrefix[];
+}
+
+export const EVERY_DOCUMENT: DocumentAccess = {
+  branchIds: null,
+  prefixes: DOCUMENT_PREFIXES,
+};
+
+/**
+ * Everything for back-office staff, who can open any document's page; a
+ * cashier only finds their own store's sales and returns.
+ */
+export const documentAccessFor = (
+  actor: Actor,
+  allBranchIds: readonly string[]
+): DocumentAccess =>
+  canBrowseBackOffice(actor)
+    ? EVERY_DOCUMENT
+    : {
+        branchIds: visibleBranchIds(actor, allBranchIds),
+        prefixes: ["SAL", "RET"],
+      };
 
 export const PALETTE_DOCUMENT_LIMIT = 5;
 const LIKE_SPECIALS = /[\\%_]/gu;
@@ -70,9 +99,20 @@ interface Found {
   readonly createdAt: Date;
 }
 
-type Finder = (db: Db, query: DocumentQuery) => Promise<Found[]>;
+type Finder = (
+  db: Db,
+  query: DocumentQuery,
+  branchIds: readonly string[] | null
+) => Promise<Found[]>;
 
-const findPurchaseOrders: Finder = async (db, query) => {
+/** Only the branches this person may see; no condition for every branch. */
+const atBranches = (
+  column: AnyColumn,
+  branchIds: readonly string[] | null
+): SQL | undefined =>
+  branchIds === null ? undefined : inArray(column, [...branchIds]);
+
+const findPurchaseOrders: Finder = async (db, query, branchIds) => {
   const match = matchNumber(purchaseOrder.number, "PO", query);
 
   const rows = await db
@@ -85,7 +125,7 @@ const findPurchaseOrders: Finder = async (db, query) => {
       status: purchaseOrder.status,
     })
     .from(purchaseOrder)
-    .where(match.where)
+    .where(and(match.where, atBranches(purchaseOrder.branchId, branchIds)))
     .orderBy(desc(match.sameSerial), desc(purchaseOrder.createdAt))
     .limit(PALETTE_DOCUMENT_LIMIT);
 
@@ -100,7 +140,7 @@ const findPurchaseOrders: Finder = async (db, query) => {
   }));
 };
 
-const findReceipts: Finder = async (db, query) => {
+const findReceipts: Finder = async (db, query, branchIds) => {
   const match = matchNumber(goodsReceipt.number, "GRN", query);
 
   const rows = await db
@@ -112,7 +152,7 @@ const findReceipts: Finder = async (db, query) => {
       sameSerial: match.sameSerial,
     })
     .from(goodsReceipt)
-    .where(match.where)
+    .where(and(match.where, atBranches(goodsReceipt.branchId, branchIds)))
     .orderBy(desc(match.sameSerial), desc(goodsReceipt.createdAt))
     .limit(PALETTE_DOCUMENT_LIMIT);
 
@@ -127,7 +167,7 @@ const findReceipts: Finder = async (db, query) => {
   }));
 };
 
-const findTransfers: Finder = async (db, query) => {
+const findTransfers: Finder = async (db, query, branchIds) => {
   const match = matchNumber(stockTransfer.number, "TRF", query);
 
   const rows = await db
@@ -141,7 +181,17 @@ const findTransfers: Finder = async (db, query) => {
       toBranchId: stockTransfer.toBranchId,
     })
     .from(stockTransfer)
-    .where(match.where)
+    .where(
+      and(
+        match.where,
+        branchIds === null
+          ? undefined
+          : or(
+              atBranches(stockTransfer.fromBranchId, branchIds),
+              atBranches(stockTransfer.toBranchId, branchIds)
+            )
+      )
+    )
     .orderBy(desc(match.sameSerial), desc(stockTransfer.createdAt))
     .limit(PALETTE_DOCUMENT_LIMIT);
 
@@ -156,7 +206,7 @@ const findTransfers: Finder = async (db, query) => {
   }));
 };
 
-const findRequests: Finder = async (db, query) => {
+const findRequests: Finder = async (db, query, branchIds) => {
   const match = matchNumber(stockRequest.number, "REQ", query);
 
   const rows = await db
@@ -169,7 +219,7 @@ const findRequests: Finder = async (db, query) => {
       status: stockRequest.status,
     })
     .from(stockRequest)
-    .where(match.where)
+    .where(and(match.where, atBranches(stockRequest.branchId, branchIds)))
     .orderBy(desc(match.sameSerial), desc(stockRequest.createdAt))
     .limit(PALETTE_DOCUMENT_LIMIT);
 
@@ -184,7 +234,7 @@ const findRequests: Finder = async (db, query) => {
   }));
 };
 
-const findSales: Finder = async (db, query) => {
+const findSales: Finder = async (db, query, branchIds) => {
   const match = matchNumber(sale.number, "SAL", query);
 
   const rows = await db
@@ -196,7 +246,7 @@ const findSales: Finder = async (db, query) => {
       sameSerial: match.sameSerial,
     })
     .from(sale)
-    .where(match.where)
+    .where(and(match.where, atBranches(sale.branchId, branchIds)))
     .orderBy(desc(match.sameSerial), desc(sale.createdAt))
     .limit(PALETTE_DOCUMENT_LIMIT);
 
@@ -211,7 +261,7 @@ const findSales: Finder = async (db, query) => {
   }));
 };
 
-const findReturns: Finder = async (db, query) => {
+const findReturns: Finder = async (db, query, branchIds) => {
   const match = matchNumber(saleReturn.number, "RET", query);
 
   const rows = await db
@@ -223,7 +273,7 @@ const findReturns: Finder = async (db, query) => {
       sameSerial: match.sameSerial,
     })
     .from(saleReturn)
-    .where(match.where)
+    .where(and(match.where, atBranches(saleReturn.branchId, branchIds)))
     .orderBy(desc(match.sameSerial), desc(saleReturn.createdAt))
     .limit(PALETTE_DOCUMENT_LIMIT);
 
@@ -253,13 +303,14 @@ const byBestMatch = (a: Found, b: Found): number =>
   b.createdAt.getTime() - a.createdAt.getTime();
 
 /**
- * Documents for the command palette, by number. Every signed-in person can
- * open any document's page, so this searches all branches; the branch is
- * shown on each result instead.
+ * Documents for the command palette, by number, limited to what `access`
+ * allows: the same documents the person could open by link. The branch is
+ * shown on each result.
  */
 export const searchPaletteDocuments = async (
   db: Db,
-  text: string
+  text: string,
+  access: DocumentAccess = EVERY_DOCUMENT
 ): Promise<DocumentResults> => {
   const query = parseDocumentQuery(text);
 
@@ -267,11 +318,16 @@ export const searchPaletteDocuments = async (
     return { documentLike: false, documents: [] };
   }
 
-  const finders =
-    query.prefix === null ? Object.values(FINDERS) : [FINDERS[query.prefix]];
+  const prefixes = access.prefixes.filter(
+    (prefix) => query.prefix === null || prefix === query.prefix
+  );
 
   const [found, branches] = await Promise.all([
-    Promise.all(finders.map(async (find) => await find(db, query))),
+    Promise.all(
+      prefixes.map(
+        async (prefix) => await FINDERS[prefix](db, query, access.branchIds)
+      )
+    ),
     db.select({ id: branch.id, name: branch.name }).from(branch),
   ]);
 

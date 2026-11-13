@@ -90,8 +90,12 @@ describe("paletteCommands", () => {
     ]);
   });
 
-  it("gives a cashier the till and a sale, and nothing that changes stock", () => {
-    expect(allValues(cashier)).toContain("go:/till");
+  it("gives a cashier the till, sales and products, and nothing else", () => {
+    expect(valuesIn(cashier, "Go to")).toEqual([
+      "go:/till",
+      "go:/sales",
+      "go:/products",
+    ]);
     expect(valuesIn(cashier, "Create")).toEqual(["new:sale"]);
   });
 
