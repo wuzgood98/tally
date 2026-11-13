@@ -25,6 +25,9 @@ export const proxy = (request: NextRequest) => {
 
 export const config = {
   matcher: [
-    "/((?!login|api/auth|api/v1|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|robots.txt).*)",
+    // Public: sign-in, auth and till APIs, and the files browsers and
+    // crawlers fetch without a session (icons, manifest, robots, sitemap,
+    // the social card and security.txt).
+    "/((?!login|api/auth|api/v1|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icons/|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|\\.well-known/).*)",
   ],
 };

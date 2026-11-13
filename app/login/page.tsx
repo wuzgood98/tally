@@ -4,12 +4,18 @@ import { redirect } from "next/navigation";
 import { DemoAccounts } from "@/components/auth/demo-accounts";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { TallyMark } from "@/components/brand/tally-mark";
+import { JsonLd } from "@/components/seo/json-ld";
 import { isDemo } from "@/lib/demo";
 import { param } from "@/lib/search-params";
+import { PUBLIC_PAGE_METADATA } from "@/lib/seo";
 import { getViewer } from "@/lib/session";
 import { COMPANY_NAME } from "@/lib/site";
+import { appJsonLd } from "@/lib/structured-data";
 
-export const metadata: Metadata = { title: "Sign in" };
+export const metadata: Metadata = {
+  ...PUBLIC_PAGE_METADATA,
+  title: "Sign in",
+};
 
 const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
   const [viewer, params] = await Promise.all([getViewer(), searchParams]);
@@ -22,6 +28,7 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
 
   return (
     <main className="grid min-h-svh place-items-center px-4 py-12">
+      <JsonLd data={appJsonLd()} />
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2.5">
           <TallyMark className="text-brand size-8" />

@@ -41,3 +41,6 @@ next-env.d.ts
 
 # local database
 /.data/
+
+# pnpm icons --preview
+scripts/.icon-preview.png

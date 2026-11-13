@@ -16,6 +16,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
     "till:simulate": "tsx scripts/till-simulator.ts",
+    "icons": "node scripts/generate-icons.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -50,6 +51,7 @@
     "oxlint": "^1.93.0",
     "oxlint-plugin-react-doctor": "^0.9.22",
     "oxlint-tsgolint": "^7.0.2006",
+    "sharp": "0.35.5",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

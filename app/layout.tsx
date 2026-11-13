@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 
 import "./globals.css";
+import { ROOT_METADATA } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
 const plexSans = IBM_Plex_Sans({
@@ -16,13 +17,8 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
-export const metadata: Metadata = {
-  description:
-    "Stock across every branch: receiving, adjustments, low-stock alerts and a full movement ledger.",
-  // A staff tool: keep it out of search engines.
-  robots: { follow: false, index: false },
-  title: { default: "Tally", template: "%s · Tally" },
-};
+// A staff tool: shareable, but only the sign-in page is indexable.
+export const metadata: Metadata = ROOT_METADATA;
 
 export const viewport: Viewport = {
   colorScheme: "light dark",

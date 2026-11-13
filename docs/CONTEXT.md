@@ -178,6 +178,17 @@ These are invariants. New features must keep them. Transfers were added as new m
 - **Seeding takes time.** It's about 30 s in memory and about 75 s on disk; the first `pnpm dev` on an empty `.data/pglite` and `pnpm db:reset` both pay it. `SALES_PER_DAY` and `DEMAND_TIERS` in `lib/db/seed.ts` are the levers: baskets cost time, quantities don't. The seed test's `beforeAll` has its own 180 s timeout.
 - Tests give each file its own in-memory PGlite with real migrations (`test/db.ts` → `createTestWorld()`).
 
+## SEO, sharing and icons
+
+Tally is a staff tool, so only the sign-in page is meant to be found; the files follow the pattern used in the nocturne project, adapted for that.
+
+- **Indexing:** `ROOT_METADATA` (`lib/seo.ts`, used by the root layout) makes every page `noindex, nofollow`; the sign-in page spreads `PUBLIC_PAGE_METADATA` (`index, follow`, canonical `/login`) and carries schema.org `WebApplication` JSON-LD (`lib/structured-data.ts`, `components/seo/json-ld.tsx`). `robots.txt` allows `/login` and `/opengraph-image` (link-preview bots honour robots) and disallows the rest; the sitemap lists `/login` only.
+- **Site URL:** `resolveSiteUrl` takes `NEXT_PUBLIC_SITE_URL`, else `BETTER_AUTH_URL` (already the public URL in production), else `VERCEL_PROJECT_PRODUCTION_URL`, else localhost; a malformed value falls through.
+- **Social card:** `app/opengraph-image.tsx` via `renderOgImage` (`lib/og-image.tsx`, Satori: inline styles and flexbox only). IBM Plex Sans 400/600 woff files live in `assets/fonts` (OFL). The latin subset has no "→": a missing glyph drops to a fallback font with taller line metrics. Prerendered at build.
+- **Icons:** `lib/brand.ts` holds the colours and the mark's geometry, shared by `TallyMark` and `pnpm icons` (`scripts/generate-icons.ts`, sharp), which writes `app/icon.svg`, `app/favicon.ico`, `app/apple-icon.png` and `public/icons/` (192, 512, maskable 512). `pnpm icons --preview` adds a contact sheet (git-ignored). `app/manifest.ts` makes Tally installable, with Till, Low stock and Receive goods shortcuts.
+- **security.txt:** `/.well-known/security.txt`, built statically with a 180-day expiry, so redeploy at least that often. `SECURITY_EMAIL` is a placeholder on a reserved domain.
+- **The proxy must let these through:** its matcher skips icons, the manifest, robots, sitemap, the card and `.well-known`; `app/seo.test.ts` checks the matcher both ways (public files open, staff screens guarded).
+
 ## Conventions and gotchas
 
 - **Lint is strict** (Ultracite anti-slop + react-doctor). Workflow: `pnpm exec ultracite fix`, then `pnpm exec ultracite check 2>&1 | python scripts/fix-spacing.py .` (inserts the blank lines `require-readable-spacing` wants), then `ultracite fix` again. Rules that shaped the code:
