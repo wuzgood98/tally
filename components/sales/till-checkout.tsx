@@ -3,6 +3,9 @@
 import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Radio, RadioGroup } from "@/components/ui/choice";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import type { PaymentMethod } from "@/lib/db/schema";
 import { formatCount } from "@/lib/format";
 import { formatCedis, parseCedis } from "@/lib/money";
@@ -58,39 +61,41 @@ export const TillCheckout = ({
         </p>
       </div>
 
-      <fieldset className="grid gap-2">
-        <legend className="mb-2 text-sm font-medium">Payment</legend>
-        <div className="grid grid-cols-3 gap-2">
+      <Field layout="group">
+        <FieldLabel className="mb-2">Payment</FieldLabel>
+        <RadioGroup
+          columns={3}
+          name="paymentMethod"
+          onValueChange={(value) => {
+            const picked = PAYMENT_METHODS.find((method) => method === value);
+
+            if (picked !== undefined) {
+              onPaymentMethod(picked);
+            }
+          }}
+          value={paymentMethod}
+        >
           {PAYMENT_METHODS.map((method) => (
             <label
-              className="border-line has-checked:border-brand has-checked:bg-brand-soft has-focus-visible:ring-brand/40 relative grid cursor-pointer place-items-center rounded-lg border px-2 py-2 text-center text-sm font-medium has-focus-visible:ring-3"
+              className="border-line has-data-checked:border-brand has-data-checked:bg-brand-soft has-focus-visible:ring-brand/40 relative grid cursor-pointer place-items-center rounded-lg border px-2 py-2 text-center text-sm font-medium has-focus-visible:ring-3"
               key={method}
             >
-              <input
-                checked={paymentMethod === method}
-                className="sr-only"
-                name="paymentMethod"
-                onChange={() => {
-                  onPaymentMethod(method);
-                }}
-                type="radio"
-                value={method}
-              />
+              <Radio bare value={method} />
               {PAYMENT_LABELS[method]}
             </label>
           ))}
-        </div>
-      </fieldset>
+        </RadioGroup>
+      </Field>
 
       {paymentMethod === "cash" ? (
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium" htmlFor={`${id}-cash`}>
+        <Field>
+          <FieldLabel>
             Cash received (GH₵){" "}
             <span className="text-ink-3 font-normal">(optional)</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             autoComplete="off"
-            className="field tabular text-right"
+            format="amount"
             id={`${id}-cash`}
             inputMode="decimal"
             onChange={(event) => {
@@ -104,7 +109,7 @@ export const TillCheckout = ({
           >
             {change}
           </output>
-        </div>
+        </Field>
       ) : null}
 
       <output aria-live="polite" className="text-danger text-sm empty:hidden">

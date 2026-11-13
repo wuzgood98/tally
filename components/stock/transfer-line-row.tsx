@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
+import { Input } from "@/components/ui/input";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
 
@@ -49,10 +50,12 @@ export const TransferLineRow = ({
         {formatCount(available)}
       </td>
       <td className="px-2 py-2">
-        <input
+        <Input
           aria-invalid={valid ? undefined : true}
           aria-label={`Quantity of ${product.name} to send`}
-          className="field tabular h-8 min-w-20 text-right"
+          className="min-w-20"
+          format="amount"
+          size="sm"
           inputMode="numeric"
           onChange={(event) => {
             onChange(product.id, event.target.value);

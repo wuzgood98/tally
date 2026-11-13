@@ -6,17 +6,29 @@ import { useActionState, useState } from "react";
 import { addStaff } from "@/app/(app)/staff/actions";
 import type { AddStaffState } from "@/app/(app)/staff/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import type { SelectOptions } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 interface AddStaffFormProps {
   readonly branches: readonly { readonly id: string; readonly name: string }[];
 }
 
+const ROLE_OPTIONS = [
+  { label: "Cashier", value: "cashier" },
+  { label: "Storekeeper", value: "storekeeper" },
+  { label: "Branch manager", value: "manager" },
+  { label: "Head office", value: "admin" },
+] as const satisfies SelectOptions;
+
 const INITIAL: AddStaffState = { created: null, error: null };
 
 export const AddStaffForm = ({ branches }: AddStaffFormProps) => {
   const [state, action, pending] = useActionState(addStaff, INITIAL);
-  const [role, setRole] = useState("storekeeper");
+  const [role, setRole] = useState<string>("storekeeper");
 
   return (
     <div className="grid gap-4">
@@ -51,62 +63,41 @@ export const AddStaffForm = ({ branches }: AddStaffFormProps) => {
         key={state.created?.email ?? "new"}
         onSubmit={submitWithoutReset(action)}
       >
-        <label className="grid gap-1.5 text-sm font-medium">
-          Full name
-          <input
+        <Field>
+          <FieldLabel>Full name</FieldLabel>
+          <Input autoComplete="off" maxLength={80} name="name" required />
+        </Field>
+        <Field>
+          <FieldLabel>Work email</FieldLabel>
+          <Input
             autoComplete="off"
-            className="field"
-            maxLength={80}
-            name="name"
-            required
-          />
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Work email
-          <input
-            autoComplete="off"
-            className="field"
             name="email"
             required
             spellCheck={false}
             type="email"
           />
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Role
-          <select
-            className="field"
+        </Field>
+        <Field>
+          <FieldLabel>Role</FieldLabel>
+          <Select
             name="role"
-            onChange={(event) => {
-              setRole(event.target.value);
+            onValueChange={(value) => {
+              setRole(value ?? "cashier");
             }}
+            options={ROLE_OPTIONS}
             value={role}
-          >
-            <option value="cashier">Cashier</option>
-            <option value="storekeeper">Storekeeper</option>
-            <option value="manager">Branch manager</option>
-            <option value="admin">Head office</option>
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Branch
-          <select
-            className="field"
-            defaultValue=""
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Branch</FieldLabel>
+          <Select
             disabled={role === "admin"}
             name="branchId"
+            options={namedOptions(branches)}
+            placeholder={role === "admin" ? "All branches" : "Choose a branch"}
             required={role !== "admin"}
-          >
-            <option value="">
-              {role === "admin" ? "All branches" : "Choose a branch"}
-            </option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </Field>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <Button size="md" disabled={pending} type="submit">
             {pending ? "Creating…" : "Create account"}

@@ -1,3 +1,4 @@
+@layer ui-sdk;
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -76,6 +77,22 @@
   --danger: #b0301c;
   --danger-soft: #fae5e0;
   --good: #1f7a49;
+
+  --ui-background: var(--surface);
+  --ui-foreground: var(--ink);
+  --ui-muted: var(--surface-2);
+  --ui-muted-foreground: var(--ink-2);
+  --ui-border: var(--line);
+  --ui-input: var(--line-strong);
+  --ui-primary: var(--accent);
+  --ui-primary-foreground: var(--accent-ink);
+  --ui-destructive: var(--danger);
+  --ui-ring: var(--accent);
+  --ui-ring-border: var(--accent);
+  --ui-radius: var(--radius-md);
+  --ui-font-size: 0.875rem;
+  --ui-font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --ui-font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
 /* Screens only: anything printed (a purchase order) stays dark ink on paper. */

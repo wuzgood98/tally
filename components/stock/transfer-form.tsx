@@ -9,6 +9,10 @@ import { ProductPicker } from "@/components/stock/product-picker";
 import { TransferLineRow } from "@/components/stock/transfer-line-row";
 import type { TransferDraftLine } from "@/components/stock/transfer-line-row";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
@@ -171,54 +175,38 @@ export const TransferForm = ({
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
       <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-sm font-medium">
-          Send from
-          <select
-            className="field"
+        <Field>
+          <FieldLabel>Send from</FieldLabel>
+          <Select
             disabled={sources.length === 1}
             name="fromBranchId"
-            onChange={(event) => {
-              setFromId(event.target.value);
+            onValueChange={(value) => {
+              setFromId(value ?? "");
 
-              if (event.target.value === toId) {
+              if (value === toId) {
                 setToId("");
               }
             }}
+            options={namedOptions(sources)}
             value={fromId}
-          >
-            {sources.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Send to
-          <select
-            className="field"
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Send to</FieldLabel>
+          <Select
             name="toBranchId"
-            onChange={(event) => {
-              setToId(event.target.value);
+            onValueChange={(value) => {
+              setToId(value ?? "");
               setError(null);
             }}
-            required
-            value={toId}
-          >
-            <option disabled value="">
-              Choose a branch
-            </option>
-            {destinations.flatMap((branch) =>
-              branch.id === fromId
-                ? []
-                : [
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>,
-                  ]
+            options={namedOptions(
+              destinations.filter((branch) => branch.id !== fromId)
             )}
-          </select>
-        </label>
+            placeholder="Choose a branch"
+            required
+            value={toId === "" ? null : toId}
+          />
+        </Field>
       </div>
 
       <div className="border-line bg-surface rounded-xl border">
@@ -272,17 +260,18 @@ export const TransferForm = ({
         )}
       </div>
 
-      <label className="grid gap-1.5 text-sm font-medium">
-        <span>
-          Note <span className="text-ink-3 font-normal">(optional)</span>
-        </span>
-        <textarea
-          className="field h-auto min-h-20 py-2"
+      <Field>
+        <FieldLabel>
+          <span>
+            Note <span className="text-ink-3 font-normal">(optional)</span>
+          </span>
+        </FieldLabel>
+        <Textarea
           maxLength={500}
           name="note"
           placeholder="Vehicle, driver, waybill number, anything the receiving branch should know"
         />
-      </label>
+      </Field>
 
       <div className="border-line bg-surface sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 pl-4 shadow-sm">
         <p className="tabular text-sm">

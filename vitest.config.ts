@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: "node",
     exclude: ["node_modules/**", ".next/**", ".data/**"],
-    include: ["**/*.test.ts"],
+    include: ["**/*.test.ts", "**/*.test.tsx"],
     // Each file migrates its own in-memory Postgres; give that a moment.
     testTimeout: 20_000,
     hookTimeout: 60_000,

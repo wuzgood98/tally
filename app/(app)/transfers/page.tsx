@@ -4,9 +4,12 @@ import Link from "next/link";
 
 import { TransferStatusBadge } from "@/components/stock/transfer-status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
+import { Select } from "@/components/ui/select";
+import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
 import { transferStatusEnum } from "@/lib/db/schema";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
@@ -91,31 +94,30 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
         className="mb-4 flex flex-wrap items-center gap-2"
       >
         {oneBranch ? (
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-ink-2">Show</span>
-            <select
-              className="field w-auto"
+          <Field layout="inline">
+            <FieldLabel tone="quiet">Show</FieldLabel>
+            <Select
+              className="w-auto"
               defaultValue={direction}
               name="direction"
-            >
-              {TRANSFER_DIRECTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {DIRECTION_LABELS[value]}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={labelledOptions(TRANSFER_DIRECTIONS, DIRECTION_LABELS)}
+            />
+          </Field>
         ) : null}
-        <label className="flex items-center gap-2 text-sm">
-          <span className={oneBranch ? "sr-only" : "text-ink-2"}>Status</span>
-          <select className="field w-auto" defaultValue={status} name="status">
-            {STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {STATUS_OPTIONS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field layout="inline">
+          <FieldLabel
+            className={oneBranch ? "sr-only" : undefined}
+            tone="quiet"
+          >
+            Status
+          </FieldLabel>
+          <Select
+            className="w-auto"
+            defaultValue={status}
+            name="status"
+            options={labelledOptions(STATUSES, STATUS_OPTIONS)}
+          />
+        </Field>
         <button
           className={buttonVariants({ size: "md", variant: "outline" })}
           type="submit"

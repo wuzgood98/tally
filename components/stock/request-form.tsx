@@ -8,6 +8,10 @@ import type { PickedProduct } from "@/app/(app)/lookup-action";
 import { requestStockAction } from "@/app/(app)/requests/actions";
 import { ProductPicker } from "@/components/stock/product-picker";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
 
@@ -68,11 +72,13 @@ const RequestLineRow = ({
         {formatCount(atWarehouse)}
       </td>
       <td className="px-2 py-2">
-        <input
+        <Input
           aria-invalid={quantity !== null && quantity > 0 ? undefined : true}
           aria-label={`Quantity of ${product.name} to request`}
-          className="field tabular h-8 min-w-20 text-right"
+          className="min-w-20"
+          format="amount"
           inputMode="numeric"
+          size="sm"
           onChange={(event) => {
             onChange(product.id, event.target.value);
           }}
@@ -170,22 +176,16 @@ export const RequestForm = ({
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
       {stores.length > 1 ? (
-        <label className="grid max-w-sm gap-1.5 text-sm font-medium">
-          Request for
-          <select
-            className="field"
-            onChange={(event) => {
-              setStoreId(event.target.value);
+        <Field className="max-w-sm">
+          <FieldLabel>Request for</FieldLabel>
+          <Select
+            onValueChange={(value) => {
+              setStoreId(value ?? "");
             }}
+            options={namedOptions(stores)}
             value={storeId}
-          >
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </Field>
       ) : null}
 
       <div className="border-line bg-surface rounded-xl border">
@@ -255,12 +255,13 @@ export const RequestForm = ({
         )}
       </div>
 
-      <label className="grid gap-1.5 text-sm font-medium">
-        <span>
-          Note <span className="text-ink-3 font-normal">(optional)</span>
-        </span>
-        <textarea
-          className="field h-auto min-h-20 py-2"
+      <Field>
+        <FieldLabel>
+          <span>
+            Note <span className="text-ink-3 font-normal">(optional)</span>
+          </span>
+        </FieldLabel>
+        <Textarea
           maxLength={500}
           onChange={(event) => {
             setNote(event.target.value);
@@ -268,7 +269,7 @@ export const RequestForm = ({
           placeholder="Why it's needed, or by when: e.g. promo starts Saturday"
           value={note}
         />
-      </label>
+      </Field>
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <output aria-live="polite" className="text-danger mr-auto text-sm">

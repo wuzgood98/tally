@@ -5,44 +5,41 @@ import { useActionState } from "react";
 import { signIn } from "@/app/login/actions";
 import type { SignInState } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const INITIAL: SignInState = { email: "", error: null };
 
 export const SignInForm = ({ next }: { readonly next: string | undefined }) => {
   const [state, action, pending] = useActionState(signIn, INITIAL);
+  const invalid = state.error === null ? undefined : true;
 
   return (
     <form action={action} className="grid gap-4" noValidate>
       <input name="next" type="hidden" value={next ?? ""} />
-      <label className="grid gap-1.5 text-sm font-medium" htmlFor="email">
-        Work email
-        <input
-          aria-describedby={state.error === null ? undefined : "sign-in-error"}
-          aria-invalid={state.error === null ? undefined : true}
+      <Field invalid={invalid}>
+        <FieldLabel>Work email</FieldLabel>
+        <Input
+          aria-describedby={invalid ? "sign-in-error" : undefined}
           autoComplete="username"
-          className="field"
           defaultValue={state.email}
-          id="email"
           inputMode="email"
           name="email"
           required
           spellCheck={false}
           type="email"
         />
-      </label>
-      <label className="grid gap-1.5 text-sm font-medium" htmlFor="password">
-        Password
-        <input
-          aria-describedby={state.error === null ? undefined : "sign-in-error"}
-          aria-invalid={state.error === null ? undefined : true}
+      </Field>
+      <Field invalid={invalid}>
+        <FieldLabel>Password</FieldLabel>
+        <PasswordInput
+          aria-describedby={invalid ? "sign-in-error" : undefined}
           autoComplete="current-password"
-          className="field"
-          id="password"
           name="password"
           required
-          type="password"
         />
-      </label>
+      </Field>
       <p
         aria-live="polite"
         className="text-danger min-h-5 text-sm"

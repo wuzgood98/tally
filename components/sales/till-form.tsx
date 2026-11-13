@@ -11,6 +11,9 @@ import { TillCheckout } from "@/components/sales/till-checkout";
 import { TillLineRow } from "@/components/sales/till-line-row";
 import type { BasketLine } from "@/components/sales/till-line-row";
 import { ProductPicker } from "@/components/stock/product-picker";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import type { PaymentMethod } from "@/lib/db/schema";
 import { formatCedis } from "@/lib/money";
 import { wholeNumber } from "@/lib/numbers";
@@ -153,22 +156,16 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
         <div className="border-line bg-surface min-w-0 rounded-xl border">
           <div className="border-line grid gap-4 border-b p-4" ref={scanArea}>
             {stores.length > 1 ? (
-              <label className="grid gap-1.5 text-sm font-medium">
-                Till at
-                <select
-                  className="field"
-                  onChange={(event) => {
-                    setStoreId(event.target.value);
+              <Field>
+                <FieldLabel>Till at</FieldLabel>
+                <Select
+                  onValueChange={(value) => {
+                    setStoreId(value ?? "");
                   }}
+                  options={namedOptions(stores)}
                   value={storeId}
-                >
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.id}>
-                      {store.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                />
+              </Field>
             ) : null}
             <ProductPicker autoFocus label="Scan items" onPick={addProduct} />
           </div>

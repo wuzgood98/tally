@@ -8,6 +8,8 @@ import {
   fulfilRequestAction,
 } from "@/app/(app)/requests/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
@@ -138,9 +140,11 @@ export const FulfilRequestForm = ({
                   {formatCount(line.atWarehouse)}
                 </td>
                 <td className="px-2 py-2 pr-4">
-                  <input
+                  <Input
                     aria-label={`Units of ${line.name} to send`}
-                    className="field tabular h-8 min-w-20 text-right"
+                    className="min-w-20"
+                    format="amount"
+                    size="sm"
                     inputMode="numeric"
                     onChange={(event) => {
                       setSending((current) => ({
@@ -161,19 +165,20 @@ export const FulfilRequestForm = ({
         </table>
       </div>
       <div className="grid gap-4 p-4">
-        <label className="grid gap-1.5 text-sm font-medium">
-          <span>
-            Note for the transfer{" "}
-            <span className="text-ink-3 font-normal">(optional)</span>
-          </span>
-          <input
+        <Field>
+          <FieldLabel>
+            <span>
+              Note for the transfer{" "}
+              <span className="text-ink-3 font-normal">(optional)</span>
+            </span>
+          </FieldLabel>
+          <Input
             autoComplete="off"
-            className="field"
             maxLength={500}
             name="note"
             placeholder="Truck, driver, or why some lines are short"
           />
-        </label>
+        </Field>
         <div className="flex flex-wrap items-center justify-end gap-3">
           <output aria-live="polite" className="text-danger mr-auto text-sm">
             {error}
@@ -228,21 +233,22 @@ export const CancelRequestForm = ({
 
   return (
     <form className="grid w-full gap-3" onSubmit={onSubmit}>
-      <label className="grid gap-1.5 text-sm font-medium">
-        <span>
-          Why? <span className="text-ink-3 font-normal">(optional)</span>
-        </span>
-        <input
+      <Field>
+        <FieldLabel>
+          <span>
+            Why? <span className="text-ink-3 font-normal">(optional)</span>
+          </span>
+        </FieldLabel>
+        <Input
           autoComplete="off"
           // The reason is the only thing to do next, so focusing it is the point.
           // oxlint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
-          className="field"
           maxLength={500}
           name="note"
           placeholder="e.g. Warehouse is out until next week"
         />
-      </label>
+      </Field>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <output aria-live="polite" className="text-danger mr-auto text-sm">
           {error}

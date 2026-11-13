@@ -13,6 +13,10 @@ import { ProductPicker } from "@/components/stock/product-picker";
 import { ReceiptLineRow } from "@/components/stock/receipt-line-row";
 import type { DraftLine } from "@/components/stock/receipt-line-row";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { formatCount } from "@/lib/format";
 import { formatCedis, parseCedis } from "@/lib/money";
 import { wholeNumber } from "@/lib/numbers";
@@ -173,45 +177,31 @@ export const PurchaseOrderForm = ({
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
       <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-sm font-medium">
-          Deliver to
-          <select
-            className="field"
+        <Field>
+          <FieldLabel>Deliver to</FieldLabel>
+          <Select
             disabled={editing || branches.length === 1}
-            onChange={(event) => {
-              setBranchId(event.target.value);
+            onValueChange={(value) => {
+              setBranchId(value ?? "");
             }}
+            options={namedOptions(branches)}
             value={branchId}
-          >
-            {branches.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Supplier
-          <select
-            className="field"
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Supplier</FieldLabel>
+          <Select
             disabled={editing}
-            onChange={(event) => {
-              setSupplierId(event.target.value);
+            onValueChange={(value) => {
+              setSupplierId(value ?? "");
               setError(null);
             }}
+            options={namedOptions(suppliers)}
+            placeholder="Choose a supplier"
             required
-            value={supplierId}
-          >
-            <option disabled value="">
-              Choose a supplier
-            </option>
-            {suppliers.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            value={supplierId === "" ? null : supplierId}
+          />
+        </Field>
       </div>
 
       <div className="border-line bg-surface rounded-xl border">
@@ -274,12 +264,13 @@ export const PurchaseOrderForm = ({
         )}
       </div>
 
-      <label className="grid gap-1.5 text-sm font-medium">
-        <span>
-          Note <span className="text-ink-3 font-normal">(optional)</span>
-        </span>
-        <textarea
-          className="field h-auto min-h-20 py-2"
+      <Field>
+        <FieldLabel>
+          <span>
+            Note <span className="text-ink-3 font-normal">(optional)</span>
+          </span>
+        </FieldLabel>
+        <Textarea
           maxLength={500}
           onChange={(event) => {
             setNote(event.target.value);
@@ -287,7 +278,7 @@ export const PurchaseOrderForm = ({
           placeholder="Delivery instructions, promo stock, anything the supplier or head office should know"
           value={note}
         />
-      </label>
+      </Field>
 
       <div className="border-line bg-surface sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 pl-4 shadow-sm">
         <p className="tabular text-sm">
