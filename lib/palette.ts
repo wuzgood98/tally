@@ -50,6 +50,9 @@ export interface PaletteSignOut extends PaletteCommandBase {
 
 export type PaletteCommand = PaletteLink | PaletteSignOut;
 
+/** Always the last group: the branch switcher goes just above it. */
+export const ACCOUNT_GROUP = "Account";
+
 export interface PaletteGroup {
   readonly label: string;
   readonly commands: readonly PaletteCommand[];
@@ -244,7 +247,7 @@ export const paletteCommands = (
           value: "account:sign-out",
         },
       ],
-      label: "Account",
+      label: ACCOUNT_GROUP,
     },
   ];
 };

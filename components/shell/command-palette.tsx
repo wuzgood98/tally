@@ -10,6 +10,7 @@ import {
   CommandItem,
   CommandItemIcon,
   CommandList,
+  CommandPage,
 } from "@ui-sdk/react/command";
 import {
   createDialogController,
@@ -45,7 +46,10 @@ import type { LucideIcon } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { ACCOUNT_GROUP } from "@/lib/palette";
 import type { PaletteCommand, PaletteGroup, PaletteIcon } from "@/lib/palette";
+import { BRANCH_PAGE, scopeOf } from "@/lib/palette-branches";
+import type { PaletteBranch } from "@/lib/palette-branches";
 import { paletteScore } from "@/lib/palette-filter";
 import {
   documentsFirst,
@@ -56,6 +60,7 @@ import {
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
 
+import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
 import { ProductResults } from "./palette-products";
 
@@ -131,12 +136,24 @@ const CommandGroupOf = ({ group }: { readonly group: PaletteGroup }) => (
   </CommandGroup>
 );
 
+const placeholderFor = (subPage: string | undefined): string => {
+  if (subPage === BRANCH_PAGE) {
+    return "Find a branch… (Backspace to go back)";
+  }
+
+  return "Search pages, products and document numbers…";
+};
+
 export interface CommandPaletteProps {
   readonly groups: readonly PaletteGroup[];
   readonly children: ReactNode;
   readonly onNavigate: (href: string) => void;
   readonly onSignOut: () => Promise<void>;
   readonly search: PaletteSearch;
+  readonly branches: readonly PaletteBranch[];
+  /** "all", or the id of the branch every screen shows. */
+  readonly scope: string;
+  readonly onSwitchScope: (scope: string) => Promise<void>;
 }
 
 /**
@@ -151,10 +168,15 @@ export const CommandPalette = ({
   onNavigate,
   onSignOut,
   search,
+  branches,
+  scope,
+  onSwitchScope,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
   const [query, setQuery] = useState("");
+  const [pages, setPages] = useState<string[]>([]);
+  const subPage = pages.at(-1);
 
   const results = useAsyncOptions<PaletteHit>(
     async (text) =>
@@ -172,7 +194,8 @@ export const CommandPalette = ({
 
   const changeQuery = (text: string): void => {
     setQuery(text);
-    results.setQuery(text);
+    // Products and documents live on the first page only.
+    results.setQuery(subPage === undefined ? text : "");
   };
 
   const byValue = useMemo(
@@ -203,6 +226,15 @@ export const CommandPalette = ({
       return;
     }
 
+    const nextScope = scopeOf(value);
+
+    if (nextScope !== null) {
+      await onSwitchScope(nextScope);
+      palette.close();
+
+      return;
+    }
+
     const command = byValue.get(value);
 
     if (command === undefined) {
@@ -226,6 +258,7 @@ export const CommandPalette = ({
         controller={palette}
         onOpenChange={(open) => {
           if (open) {
+            setPages([]);
             changeQuery("");
           }
         }}
@@ -245,7 +278,9 @@ export const CommandPalette = ({
               paletteScore(item, text)
             }
             onAction={run}
+            onPagesChange={setPages}
             onQueryChange={changeQuery}
+            pages={pages}
             pendingAnnouncement="Working…"
             query={query}
             status={results.status}
@@ -259,7 +294,7 @@ export const CommandPalette = ({
                 aria-label={TITLE}
                 autoComplete="off"
                 className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
-                placeholder="Search pages, products and document numbers…"
+                placeholder={placeholderFor(subPage)}
               />
             </div>
             <CommandEmpty className="text-ink-3 text-center text-sm data-empty:px-4 data-empty:py-8">
@@ -274,10 +309,18 @@ export const CommandPalette = ({
               }}
             </CommandEmpty>
             <CommandList className="pb-safe max-h-none min-h-0 [scrollbar-width:thin] overflow-y-auto overscroll-contain px-2 pt-2">
-              <>
-                {groups.map((group) => (
-                  <CommandGroupOf group={group} key={group.label} />
-                ))}
+              <CommandPage>
+                {groups.map((group) =>
+                  group.label === ACCOUNT_GROUP ? null : (
+                    <CommandGroupOf group={group} key={group.label} />
+                  )
+                )}
+                <BranchGroup branches={branches} query={query} scope={scope} />
+                {groups.map((group) =>
+                  group.label === ACCOUNT_GROUP ? (
+                    <CommandGroupOf group={group} key={group.label} />
+                  ) : null
+                )}
                 {documentsFirst(query) ? (
                   <>
                     <DocumentResults documents={documents} />
@@ -289,7 +332,8 @@ export const CommandPalette = ({
                     <DocumentResults documents={documents} />
                   </>
                 )}
-              </>
+              </CommandPage>
+              <BranchPage branches={branches} scope={scope} />
             </CommandList>
           </Command>
         </DialogContent>

@@ -80,6 +80,16 @@ const search = vi.fn(
     })
 );
 
+const switchScope = vi.fn(async (_scope: string) => {
+  /* the app's action sets the scope cookie */
+});
+
+const BRANCHES = [
+  { id: "SPX", kind: "store", name: "Spintex" },
+  { id: "KSI", kind: "store", name: "Kumasi" },
+  { id: "TMA", kind: "warehouse", name: "Tema Distribution Centre" },
+] as const;
+
 const GROUPS: PaletteGroup[] = [
   {
     commands: [
@@ -132,6 +142,9 @@ const renderPalette = () =>
       groups={GROUPS}
       onNavigate={push}
       onSignOut={signOut}
+      branches={BRANCHES}
+      onSwitchScope={switchScope}
+      scope="SPX"
       search={search}
     >
       <PaletteFieldTrigger />
@@ -145,6 +158,7 @@ beforeEach(() => {
   push.mockClear();
   signOut.mockClear();
   search.mockClear();
+  switchScope.mockClear();
 });
 
 const openAndType = async (text: string) => {
@@ -284,6 +298,41 @@ describe("CommandPalette", () => {
     await user.keyboard("{Enter}");
 
     expect(push).toHaveBeenCalledWith("/purchase-orders/3");
+  });
+
+  it("switches branch from the branch page, showing the current one", async () => {
+    const user = await openAndType("switch br");
+
+    await user.keyboard("{Enter}");
+
+    const current = await screen.findByRole("option", { name: /^Spintex/u });
+
+    expect(current.hidden).toBe(false);
+    expect(current.textContent).toContain("(showing now)");
+
+    await user.type(screen.getByRole("combobox"), "tema");
+    await user.keyboard("{Enter}");
+
+    expect(switchScope).toHaveBeenCalledWith("TMA");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("offers Switch to a branch only once its name is typed", async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(
+      screen.queryByRole("option", { name: "Switch to Kumasi" })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("option", { name: "Switch to Spintex" })
+    ).toBeNull();
+
+    await user.type(screen.getByRole("combobox"), "kum");
+    await user.click(screen.getByRole("option", { name: "Switch to Kumasi" }));
+
+    expect(switchScope).toHaveBeenCalledWith("KSI");
   });
 
   it("doesn't search for a single letter", async () => {
