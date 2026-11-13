@@ -1,6 +1,5 @@
 "use client";
 
-import { Store } from "lucide-react";
 import { useTransition } from "react";
 
 import { setScope } from "@/app/(app)/scope-action";
@@ -36,13 +35,17 @@ export const ScopeSwitcher = ({
   return (
     // min-w-0 lets the switcher shrink on a phone: a long branch name such as
     // "Tema Distribution Centre (yours)" must not push sign-out off the screen.
-    <div className="flex min-w-0 items-center gap-2">
-      <Store aria-hidden="true" className="text-ink-3 size-4 shrink-0" />
+    <div className="flex min-w-0 items-center">
       <Select
         aria-label="Show stock for"
-        className="w-auto max-w-full min-w-0 sm:min-w-44"
-        size="sm"
+        className="min-w-0"
         defaultValue={value}
+        leading={
+          <span
+            aria-hidden="true"
+            className="bg-brand ring-brand-soft size-1.5 shrink-0 rounded-full ring-3"
+          />
+        }
         onValueChange={(next) => {
           if (next === null) {
             return;
@@ -62,6 +65,7 @@ export const ScopeSwitcher = ({
             options: branchOptions(warehouses, homeBranchId),
           },
         ]}
+        variant="chip"
       />
     </div>
   );

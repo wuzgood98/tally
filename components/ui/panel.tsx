@@ -25,14 +25,14 @@ export const Panel = ({
       title !== undefined && id !== undefined ? `${id}-title` : undefined
     }
     className={cn(
-      "border-line bg-surface min-w-0 rounded-xl border",
+      "border-line bg-surface min-w-0 overflow-hidden rounded-xl border",
       className
     )}
   >
     {title === undefined ? null : (
-      <div className="border-line flex items-center justify-between gap-3 border-b px-4 py-3">
+      <div className="border-line flex min-h-11 items-center justify-between gap-3 border-b px-4 py-2">
         <h2
-          className="text-sm font-semibold"
+          className="text-sm font-medium"
           id={id === undefined ? undefined : `${id}-title`}
         >
           {title}

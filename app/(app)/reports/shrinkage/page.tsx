@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ReportToolbar } from "@/components/reports/report-toolbar";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Stat } from "@/components/ui/stat";
+import { Stat, StatGroup } from "@/components/ui/stat";
 import { Table, Td, Th } from "@/components/ui/table";
 import type { CellTone } from "@/components/ui/table";
 import { getDb } from "@/lib/db";
@@ -239,7 +239,7 @@ const ShrinkagePage = async ({
       />
 
       <div className="grid grid-cols-1 gap-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <StatGroup className="sm:grid-cols-3">
           <Stat
             detail={`Last ${context.range} days, finds netted off`}
             label="Net stock lost, at cost"
@@ -260,7 +260,7 @@ const ShrinkagePage = async ({
             label="Biggest cause"
             value={biggest.value > 0 ? LOSS_LABELS[biggest.column] : "—"}
           />
-        </div>
+        </StatGroup>
 
         <Panel flush id="by-branch" title="By branch and cause">
           <BranchTable context={context} rows={rows} total={total} />

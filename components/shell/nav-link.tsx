@@ -11,6 +11,8 @@ interface NavLinkProps {
   readonly icon: ReactNode;
   readonly children: ReactNode;
   readonly badge?: number;
+  /** The badge is a problem to deal with, not just a count. */
+  readonly urgent?: boolean;
 }
 
 const isCurrent = (pathname: string, href: string): boolean =>
@@ -18,7 +20,13 @@ const isCurrent = (pathname: string, href: string): boolean =>
     ? pathname === "/"
     : pathname === href || pathname.startsWith(`${href}/`);
 
-export const NavLink = ({ href, icon, children, badge }: NavLinkProps) => {
+export const NavLink = ({
+  href,
+  icon,
+  children,
+  badge,
+  urgent = false,
+}: NavLinkProps) => {
   const pathname = usePathname();
   const current = isCurrent(pathname, href);
 
@@ -26,10 +34,10 @@ export const NavLink = ({ href, icon, children, badge }: NavLinkProps) => {
     <Link
       aria-current={current ? "page" : undefined}
       className={cn(
-        "press flex shrink-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap",
+        "press flex h-8 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm whitespace-nowrap lg:h-7.5",
         current
-          ? "bg-surface text-ink ring-line font-medium ring-1"
-          : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+          ? "bg-surface-2 text-ink ring-line ring-1 lg:ring-0"
+          : "text-ink-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink"
       )}
       href={href}
     >
@@ -40,7 +48,12 @@ export const NavLink = ({ href, icon, children, badge }: NavLinkProps) => {
       </span>
       <span className="grow">{children}</span>
       {badge !== undefined && badge > 0 ? (
-        <span className="bg-warn-soft text-warn tabular rounded-full px-1.5 text-xs font-medium">
+        <span
+          className={cn(
+            "figures text-2xs",
+            urgent ? "text-warn" : "text-ink-3"
+          )}
+        >
           {badge}
         </span>
       ) : null}

@@ -27,21 +27,23 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
   const nextPath = param(params, "next") || undefined;
 
   return (
-    <main className="grid min-h-svh place-items-center px-4 py-12">
+    <main className="canvas-glow grid min-h-svh place-items-center px-4 py-12">
       <JsonLd data={appJsonLd()} />
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2.5">
-          <TallyMark className="text-brand size-8" />
-          <div>
-            <p className="text-lg leading-tight font-semibold">Tally</p>
-            <p className="text-ink-2 text-xs">{COMPANY_NAME} stock control</p>
+        <div className="border-line bg-surface shadow-float rounded-2xl border p-6">
+          <div className="flex items-center gap-2.5">
+            <TallyMark className="text-brand size-7" />
+            <div>
+              <p className="text-md leading-tight font-semibold">Tally</p>
+              <p className="text-ink-3 text-xs">{COMPANY_NAME} stock control</p>
+            </div>
           </div>
+          <h1 className="mt-7 text-xl font-semibold tracking-tight">Sign in</h1>
+          <p className="text-ink-3 mt-1 mb-5 text-sm">
+            Use the account head office set up for you.
+          </p>
+          <SignInForm next={nextPath} />
         </div>
-        <h1 className="mt-8 text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-ink-2 mt-1 mb-6 text-sm">
-          Use the account head office set up for you.
-        </p>
-        <SignInForm next={nextPath} />
         {isDemo() ? <DemoAccounts next={nextPath} /> : null}
       </div>
     </main>

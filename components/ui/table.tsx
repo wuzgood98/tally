@@ -8,14 +8,17 @@ import { cn } from "@/lib/utils";
 export const Table = ({ className, ...props }: ComponentProps<"table">) => (
   <div className="relative overflow-x-auto">
     <table
-      className={cn("w-full border-collapse text-sm", className)}
+      className={cn(
+        "[&_tbody>tr]:row-hover w-full border-collapse text-sm",
+        className
+      )}
       {...props}
     />
   </div>
 );
 
 const thVariants = cva(
-  "text-ink-2 border-line bg-surface border-b px-4 py-2 text-xs font-medium whitespace-nowrap",
+  "text-ink-3 border-line bg-surface border-b px-4 py-2 text-xs font-normal whitespace-nowrap",
   {
     defaultVariants: { numeric: false },
     /** Right-aligned, over a column of figures. */
@@ -36,28 +39,34 @@ export const Th = ({
   />
 );
 
-const tdVariants = cva("border-line border-b px-4 py-2.5 align-middle", {
-  defaultVariants: {
-    nowrap: false,
-    numeric: false,
-    tone: "ink",
-    weight: "normal",
-  },
-  variants: {
-    nowrap: { false: "", true: "whitespace-nowrap" },
-    /** Right-aligned, tabular figures: quantities and money. */
-    numeric: { false: "", true: "tabular text-right whitespace-nowrap" },
-    tone: {
-      danger: "text-danger",
-      faint: "text-ink-3",
-      good: "text-good",
-      ink: "",
-      muted: "text-ink-2",
-      warn: "text-warn",
+const tdVariants = cva(
+  "border-line border-b px-4 py-2.5 align-middle transition-[background-color] duration-150 [tr:last-child>&]:border-b-0",
+  {
+    defaultVariants: {
+      nowrap: false,
+      numeric: false,
+      tone: "ink",
+      weight: "normal",
     },
-    weight: { medium: "font-medium", normal: "", semibold: "font-semibold" },
-  },
-});
+    variants: {
+      nowrap: { false: "", true: "whitespace-nowrap" },
+      /** Right-aligned, tabular figures: quantities and money. */
+      numeric: {
+        false: "",
+        true: "figures text-right text-xs whitespace-nowrap",
+      },
+      tone: {
+        danger: "text-danger",
+        faint: "text-ink-3",
+        good: "text-good",
+        ink: "",
+        muted: "text-ink-2",
+        warn: "text-warn",
+      },
+      weight: { medium: "font-medium", normal: "", semibold: "font-semibold" },
+    },
+  }
+);
 
 export type CellTone = NonNullable<VariantProps<typeof tdVariants>["tone"]>;
 

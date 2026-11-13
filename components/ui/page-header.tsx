@@ -16,13 +16,13 @@ export const PageHeader = ({
   <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
     <div className="min-w-0">
       {eyebrow === undefined ? null : (
-        <p className="text-ink-2 mb-1 text-sm">{eyebrow}</p>
+        <p className="text-ink-3 mb-1.5 text-xs">{eyebrow}</p>
       )}
       <h1 className="text-2xl font-semibold tracking-tight text-balance">
         {title}
       </h1>
       {description === undefined ? null : (
-        <p className="text-ink-2 mt-1 max-w-2xl text-sm text-pretty">
+        <p className="text-ink-3 mt-1 max-w-2xl text-sm text-pretty">
           {description}
         </p>
       )}

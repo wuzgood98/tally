@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ReportToolbar } from "@/components/reports/report-toolbar";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Stat } from "@/components/ui/stat";
+import { Stat, StatGroup } from "@/components/ui/stat";
 import { Table, Td, Th } from "@/components/ui/table";
 import type { CellTone } from "@/components/ui/table";
 import { getDb } from "@/lib/db";
@@ -202,7 +202,7 @@ const SellersPage = async ({ searchParams }: PageProps<"/reports/sellers">) => {
       />
 
       <div className="grid grid-cols-1 gap-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatGroup className="sm:grid-cols-2 xl:grid-cols-4">
           <Stat
             detail={`Net of returns, last ${days}`}
             label="Units sold"
@@ -224,7 +224,7 @@ const SellersPage = async ({ searchParams }: PageProps<"/reports/sellers">) => {
             tone={unsold.length > 0 ? "warn" : undefined}
             value={formatCedisCompact(totals.unsoldValue)}
           />
-        </div>
+        </StatGroup>
 
         <Panel flush id="fast" title="Fast sellers">
           {fast.length === 0 ? (

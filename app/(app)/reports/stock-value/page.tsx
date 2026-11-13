@@ -6,7 +6,7 @@ import { ReportToolbar } from "@/components/reports/report-toolbar";
 import { TimeChart } from "@/components/reports/time-chart";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Stat } from "@/components/ui/stat";
+import { Stat, StatGroup } from "@/components/ui/stat";
 import { Table, Td, Th } from "@/components/ui/table";
 import type { CellTone } from "@/components/ui/table";
 import { getDb } from "@/lib/db";
@@ -203,7 +203,7 @@ const StockValuePage = async ({
         <p className="text-ink-2 text-sm">No branches to report on.</p>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <StatGroup className="sm:grid-cols-3">
             <Stat
               detail={`${formatCedis(last.onShelves)} on the shelves`}
               label="Stock value now"
@@ -219,7 +219,7 @@ const StockValuePage = async ({
               label="Goods in transit"
               value={formatCedisCompact(last.inTransit)}
             />
-          </div>
+          </StatGroup>
 
           <Panel id="value-chart" title="Stock value, end of each day">
             <div className="pt-8">

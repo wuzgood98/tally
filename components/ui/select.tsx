@@ -12,6 +12,7 @@ import {
 } from "@ui-sdk/react/select";
 import type { ListData } from "@ui-sdk/react/select";
 import { Check, ChevronDown } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -41,8 +42,15 @@ interface SelectProps {
   readonly id?: string;
   /** Names the trigger when no Field label does. */
   readonly "aria-label"?: string;
-  /** `sm` fits a table row or the header bar. */
+  /** `sm` fits a table row. */
   readonly size?: "md" | "sm";
+  /**
+   * `field` lines up with the form's other inputs. `chip` is a compact
+   * control sized to its value, for a toolbar such as the header bar.
+   */
+  readonly variant?: "field" | "chip";
+  /** Shown inside the trigger before the value, such as a status dot. */
+  readonly leading?: ReactNode;
   /** Width only; the look comes from `size`. */
   readonly className?: string;
 }
@@ -64,7 +72,7 @@ const toListData = (options: SelectOptions): ListData =>
 
 const OptionItem = ({ option }: { readonly option: SelectOption }) => (
   <SelectItem
-    className="text-ink data-highlighted:bg-surface-2 relative flex cursor-default items-center gap-2 rounded-md py-1.5 ps-2 pe-8 text-sm outline-none select-none data-disabled:opacity-50 data-selected:font-medium"
+    className="text-ink data-highlighted:bg-ink/6 relative flex cursor-default items-center gap-2 rounded-md py-1.5 ps-2 pe-8 text-sm outline-none select-none data-disabled:opacity-50 data-selected:font-medium"
     disabled={option.disabled}
     value={option.value}
   >
@@ -83,6 +91,8 @@ export const Select = ({
   "aria-label": ariaLabel,
   onValueChange,
   size = "md",
+  variant = "field",
+  leading,
   ...props
 }: SelectProps) => (
   <SelectPrimitive
@@ -95,16 +105,31 @@ export const Select = ({
     <SelectTrigger
       aria-label={ariaLabel}
       className={cn(
-        "field flex items-center justify-between gap-2 text-start",
-        size === "sm" && "h-8",
+        variant === "chip"
+          ? "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-lg border ps-2.5 pe-2 text-start text-sm"
+          : "field flex items-center justify-between gap-2 text-start",
+        variant === "field" && size === "sm" && "h-8",
         className
       )}
       id={id}
     >
+      {leading}
       <SelectValue className="data-placeholder:text-ink-3 min-w-0 truncate" />
-      <ChevronDown aria-hidden="true" className="text-ink-3 size-4 shrink-0" />
+      <ChevronDown
+        aria-hidden="true"
+        className={cn(
+          "text-ink-3 shrink-0",
+          variant === "chip" ? "size-3.5" : "size-4"
+        )}
+      />
     </SelectTrigger>
-    <SelectContent className="border-line bg-surface z-50 max-h-[min(20rem,var(--available-height))] min-w-(--anchor-width) overflow-y-auto rounded-lg border p-1 shadow-lg">
+    <SelectContent
+      className={cn(
+        "border-line-strong bg-surface-2 pop-in shadow-popover z-50 max-h-[min(20rem,var(--available-height))] min-w-(--anchor-width) overflow-y-auto rounded-xl border p-1",
+        // A chip is narrower than the names in its list.
+        variant === "chip" && "min-w-56"
+      )}
+    >
       {options.map((entry) =>
         isGroup(entry) ? (
           <SelectGroup key={`group:${entry.label}`}>

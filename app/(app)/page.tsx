@@ -6,7 +6,8 @@ import { OnTheWayPanel } from "@/components/stock/on-the-way-panel";
 import { ReorderTable } from "@/components/stock/reorder-table";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Stat } from "@/components/ui/stat";
+import { Sparkline } from "@/components/ui/sparkline";
+import { Stat, StatGroup } from "@/components/ui/stat";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatLongDate } from "@/lib/format";
 import { formatCedis, formatCedisCompact } from "@/lib/money";
@@ -20,6 +21,13 @@ import {
 } from "@/lib/queries/overview";
 import { getBestSellers, getTodaySales } from "@/lib/queries/sales";
 import { listTransfers } from "@/lib/queries/transfers";
+import {
+  branchIdsInScope,
+  getDeliveriesTrend,
+  getReorderTrend,
+  getSalesTrend,
+  getStockValueTrend,
+} from "@/lib/queries/trends";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
@@ -29,6 +37,8 @@ const RECENT_MOVEMENTS = 8;
 const ON_THE_WAY_PREVIEW = 5;
 const BEST_SELLER_DAYS = 7;
 const BEST_SELLERS = 6;
+const TREND_DAYS = 14;
+const TREND_LABEL = `Last ${TREND_DAYS} days`;
 
 const SeeAll = ({
   href,
@@ -40,6 +50,40 @@ const SeeAll = ({
   <Link className="text-brand text-sm font-medium hover:underline" href={href}>
     {children}
   </Link>
+);
+
+/**
+ * One bar per branch: healthy lines, then low, then out. Problems are drawn
+ * eight times their share so a handful of them still shows.
+ */
+const PROBLEM_WEIGHT = 8;
+
+const HealthTrack = ({
+  lines,
+  low,
+  out,
+}: {
+  readonly lines: number;
+  readonly low: number;
+  readonly out: number;
+}) => (
+  <span
+    aria-hidden="true"
+    className="bg-surface-2 mt-2 flex h-1 w-40 max-w-full gap-0.5 overflow-hidden rounded-full"
+  >
+    <span
+      className="bg-brand/55 grow-(--ok)"
+      style={{ "--ok": Math.max(lines - low - out, 0) }}
+    />
+    <span
+      className="bg-warn grow-(--low)"
+      style={{ "--low": low * PROBLEM_WEIGHT }}
+    />
+    <span
+      className="bg-danger grow-(--out)"
+      style={{ "--out": out * PROBLEM_WEIGHT }}
+    />
+  </span>
 );
 
 const OverviewPage = async () => {
@@ -62,6 +106,10 @@ const OverviewPage = async () => {
     incoming,
     salesToday,
     bestSellers,
+    salesTrend,
+    valueTrend,
+    reorderTrend,
+    deliveriesTrend,
   ] = await Promise.all([
     getOverviewTotals(scope),
     getWeekReceipts(scope),
@@ -71,6 +119,16 @@ const OverviewPage = async () => {
     listTransfers(scope, { direction: "incoming", status: "in_transit" }, 1),
     getTodaySales(scope),
     getBestSellers(scope, BEST_SELLER_DAYS, BEST_SELLERS),
+    getSalesTrend(scope, TREND_DAYS),
+    getStockValueTrend(
+      branchIdsInScope(
+        scope,
+        branches.map((item) => item.id)
+      ),
+      TREND_DAYS
+    ),
+    getReorderTrend(scope, TREND_DAYS),
+    getDeliveriesTrend(scope, TREND_DAYS),
   ]);
 
   // Rendered on the server only, so there is no client clock to disagree with.
@@ -85,17 +143,21 @@ const OverviewPage = async () => {
         title={`Akwaaba, ${viewer.name.split(" ")[0] ?? viewer.name}`}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <StatGroup className="grid-cols-2 xl:grid-cols-4">
         <Stat
           detail={`${formatCount(totals.units)} units · ${formatCedisCompact(totals.retailValue)} at shelf prices`}
           href={reports ? "/reports/stock-value" : undefined}
           label="Stock value at cost"
+          trend={<Sparkline values={valueTrend} />}
+          trendLabel={TREND_LABEL}
           value={formatCedisCompact(totals.costValue)}
         />
         <Stat
           detail={`${formatCount(salesToday.count)} ${salesToday.count === 1 ? "sale" : "sales"}`}
           href="/sales"
           label="Sales today"
+          trend={<Sparkline values={salesTrend} variant="bars" />}
+          trendLabel={TREND_LABEL}
           value={formatCedisCompact(salesToday.total)}
         />
         <Stat
@@ -103,17 +165,21 @@ const OverviewPage = async () => {
           href="/low-stock"
           label="Need reordering"
           tone={needReorder > 0 ? "warn" : undefined}
+          trend={<Sparkline tone="warn" values={reorderTrend} />}
+          trendLabel={TREND_LABEL}
           value={formatCount(needReorder)}
         />
         <Stat
           detail={`${formatCedis(week.totalCost)} at cost`}
           href="/receipts"
           label="Deliveries, last 7 days"
+          trend={<Sparkline values={deliveriesTrend} variant="bars" />}
+          trendLabel={TREND_LABEL}
           value={formatCount(week.count)}
         />
-      </div>
+      </StatGroup>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[3fr_2fr]">
+      <div className="mt-3.5 grid gap-3.5 xl:grid-cols-[3fr_2fr]">
         <Panel
           action={<SeeAll href="/low-stock">See all</SeeAll>}
           flush
@@ -150,6 +216,11 @@ const OverviewPage = async () => {
                         {row.kind === "warehouse" ? "Warehouse" : "Store"} ·{" "}
                         {formatCount(row.lines)} lines
                       </span>
+                      <HealthTrack
+                        lines={row.lines}
+                        low={row.lowLines}
+                        out={row.outLines}
+                      />
                     </Td>
                     <Td numeric>{formatCedisCompact(row.costValue)}</Td>
                     <Td
