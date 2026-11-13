@@ -107,7 +107,8 @@ const writePreview = async (): Promise<void> => {
 
 console.info("Generating icons:");
 
-await write("app/icon.svg", logoMarkSvg("badge"));
+// The SVG favicon follows the tab's theme; the rasters below can't.
+await write("app/icon.svg", logoMarkSvg("adaptive"));
 
 await write(
   "app/favicon.ico",
