@@ -127,7 +127,7 @@ Planned batches:
    - Overview: "Stock value at cost" links to `/reports/stock-value`, and the best sellers panel has "Fast and slow" (`/reports/sellers?days=7`), both only for people who can see reports. The overview's figure stays units × today's average cost (stock on the shelves); the report's "on the shelves" book value is the ledger's running sum, so the two differ only by rounding and cost changes while goods were on the road (within about 1%).
    - Verified: lint, types, 165 tests, production build; curl smoke test of every report page and CSV as head office (all branches and one), each kind of manager (a manager with another branch in the switcher cookie still gets only their own), a storekeeper and a cashier (404, no links); browser at desktop and 390px.
 
-**Command palette (Ctrl/Cmd+K)** is done, on the branch `command-palette`, one commit per batch.
+**Command palette (Ctrl/Cmd+K)** is done and merged to `main` (PR #2), one commit per batch.
 
 Decisions the user accepted (November 2026):
 
@@ -152,7 +152,7 @@ Batches (check in with the user between them):
 4. **Done**: switch branch. The Branch group (`BranchGroup`, `components/shell/palette-branches.tsx`) sits just above Account: "Switch branch…" (showing the current one) opens a `CommandPage` listing All branches and every branch, the current one ticked; "Switch to Kumasi" rows render only once something is typed (with an empty search ui-sdk shows every item without calling the filter, so hiding them through the filter doesn't work). Both go through the existing `setScope` action (`onSwitchScope`, values parsed by `scopeOf` in `lib/palette-branches.ts`). Everyone sees it, as with the header switcher. `ScopeSwitcher` is keyed on the scope in the layout: it uses `defaultValue`, so without the key it kept showing the old branch after the palette changed it.
 5. **Done**: theme. `tally-theme` cookie (`lib/theme.ts`; "system" deletes it), set by `setTheme` (`app/theme-action.ts`, signed-in only) and read in the root layout, which renders `<html data-theme="light|dark">` (none for system) and the matching `theme-color` (`generateViewport`), so the first paint is right. The root layout reading a cookie makes every route render per request, `/login` included. In `globals.css` one `@custom-variant dark` is true for `data-theme="dark"`, or for a dark device without `data-theme="light"`, on screen only: the Night shift tokens (`:root { @variant dark { … } }`) and Tailwind's `dark:` utilities both use it, so printing stays dark ink on paper. A chosen theme also sets `color-scheme` and the `--lightningcss-light/dark` variables, which is how the build's rewrite of ui-sdk's `light-dark()` colours picks a side. The palette's Appearance group opens a theme page: Match this device, Light, Dark.
 
-**Cashier visibility** is done, on the branch `cashier-visibility` (off `command-palette`), one commit per batch. The production build passes and `next start` behaves the same for cashier, manager and head office.
+**Cashier visibility** is done and merged to `main` (PR #3), one commit per batch. The production build passes and `next start` behaves the same for cashier, manager and head office.
 
 Until now pages checked actions, not viewing: any signed-in person could open any document and switch to any branch. Decisions the user accepted (November 2026):
 
