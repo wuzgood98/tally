@@ -166,6 +166,7 @@ These are invariants. New features must keep them. Transfers were added as new m
 
 - **No `DATABASE_URL`** → PGlite (Postgres in WebAssembly) in `.data/pglite`. The first request migrates and seeds it (`databaseReady()` in `lib/db/index.ts`).
 - **With `DATABASE_URL`** → node-postgres. Migrate explicitly with `pnpm db:migrate`; it never auto-seeds.
+- **Hosting needs `DATABASE_URL`.** PGlite can't run on a serverless host (read-only filesystem, a seed longer than a function may run, nothing shared between instances). A Vercel build (`VERCEL=1`) without `DATABASE_URL` fails in `next.config.ts` with instructions (`deployProblem`, `lib/deploy-check.ts`); local builds are unaffected.
 - Docker isn't installed on this machine. The user's local PostgreSQL 17 runs on port **6942**, but its `postgres` password wasn't available (two attempts were rejected), so development uses PGlite. Ask the user before trying Postgres again.
 - **Only one process may open `.data/pglite` at a time.** A dev server plus a script, or parallel build workers, corrupt it ("PGlite failed to initialize properly"). The fix is `pnpm db:reset` with the dev server stopped. This is why the connection and auth are created lazily, through `getDb()` and `getAuth()`; never connect at module import time.
 - `.env.local` holds `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL=http://localhost:3500`; `.env.example` documents every variable.
