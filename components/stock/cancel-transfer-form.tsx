@@ -5,6 +5,8 @@ import type { SubmitEvent } from "react";
 
 import { cancelTransferAction } from "@/app/(app)/transfers/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { formText } from "@/lib/form";
 
 interface CancelTransferFormProps {
@@ -63,19 +65,18 @@ export const CancelTransferForm = ({
 
   return (
     <form className="grid gap-3" onSubmit={onSubmit}>
-      <label className="grid gap-1.5 text-sm font-medium">
-        Why is it being cancelled?
-        <input
+      <Field>
+        <FieldLabel>Why is it being cancelled?</FieldLabel>
+        <Input
           autoComplete="off"
           // The reason is the only thing to do next, so focusing it is the point.
           // oxlint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
-          className="field"
           maxLength={500}
           name="note"
           placeholder="e.g. Van broke down at Tema; goods back on the shelf"
         />
-      </label>
+      </Field>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <output aria-live="polite" className="text-danger mr-auto text-sm">
           {error}

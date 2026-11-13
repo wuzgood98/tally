@@ -5,6 +5,10 @@ import type { SubmitEvent } from "react";
 
 import { returnSaleAction } from "@/app/(app)/sales/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { labelledOptions } from "@/components/ui/select-options";
 import type { ReturnDisposition } from "@/lib/db/schema";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
@@ -27,10 +31,14 @@ interface Draft {
 
 type Drafts = Readonly<Record<number, Draft>>;
 
+const DISPOSITIONS = ["restock", "damaged"] as const;
+
 const DISPOSITION_LABELS: Record<ReturnDisposition, string> = {
   damaged: "Damaged, write off",
   restock: "Back on the shelf",
 };
+
+const DISPOSITION_OPTIONS = labelledOptions(DISPOSITIONS, DISPOSITION_LABELS);
 
 interface ChosenLine {
   readonly productId: number;
@@ -176,9 +184,11 @@ export const ReturnForm = ({
                   {formatCount(line.returnable)}
                 </td>
                 <td className="px-2 py-2">
-                  <input
+                  <Input
                     aria-label={`Units of ${line.name} coming back`}
-                    className="field tabular h-8 min-w-16 text-right"
+                    className="min-w-16"
+                    format="amount"
+                    size="sm"
                     inputMode="numeric"
                     onChange={(event) => {
                       change(line.productId, { quantity: event.target.value });
@@ -190,25 +200,19 @@ export const ReturnForm = ({
                   />
                 </td>
                 <td className="px-2 py-2 pr-4">
-                  <select
+                  <Select
                     aria-label={`Condition of ${line.name}`}
-                    className="field h-8 min-w-40"
-                    onChange={(event) => {
+                    className="min-w-40"
+                    size="sm"
+                    onValueChange={(value) => {
                       change(line.productId, {
                         disposition:
-                          event.target.value === "damaged"
-                            ? "damaged"
-                            : "restock",
+                          value === "damaged" ? "damaged" : "restock",
                       });
                     }}
+                    options={DISPOSITION_OPTIONS}
                     value={drafts[line.productId]?.disposition ?? "restock"}
-                  >
-                    {(["restock", "damaged"] as const).map((value) => (
-                      <option key={value} value={value}>
-                        {DISPOSITION_LABELS[value]}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </td>
               </tr>
             ))}
@@ -217,15 +221,14 @@ export const ReturnForm = ({
       </div>
 
       <div className="grid gap-4 p-4">
-        <label className="grid gap-1.5 text-sm font-medium">
-          Reason
-          <textarea
-            className="field h-auto min-h-16 py-2"
+        <Field>
+          <FieldLabel>Reason</FieldLabel>
+          <Textarea
             maxLength={500}
             name="reason"
             placeholder="e.g. Wrong size; customer exchanged for the 5 kg bag"
           />
-        </label>
+        </Field>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="tabular text-sm">
             Refund <span className="font-semibold">{formatCedis(refund)}</span>

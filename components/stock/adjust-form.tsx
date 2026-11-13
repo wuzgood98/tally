@@ -15,6 +15,10 @@ import {
 import type { ChangeReason, Mode } from "@/components/stock/adjust-parts";
 import { ProductPicker } from "@/components/stock/product-picker";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
 import { NOTE_REQUIRED, REASON_DIRECTION } from "@/lib/stock/reasons";
@@ -178,23 +182,17 @@ export const AdjustForm = ({
   return (
     <form className="grid max-w-2xl gap-6" onSubmit={onSubmit}>
       <div className="border-line bg-surface grid gap-4 rounded-xl border p-4">
-        <label className="grid gap-1.5 text-sm font-medium">
-          Branch
-          <select
-            className="field"
+        <Field>
+          <FieldLabel>Branch</FieldLabel>
+          <Select
             disabled={branches.length === 1}
-            onChange={(event) => {
-              setBranchId(event.target.value);
+            onValueChange={(value) => {
+              setBranchId(value ?? "");
             }}
+            options={namedOptions(branches)}
             value={branchId}
-          >
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </Field>
         {product === null ? (
           <ProductPicker autoFocus label="Product" onPick={setProduct} />
         ) : (
@@ -208,8 +206,7 @@ export const AdjustForm = ({
         )}
       </div>
 
-      <fieldset className="border-line bg-surface grid gap-4 rounded-xl border p-4">
-        <legend className="sr-only">What happened</legend>
+      <div className="border-line bg-surface grid gap-4 rounded-xl border p-4">
         <ModeToggle canCount={canCount} mode={draft.mode} onChange={setMode} />
         {draft.mode === "change" ? (
           <ReasonPicker
@@ -220,17 +217,19 @@ export const AdjustForm = ({
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-sm font-medium">
-            {draft.mode === "count" ? "Counted on the shelf" : "Units"}
-            <input
-              className="field tabular"
+          <Field>
+            <FieldLabel>
+              {draft.mode === "count" ? "Counted on the shelf" : "Units"}
+            </FieldLabel>
+            <Input
+              format="number"
               inputMode="numeric"
               onChange={(event) => {
                 setAmount(event.target.value);
               }}
               value={amount}
             />
-          </label>
+          </Field>
           <div aria-live="polite" className="flex items-end pb-2 text-sm">
             {product === null ? null : (
               <BalancePreview
@@ -241,15 +240,16 @@ export const AdjustForm = ({
           </div>
         </div>
 
-        <label className="grid gap-1.5 text-sm font-medium">
-          <span>
-            Note{" "}
-            <span className="text-ink-3 font-normal">
-              {noteRequired ? "(required)" : "(optional)"}
+        <Field>
+          <FieldLabel>
+            <span>
+              Note{" "}
+              <span className="text-ink-3 font-normal">
+                {noteRequired ? "(required)" : "(optional)"}
+              </span>
             </span>
-          </span>
-          <textarea
-            className="field h-auto min-h-20 py-2"
+          </FieldLabel>
+          <Textarea
             maxLength={500}
             onChange={(event) => {
               setNote(event.target.value);
@@ -257,8 +257,8 @@ export const AdjustForm = ({
             required={noteRequired}
             value={note}
           />
-        </label>
-      </fieldset>
+        </Field>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending} size="md" type="submit">

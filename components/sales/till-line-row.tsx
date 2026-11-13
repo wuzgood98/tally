@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
+import { Input } from "@/components/ui/input";
 import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { wholeNumber } from "@/lib/numbers";
@@ -50,10 +51,12 @@ export const TillLineRow = ({
         {formatCedis(product.sellPrice)}
       </td>
       <td className="px-2 py-2">
-        <input
+        <Input
           aria-invalid={valid ? undefined : true}
           aria-label={`Quantity of ${product.name}`}
-          className="field tabular h-8 min-w-16 text-right"
+          className="min-w-16"
+          format="amount"
+          size="sm"
           inputMode="numeric"
           onChange={(event) => {
             onChange(product.id, event.target.value);

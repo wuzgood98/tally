@@ -10,6 +10,11 @@ import type {
   ProductFormValues,
 } from "@/app/(app)/products/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/choice";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import type { SelectOptions } from "@/components/ui/select";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 interface Option {
@@ -26,15 +31,15 @@ interface ProductFormProps {
   readonly cancelHref: string;
 }
 
-const UNITS = [
-  ["each", "Each"],
-  ["pack", "Pack"],
-  ["pair", "Pair"],
-  ["kg", "Kilogram"],
-  ["litre", "Litre"],
-] as const;
+const UNIT_OPTIONS = [
+  { label: "Each", value: "each" },
+  { label: "Pack", value: "pack" },
+  { label: "Pair", value: "pair" },
+  { label: "Kilogram", value: "kg" },
+  { label: "Litre", value: "litre" },
+] as const satisfies SelectOptions;
 
-const Field = ({
+const LabelledField = ({
   label,
   hint,
   children,
@@ -43,13 +48,11 @@ const Field = ({
   readonly hint?: string;
   readonly children: ReactNode;
 }) => (
-  <label className="grid content-start gap-1.5 text-sm font-medium">
-    {label}
+  <Field>
+    <FieldLabel>{label}</FieldLabel>
     {children}
-    {hint !== null && hint !== undefined ? (
-      <span className="text-ink-2 text-xs font-normal">{hint}</span>
-    ) : null}
-  </label>
+    {hint === undefined ? null : <FieldDescription>{hint}</FieldDescription>}
+  </Field>
 );
 
 export const ProductForm = ({
@@ -71,7 +74,20 @@ export const ProductForm = ({
     submitLabel = "Saving…";
   }
 
-  const departments = Map.groupBy(categories, (item) => item.group ?? "");
+  const categoryOptions: SelectOptions = [
+    ...Map.groupBy(categories, (item) => item.group ?? ""),
+  ].map(([group, items]) => ({
+    label: group,
+    options: items.map((item) => ({
+      label: item.name,
+      value: String(item.id),
+    })),
+  }));
+
+  const supplierOptions: SelectOptions = [
+    { label: "None", value: "" },
+    ...suppliers.map((item) => ({ label: item.name, value: String(item.id) })),
+  ];
 
   return (
     <form
@@ -82,120 +98,101 @@ export const ProductForm = ({
     >
       <div className="border-line bg-surface grid gap-5 rounded-xl border p-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Field label="Name">
-            <input
-              className="field"
+          <LabelledField label="Name">
+            <Input
               defaultValue={values.name}
               maxLength={120}
               name="name"
               required
             />
-          </Field>
+          </LabelledField>
         </div>
-        <Field hint="Letters, numbers and dashes." label="SKU">
-          <input
+        <LabelledField hint="Letters, numbers and dashes." label="SKU">
+          <Input
             autoCapitalize="characters"
-            className="field font-mono uppercase"
+            format="sku"
             defaultValue={values.sku}
             maxLength={24}
             name="sku"
             required
             spellCheck={false}
           />
-        </Field>
-        <Field
+        </LabelledField>
+        <LabelledField
           hint="Scan it in. Leave blank for goods without one."
           label="Barcode"
         >
-          <input
+          <Input
             autoComplete="off"
-            className="field font-mono"
+            format="code"
             defaultValue={values.barcode}
             inputMode="numeric"
             maxLength={14}
             name="barcode"
             spellCheck={false}
           />
-        </Field>
-        <Field label="Category">
-          <select
-            className="field"
+        </LabelledField>
+        <LabelledField label="Category">
+          <Select
             defaultValue={values.categoryId}
             name="categoryId"
+            options={categoryOptions}
+            placeholder="Choose a category"
             required
-          >
-            <option disabled value="">
-              Choose a category
-            </option>
-            {[...departments].map(([group, items]) => (
-              <optgroup key={group} label={group}>
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </Field>
-        <Field label="Usual supplier">
-          <select
-            className="field"
+          />
+        </LabelledField>
+        <LabelledField label="Usual supplier">
+          <Select
             defaultValue={values.defaultSupplierId}
             name="defaultSupplierId"
-          >
-            <option value="">None</option>
-            {suppliers.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+            options={supplierOptions}
+          />
+        </LabelledField>
       </div>
 
       <div className="border-line bg-surface grid gap-5 rounded-xl border p-5 sm:grid-cols-3">
-        <Field hint="Including VAT and levies." label="Shelf price (GH₵)">
-          <input
-            className="field tabular"
+        <LabelledField
+          hint="Including VAT and levies."
+          label="Shelf price (GH₵)"
+        >
+          <Input
+            format="number"
             defaultValue={values.sellPrice}
             inputMode="decimal"
             name="sellPrice"
             required
           />
-        </Field>
-        <Field label="Sold by">
-          <select className="field" defaultValue={values.unit} name="unit">
-            {UNITS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field
+        </LabelledField>
+        <LabelledField label="Sold by">
+          <Select
+            defaultValue={values.unit}
+            name="unit"
+            options={UNIT_OPTIONS}
+          />
+        </LabelledField>
+        <LabelledField
           hint="Default for every branch; managers can override."
           label="Reorder at"
         >
-          <input
-            className="field tabular"
+          <Input
+            format="number"
             defaultValue={values.reorderPoint}
             inputMode="numeric"
             name="reorderPoint"
             required
           />
-        </Field>
+        </LabelledField>
       </div>
 
       {productId === null ? (
         <input name="active" type="hidden" value="on" />
       ) : (
         <label className="border-line bg-surface flex items-start gap-3 rounded-xl border p-4">
-          <input
-            className="accent-brand mt-1 size-4"
+          <Checkbox
+            className="mt-0.5"
             defaultChecked={values.active}
             name="active"
-            type="checkbox"
+            value="on"
           />
           <span>
             <span className="text-sm font-medium">Active</span>

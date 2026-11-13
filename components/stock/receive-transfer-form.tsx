@@ -5,6 +5,8 @@ import type { SubmitEvent } from "react";
 
 import { receiveTransferAction } from "@/app/(app)/transfers/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
@@ -126,10 +128,12 @@ export const ReceiveTransferForm = ({
                     {formatCount(line.quantitySent)}
                   </td>
                   <td className="w-28 px-2 py-2">
-                    <input
+                    <Input
                       aria-invalid={lineMissing === null ? true : undefined}
                       aria-label={`Units of ${line.name} received`}
-                      className="field tabular h-8 min-w-20 text-right"
+                      className="min-w-20"
+                      format="amount"
+                      size="sm"
                       inputMode="numeric"
                       onChange={(event) => {
                         setCounts((current) => ({
@@ -163,22 +167,23 @@ export const ReceiveTransferForm = ({
       </div>
 
       <div className="grid gap-4 p-4">
-        <label className="grid gap-1.5 text-sm font-medium">
-          <span>
-            Note{" "}
-            <span className="text-ink-3 font-normal">
-              {missing > 0
-                ? "(required: say what happened to the missing units)"
-                : "(optional)"}
+        <Field>
+          <FieldLabel>
+            <span>
+              Note{" "}
+              <span className="text-ink-3 font-normal">
+                {missing > 0
+                  ? "(required: say what happened to the missing units)"
+                  : "(optional)"}
+              </span>
             </span>
-          </span>
-          <textarea
-            className="field h-auto min-h-20 py-2"
+          </FieldLabel>
+          <Textarea
             maxLength={500}
             name="note"
             placeholder="Damaged cartons, short loads, anything the sending branch should know"
           />
-        </label>
+        </Field>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="tabular text-sm">
             {missing > 0 ? (

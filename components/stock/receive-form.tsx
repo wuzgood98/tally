@@ -9,6 +9,10 @@ import { ProductPicker } from "@/components/stock/product-picker";
 import { ReceiptLineRow } from "@/components/stock/receipt-line-row";
 import type { DraftLine } from "@/components/stock/receipt-line-row";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { formInt, formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { formatCedis, parseCedis, pesewasToInput } from "@/lib/money";
@@ -177,55 +181,43 @@ export const ReceiveForm = ({
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
       <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-3">
-        <label className="grid gap-1.5 text-sm font-medium">
-          Receiving at
-          <select
-            className="field"
+        <Field>
+          <FieldLabel>Receiving at</FieldLabel>
+          <Select
             disabled={branches.length === 1}
             name="branchId"
-            onChange={(event) => {
-              setBranchId(event.target.value);
+            onValueChange={(value) => {
+              setBranchId(value ?? "");
             }}
+            options={namedOptions(branches)}
             value={branchId}
-          >
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Supplier
-          <select
-            className="field"
-            defaultValue={order?.supplierId ?? ""}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Supplier</FieldLabel>
+          <Select
+            defaultValue={order === undefined ? null : order.supplierId}
             disabled={order !== undefined}
             name="supplierId"
+            options={namedOptions(suppliers)}
+            placeholder="Choose a supplier"
             required
-          >
-            <option disabled value="">
-              Choose a supplier
-            </option>
-            {suppliers.map((supplier) => (
-              <option key={supplier.id} value={supplier.id}>
-                {supplier.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          <span>
-            Invoice or waybill no.{" "}
-            <span className="text-ink-3 font-normal">(optional)</span>
-          </span>
-          <input
+          />
+        </Field>
+        <Field>
+          <FieldLabel>
+            <span>
+              Invoice or waybill no.{" "}
+              <span className="text-ink-3 font-normal">(optional)</span>
+            </span>
+          </FieldLabel>
+          <Input
             autoComplete="off"
-            className="field font-mono"
+            format="code"
             maxLength={60}
             name="supplierReference"
           />
-        </label>
+        </Field>
       </div>
 
       <div className="border-line bg-surface rounded-xl border">
@@ -291,17 +283,18 @@ export const ReceiveForm = ({
         )}
       </div>
 
-      <label className="grid gap-1.5 text-sm font-medium">
-        <span>
-          Note <span className="text-ink-3 font-normal">(optional)</span>
-        </span>
-        <textarea
-          className="field h-auto min-h-20 py-2"
+      <Field>
+        <FieldLabel>
+          <span>
+            Note <span className="text-ink-3 font-normal">(optional)</span>
+          </span>
+        </FieldLabel>
+        <Textarea
           maxLength={500}
           name="note"
           placeholder="Short deliveries, damaged cartons, anything head office should know"
         />
-      </label>
+      </Field>
 
       <div className="border-line bg-surface sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 pl-4 shadow-sm">
         <p className="tabular text-sm">

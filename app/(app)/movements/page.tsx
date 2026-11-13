@@ -3,8 +3,11 @@ import Link from "next/link";
 
 import { MovementTable } from "@/components/stock/movement-table";
 import { buttonVariants } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
+import { Select } from "@/components/ui/select";
+import { labelledOptions } from "@/components/ui/select-options";
 import type { MovementKind } from "@/lib/db/schema";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct } from "@/lib/queries/products";
@@ -80,16 +83,15 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
         {productId === undefined ? null : (
           <input name="product" type="hidden" value={productId} />
         )}
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-ink-2">Show</span>
-          <select className="field w-auto" defaultValue={kind} name="kind">
-            {KINDS.map((value) => (
-              <option key={value} value={value}>
-                {KIND_LABELS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field layout="inline">
+          <FieldLabel tone="quiet">Show</FieldLabel>
+          <Select
+            className="w-auto"
+            defaultValue={kind}
+            name="kind"
+            options={labelledOptions(KINDS, KIND_LABELS)}
+          />
+        </Field>
         <button
           className={buttonVariants({ size: "md", variant: "outline" })}
           type="submit"

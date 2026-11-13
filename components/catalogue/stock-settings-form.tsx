@@ -5,6 +5,8 @@ import { useActionState } from "react";
 import { saveStockSettings } from "@/app/(app)/products/actions";
 import type { SettingsState } from "@/app/(app)/products/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 interface StockSettingsFormProps {
   readonly productId: number;
@@ -33,28 +35,28 @@ export const StockSettingsForm = ({
       action={action}
       className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
     >
-      <label className="grid gap-1.5 text-sm font-medium">
-        Reorder at {branchName}
-        <input
-          className="field tabular"
-          defaultValue={reorderOverride ?? ""}
+      <Field>
+        <FieldLabel>Reorder at {branchName}</FieldLabel>
+        <Input
+          format="number"
+          defaultValue={reorderOverride === null ? "" : String(reorderOverride)}
           inputMode="numeric"
           name="reorderPoint"
           placeholder={`${defaultReorderPoint} (company default)`}
         />
-      </label>
-      <label className="grid gap-1.5 text-sm font-medium">
-        Shelf location
-        <input
+      </Field>
+      <Field>
+        <FieldLabel>Shelf location</FieldLabel>
+        <Input
           autoCapitalize="characters"
-          className="field font-mono uppercase"
+          format="sku"
           defaultValue={binLocation ?? ""}
           maxLength={20}
           name="binLocation"
           placeholder="e.g. A3-12-2"
           spellCheck={false}
         />
-      </label>
+      </Field>
       <Button size="md" disabled={pending} type="submit" variant="outline">
         {pending ? "Saving…" : "Save"}
       </Button>

@@ -7,6 +7,8 @@ import type { KeyboardEvent } from "react";
 import { lookupProducts } from "@/app/(app)/lookup-action";
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 interface ProductPickerProps {
   readonly onPick: (product: PickedProduct) => void;
@@ -84,36 +86,28 @@ export const ProductPicker = ({
   };
 
   return (
-    <div className="relative">
-      <label className="text-sm font-medium" htmlFor={id}>
-        {label}
-      </label>
-      <div className="mt-1.5 flex gap-2">
-        <div className="relative grow">
-          <ScanBarcode
-            aria-hidden="true"
-            className="text-ink-3 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-          />
-          <input
-            aria-controls={matches.length > 0 ? `${id}-matches` : undefined}
-            aria-describedby={`${id}-hint`}
-            autoComplete="off"
-            // Scanner workflows start here, so focusing it is the point.
-            // oxlint-disable-next-line jsx-a11y/no-autofocus
-            autoFocus={autoFocus}
-            className="field pl-9 font-mono"
-            enterKeyHint="search"
-            id={id}
-            onChange={(event) => {
-              setText(event.target.value);
-            }}
-            onKeyDown={onKeyDown}
-            placeholder="Scan, or type a SKU or name"
-            ref={input}
-            spellCheck={false}
-            value={text}
-          />
-        </div>
+    <Field className="relative">
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex gap-2">
+        <Input
+          aria-controls={matches.length > 0 ? `${id}-matches` : undefined}
+          autoComplete="off"
+          // Scanner workflows start here, so focusing it is the point.
+          // oxlint-disable-next-line jsx-a11y/no-autofocus
+          autoFocus={autoFocus}
+          className="grow"
+          enterKeyHint="search"
+          format="code"
+          icon={<ScanBarcode aria-hidden="true" />}
+          onChange={(event) => {
+            setText(event.target.value);
+          }}
+          onKeyDown={onKeyDown}
+          placeholder="Scan, or type a SKU or name"
+          ref={input}
+          spellCheck={false}
+          value={text}
+        />
         <Button
           size="md"
           disabled={pending}
@@ -124,9 +118,9 @@ export const ProductPicker = ({
           {pending ? "Finding…" : "Find"}
         </Button>
       </div>
-      <p className="text-ink-2 mt-1 text-xs" id={`${id}-hint`}>
+      <FieldDescription>
         {hint ?? "Press Enter after typing. A scanner does this for you."}
-      </p>
+      </FieldDescription>
       <p aria-live="polite" className="text-danger text-sm empty:hidden">
         {message}
       </p>
@@ -154,6 +148,6 @@ export const ProductPicker = ({
           ))}
         </ul>
       ) : null}
-    </div>
+    </Field>
   );
 };

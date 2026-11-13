@@ -3,10 +3,16 @@
 import { X } from "lucide-react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
+import {
+  Radio,
+  RadioGroup,
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/choice";
+import { Field, FieldLabel } from "@/components/ui/field";
 import type { AdjustmentReason } from "@/lib/db/schema";
 import { formatCount, formatSigned } from "@/lib/format";
 import { REASON_DIRECTION, REASON_LABELS } from "@/lib/stock/reasons";
-import { cn } from "@/lib/utils";
 
 export type ChangeReason = Exclude<AdjustmentReason, "count_correction">;
 
@@ -71,35 +77,25 @@ export const ModeToggle = ({
   readonly onChange: (mode: Mode) => void;
 }) => (
   <div className="grid gap-2">
-    <div className="bg-surface-2 grid grid-cols-2 gap-1 rounded-lg p-1">
-      {MODES.map(([option, label]) => {
-        const disabled = option === "count" && !canCount;
-
-        return (
-          <label
-            className={cn(
-              "press flex cursor-pointer items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium has-focus-visible:outline-2",
-              mode === option ? "bg-surface shadow-sm" : "text-ink-2",
-              disabled && "cursor-not-allowed opacity-50"
-            )}
-            key={option}
-          >
-            <input
-              checked={mode === option}
-              className="sr-only"
-              disabled={disabled}
-              name="mode"
-              onChange={() => {
-                onChange(option);
-              }}
-              type="radio"
-              value={option}
-            />
-            {label}
-          </label>
-        );
-      })}
-    </div>
+    <SegmentedControl
+      aria-label="What happened"
+      onValueChange={(value) => {
+        if (value === "change" || value === "count") {
+          onChange(value);
+        }
+      }}
+      value={mode}
+    >
+      {MODES.map(([option, label]) => (
+        <SegmentedControlItem
+          disabled={option === "count" && !canCount}
+          key={option}
+          value={option}
+        >
+          {label}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
     {canCount ? null : (
       <p className="text-ink-2 text-xs">
         Counts are recorded by a branch manager.
@@ -117,41 +113,44 @@ export const ReasonPicker = ({
   readonly value: ChangeReason | "";
   readonly onChange: (reason: ChangeReason) => void;
 }) => (
-  <fieldset className="grid gap-2">
-    <legend className="mb-2 text-sm font-medium">Reason</legend>
-    {reasons.map((reason) => (
-      <label
-        className="border-line hover:border-line-strong has-checked:border-brand has-checked:bg-brand-soft/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
-        key={reason}
-      >
-        <input
-          checked={value === reason}
-          className="accent-brand mt-1"
-          name="reason"
-          onChange={() => {
-            onChange(reason);
-          }}
-          type="radio"
-          value={reason}
-        />
-        <span>
-          <span className="text-sm font-medium">
-            {REASON_LABELS[reason]}{" "}
-            <span className="text-ink-3 font-normal">
-              (
-              {REASON_DIRECTION[reason] === "out"
-                ? "takes stock out"
-                : "puts stock back"}
-              )
+  <Field layout="group">
+    <FieldLabel className="mb-2">Reason</FieldLabel>
+    <RadioGroup
+      name="reason"
+      onValueChange={(next) => {
+        const picked = reasons.find((reason) => reason === next);
+
+        if (picked !== undefined) {
+          onChange(picked);
+        }
+      }}
+      value={value === "" ? null : value}
+    >
+      {reasons.map((reason) => (
+        <label
+          className="border-line hover:border-line-strong has-data-checked:border-brand has-data-checked:bg-brand-soft/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+          key={reason}
+        >
+          <Radio className="mt-0.5" value={reason} />
+          <span>
+            <span className="text-sm font-medium">
+              {REASON_LABELS[reason]}{" "}
+              <span className="text-ink-3 font-normal">
+                (
+                {REASON_DIRECTION[reason] === "out"
+                  ? "takes stock out"
+                  : "puts stock back"}
+                )
+              </span>
+            </span>
+            <span className="text-ink-2 block text-xs">
+              {REASON_HELP[reason]}
             </span>
           </span>
-          <span className="text-ink-2 block text-xs">
-            {REASON_HELP[reason]}
-          </span>
-        </span>
-      </label>
-    ))}
-  </fieldset>
+        </label>
+      ))}
+    </RadioGroup>
+  </Field>
 );
 
 /** "Stock goes from 12 to 9 (−3)", or nothing until there's enough to say. */

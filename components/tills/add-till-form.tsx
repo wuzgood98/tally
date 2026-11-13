@@ -6,6 +6,10 @@ import { useActionState, useState } from "react";
 import { addTill } from "@/app/(app)/tills/actions";
 import type { AddTillState } from "@/app/(app)/tills/actions";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { namedOptions } from "@/components/ui/select-options";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 interface AddTillFormProps {
@@ -77,30 +81,25 @@ export const AddTillForm = ({ stores }: AddTillFormProps) => {
         key={state.created?.key ?? "new"}
         onSubmit={submitWithoutReset(action)}
       >
-        <label className="grid gap-1.5 text-sm font-medium">
-          Store
-          <select className="field" defaultValue="" name="branchId" required>
-            <option disabled value="">
-              Choose a store
-            </option>
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Name
-          <input
+        <Field>
+          <FieldLabel>Store</FieldLabel>
+          <Select
+            name="branchId"
+            options={namedOptions(stores)}
+            placeholder="Choose a store"
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Name</FieldLabel>
+          <Input
             autoComplete="off"
-            className="field"
             maxLength={60}
             name="name"
             placeholder="e.g. Till 3, ground floor"
             required
           />
-        </label>
+        </Field>
         <div className="flex flex-wrap items-center gap-3">
           <Button disabled={pending} size="md" type="submit">
             {pending ? "Creating…" : "Add till"}

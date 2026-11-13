@@ -3,9 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
+import { Select } from "@/components/ui/select";
+import { namedOptions, labelledOptions } from "@/components/ui/select-options";
 import { StockBadge } from "@/components/ui/stock-badge";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount } from "@/lib/format";
@@ -115,50 +119,35 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
           action="/products"
           className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_10rem_auto]"
         >
-          <label className="relative">
-            <span className="sr-only">Search products</span>
-            <Search
-              aria-hidden="true"
-              className="text-ink-3 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-            />
-            <input
-              className="field pl-9"
+          <Field>
+            <FieldLabel className="sr-only">Search products</FieldLabel>
+            <Input
               defaultValue={search}
               enterKeyHint="search"
+              icon={<Search aria-hidden="true" />}
               name="q"
               placeholder="Name, SKU or scan a barcode"
               type="search"
             />
-          </label>
-          <label>
-            <span className="sr-only">Category</span>
-            <select
-              className="field"
-              defaultValue={categoryId ?? ""}
-              name="category"
-            >
-              <option value="">All categories</option>
-              {[...departments].map(([department, items]) => (
-                <optgroup key={department} label={department}>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">Stock status</span>
-            <select className="field" defaultValue={status} name="status">
-              {STATUSES.map((value) => (
-                <option key={value} value={value}>
-                  {STATUS_LABELS[value]}
-                </option>
-              ))}
-            </select>
-          </label>
+          </Field>
+          <Select
+            aria-label="Category"
+            defaultValue={categoryId === null ? "" : String(categoryId)}
+            name="category"
+            options={[
+              { label: "All categories", value: "" },
+              ...[...departments].map(([department, items]) => ({
+                label: department,
+                options: namedOptions(items),
+              })),
+            ]}
+          />
+          <Select
+            aria-label="Stock status"
+            defaultValue={status}
+            name="status"
+            options={labelledOptions(STATUSES, STATUS_LABELS)}
+          />
           <button
             className={buttonVariants({ size: "md", variant: "outline" })}
             type="submit"

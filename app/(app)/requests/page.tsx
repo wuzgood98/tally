@@ -4,9 +4,12 @@ import Link from "next/link";
 
 import { RequestStatusBadge } from "@/components/stock/request-status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
+import { Select } from "@/components/ui/select";
+import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { canRequestStock } from "@/lib/permissions";
@@ -70,16 +73,15 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
         action="/requests"
         className="mb-4 flex flex-wrap items-center gap-2"
       >
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-ink-2">Show</span>
-          <select className="field w-auto" defaultValue={status} name="status">
-            {STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {STATUS_OPTIONS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field layout="inline">
+          <FieldLabel tone="quiet">Show</FieldLabel>
+          <Select
+            className="w-auto"
+            defaultValue={status}
+            name="status"
+            options={labelledOptions(STATUSES, STATUS_OPTIONS)}
+          />
+        </Field>
         <button
           className={buttonVariants({ size: "md", variant: "outline" })}
           type="submit"

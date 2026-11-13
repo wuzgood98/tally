@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 
+import "@ui-sdk/core/web.css";
 import "./globals.css";
 import { ROOT_METADATA } from "@/lib/seo";
 import { cn } from "@/lib/utils";
