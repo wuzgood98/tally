@@ -1,4 +1,4 @@
-import { ChartLine, ChartColumn } from "lucide-react";
+import { ChartColumn, ChartLine, PackageMinus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -63,6 +63,14 @@ const ReportsPage = async () => {
         >
           Units, takings and margin net of returns, how long stock lasts, and
           what isn&apos;t selling at all.
+        </ReportCard>
+        <ReportCard
+          href="/reports/shrinkage"
+          icon={<PackageMinus />}
+          title="Shrinkage"
+        >
+          Stock lost at cost by branch and cause, counts that came up short, and
+          what went missing in transit.
         </ReportCard>
       </div>
     </>

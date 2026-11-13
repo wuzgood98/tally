@@ -168,3 +168,148 @@ export const getShrinkage = async (
     })),
   };
 };
+
+/** The report's loss columns, in the order the page shows them. */
+export const LOSS_COLUMNS = [
+  "damaged",
+  "expired",
+  "theft",
+  "internal_use",
+  "returned_damaged",
+  "counts",
+  "transit",
+] as const;
+
+export type LossColumn = (typeof LOSS_COLUMNS)[number];
+
+export const LOSS_LABELS: Record<LossColumn, string> = {
+  counts: "Counts and finds",
+  damaged: "Damaged",
+  expired: "Expired",
+  internal_use: "Internal use",
+  returned_damaged: "Returned damaged",
+  theft: "Theft or loss",
+  transit: "Lost in transit",
+};
+
+/** Counts and finds share a column: together they're the unexplained gap. */
+const COLUMN_OF: Record<ShrinkageCause, LossColumn> = {
+  count_correction: "counts",
+  damaged: "damaged",
+  expired: "expired",
+  found: "counts",
+  internal_use: "internal_use",
+  returned_damaged: "returned_damaged",
+  theft: "theft",
+};
+
+export interface BranchShrinkage {
+  /** Null for the company total. */
+  readonly branchId: string | null;
+  /** Lost at cost per column, in pesewas: positive is a loss, negative a gain. */
+  readonly lost: Readonly<Record<LossColumn, number>>;
+  /** Units lost per column, the same way round. */
+  readonly units: Readonly<Record<LossColumn, number>>;
+  /** Everything lost, less anything found. */
+  readonly net: number;
+  /** What the branch sold, at cost: the base for the rate. */
+  readonly salesCost: number;
+  /** Net loss as a share of what sold at cost; null when nothing sold. */
+  readonly rate: number | null;
+}
+
+/** A row per branch in the report, and the company total. */
+export interface ShrinkageByBranch {
+  readonly rows: readonly BranchShrinkage[];
+  readonly total: BranchShrinkage;
+}
+
+const zeroes = (): Record<LossColumn, number> => ({
+  counts: 0,
+  damaged: 0,
+  expired: 0,
+  internal_use: 0,
+  returned_damaged: 0,
+  theft: 0,
+  transit: 0,
+});
+
+const summarise = (
+  branchId: string | null,
+  lost: Record<LossColumn, number>,
+  units: Record<LossColumn, number>,
+  salesCost: number
+): BranchShrinkage => {
+  let net = 0;
+
+  for (const column of LOSS_COLUMNS) {
+    net += lost[column];
+  }
+
+  return {
+    branchId,
+    lost,
+    net,
+    rate: salesCost > 0 ? net / salesCost : null,
+    salesCost,
+    units,
+  };
+};
+
+/**
+ * One row per branch (in the order given) and a company total. A transit
+ * loss counts against the branch that counted it short; losses on the way
+ * to a branch outside the report appear only in the routes table.
+ */
+export const shrinkageByBranch = (
+  report: ShrinkageReport,
+  branchIds: readonly string[]
+): ShrinkageByBranch => {
+  const lost = new Map(branchIds.map((id) => [id, zeroes()]));
+  const units = new Map(branchIds.map((id) => [id, zeroes()]));
+
+  for (const line of report.lines) {
+    const column = COLUMN_OF[line.cause];
+    const branchLost = lost.get(line.branchId);
+    const branchUnits = units.get(line.branchId);
+
+    if (branchLost !== undefined && branchUnits !== undefined) {
+      branchLost[column] -= line.value;
+      branchUnits[column] -= line.units;
+    }
+  }
+
+  for (const route of report.transit) {
+    const branchLost = lost.get(route.toBranchId);
+    const branchUnits = units.get(route.toBranchId);
+
+    if (branchLost !== undefined && branchUnits !== undefined) {
+      branchLost.transit += route.value;
+      branchUnits.transit += route.units;
+    }
+  }
+
+  const totalLost = zeroes();
+  const totalUnits = zeroes();
+  let totalSalesCost = 0;
+
+  const rows = branchIds.map((id) => {
+    const branchLost = lost.get(id) ?? zeroes();
+    const branchUnits = units.get(id) ?? zeroes();
+    const salesCost = report.salesCost[id] ?? 0;
+
+    for (const column of LOSS_COLUMNS) {
+      totalLost[column] += branchLost[column];
+      totalUnits[column] += branchUnits[column];
+    }
+
+    totalSalesCost += salesCost;
+
+    return summarise(id, branchLost, branchUnits, salesCost);
+  });
+
+  return {
+    rows,
+    total: summarise(null, totalLost, totalUnits, totalSalesCost),
+  };
+};
