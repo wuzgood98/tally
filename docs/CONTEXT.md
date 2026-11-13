@@ -15,7 +15,7 @@ The user is a frontend engineer, and this is their first "real world" project af
 
 ## Status
 
-**Milestones 1 to 4 are done** and pushed to `main` at https://github.com/wuzgood98/tally (Milestone 3 is point-of-sale sales, Milestone 4 purchase orders and stock requests). **Milestone 5, reports, is built** on the branch `milestone-5-reports` (not yet merged to `main`). All are tested (165 tests), lint-clean, production build passing, smoke-tested for every role (including cashiers) and scope, and walked through in the browser at desktop and 390px. Commit only when the user asks.
+**Milestones 1 to 5 are done** and pushed to `main` at https://github.com/wuzgood98/tally (Milestone 3 is point-of-sale sales, Milestone 4 purchase orders and stock requests, Milestone 5 reports). All are tested (165 tests), lint-clean, production build passing, smoke-tested for every role (including cashiers) and scope, and walked through in the browser at desktop and 390px. Commit only when the user asks.
 
 | Area | Route(s) | Domain code |
 | --- | --- | --- |
