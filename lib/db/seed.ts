@@ -282,7 +282,7 @@ const openingQuantity = (
   isWarehouse: boolean
 ): number => {
   if (isWarehouse) {
-    return Math.round(reorder * random.between(8, 20));
+    return Math.round(reorder * random.between(6, 12));
   }
 
   if (random.chance(0.04)) {
@@ -293,7 +293,7 @@ const openingQuantity = (
     return Math.max(1, Math.round(reorder * random.between(0.2, 0.95)));
   }
 
-  return Math.round(reorder * random.between(1.3, 4.5));
+  return Math.round(reorder * random.between(1.4, 3.2));
 };
 
 const seedOpeningStock = async (
@@ -396,7 +396,22 @@ type HistoryEvent =
 const WAREHOUSE_ID = "TMA";
 
 /** Sales per store per day, inclusive range: scaled down so PGlite seeds quickly. */
-const SALES_PER_DAY = [2, 4] as const;
+const SALES_PER_DAY = [6, 10] as const;
+
+/**
+ * How products sell, from the few best sellers to the long tail. A tier's
+ * `boost` is how much more often its lines land in a basket than the long
+ * tail's; `pack` is a basket line as a share of the reorder point (traders
+ * buy best sellers by the carton); `share` is the chance a line falls in it.
+ */
+const DEMAND_TIERS = [
+  { boost: 5, pack: [0.05, 0.15], share: 0.15 },
+  { boost: 2.5, pack: [0.04, 0.14], share: 0.25 },
+  { boost: 1, pack: [0.01, 0.05], share: 1 },
+] as const;
+
+type DemandTier = (typeof DEMAND_TIERS)[number];
+
 const RETURNS_PER_STORE = 4;
 
 /** Mobile money is as common as cash in Ghana; cards much less so. */
@@ -790,6 +805,76 @@ const runTransferEvent = async (
 
 type SaleEvent = Extract<HistoryEvent, { readonly kind: "sale" | "return" }>;
 
+interface Shopper {
+  /** A product for a basket, busier lines more often. */
+  readonly pick: () => SeededProduct;
+  /** How many of it the customer wants; none means they leave it. */
+  readonly quantity: (productId: number) => number;
+}
+
+const LONG_TAIL: DemandTier = DEMAND_TIERS[2];
+
+/** A product's tier: discontinued lines are always in the long tail. */
+const demandTier = (random: Random, item: SeededProduct): DemandTier => {
+  const draw = random.next();
+  let floor = 0;
+
+  for (const tier of DEMAND_TIERS) {
+    floor += tier.share;
+
+    if (draw < floor) {
+      return item.active ? tier : LONG_TAIL;
+    }
+  }
+
+  return LONG_TAIL;
+};
+
+/**
+ * Demand for the demo: how often a product lands in a basket depends on its
+ * tier, and how many go in on its reorder point, so sales keep pace with the
+ * stock each line carries. The sellers report gets fast lines, a middle band
+ * and a long tail of slow ones.
+ */
+const createShopper = (
+  random: Random,
+  products: readonly SeededProduct[]
+): Shopper => {
+  const lines = new Map<number, { reorder: number; tier: DemandTier }>();
+  const cumulative: number[] = [];
+  let total = 0;
+
+  for (const item of products) {
+    const tier = demandTier(random, item);
+
+    lines.set(item.id, { reorder: item.reorder, tier });
+    total += tier.boost;
+    cumulative.push(total);
+  }
+
+  return {
+    pick: () => {
+      const target = random.next() * total;
+      const index = cumulative.findIndex((value) => value > target);
+
+      return products[index] ?? random.pick(products);
+    },
+    quantity: (productId) => {
+      const line = lines.get(productId);
+
+      if (line === undefined) {
+        return 0;
+      }
+
+      const share = random.between(line.tier.pack[0], line.tier.pack[1]);
+
+      // Rounded at random, so a line that sells by the one (a television)
+      // only sometimes makes it into the basket.
+      return Math.floor(line.reorder * share + random.next());
+    },
+  };
+};
+
 /**
  * A basket from what the store actually holds, so the demo isn't full of
  * negative lines. An oversell sells two more than the record shows instead.
@@ -797,12 +882,12 @@ type SaleEvent = Extract<HistoryEvent, { readonly kind: "sale" | "return" }>;
 const pickBasket = async (
   db: Db,
   random: Random,
-  products: readonly SeededProduct[],
+  shopper: Shopper,
   branchId: string,
   oversell: boolean
 ): Promise<{ productId: number; quantity: number }[]> => {
   const wanted = [
-    ...new Set(Array.from({ length: 6 }, () => random.pick(products).id)),
+    ...new Set(Array.from({ length: 8 }, () => shopper.pick().id)),
   ];
 
   const held = await db
@@ -826,19 +911,18 @@ const pickBasket = async (
       : [{ productId: smallest.productId, quantity: smallest.onHand + 2 }];
   }
 
-  return held.slice(0, random.int(1, 4)).flatMap((row) => {
-    const quantity = random.int(1, 3);
+  // A customer takes what's left when the shelf is short.
+  return held.slice(0, random.int(2, 5)).flatMap((row) => {
+    const quantity = Math.min(shopper.quantity(row.productId), row.onHand);
 
-    return row.onHand >= quantity
-      ? [{ productId: row.productId, quantity }]
-      : [];
+    return quantity > 0 ? [{ productId: row.productId, quantity }] : [];
   });
 };
 
 const runSaleEvent = async (
   db: Db,
   random: Random,
-  products: readonly SeededProduct[],
+  shopper: Shopper,
   staff: SeedStaff,
   salesByBranch: Map<string, number[]>,
   event: SaleEvent
@@ -852,7 +936,7 @@ const runSaleEvent = async (
     const lines = await pickBasket(
       db,
       random,
-      products,
+      shopper,
       event.branchId,
       event.oversell
     );
@@ -940,6 +1024,7 @@ const runHistory = async (
   const bySupplier = Map.groupBy(products, (item) => item.supplierId);
   const transfers = new Map<number, SeededTransfer>();
   const salesByBranch = new Map<string, number[]>();
+  const shopper = createShopper(random, products);
 
   const purchasing = {
     db,
@@ -967,7 +1052,7 @@ const runHistory = async (
     }
 
     if (event.kind === "sale" || event.kind === "return") {
-      await runSaleEvent(db, random, products, staff, salesByBranch, event);
+      await runSaleEvent(db, random, shopper, staff, salesByBranch, event);
 
       continue;
     }
@@ -1022,6 +1107,16 @@ const runHistory = async (
 
     const item = random.pick(products);
 
+    const [shelf] = await db
+      .select({ onHand: stockLevel.onHand })
+      .from(stockLevel)
+      .where(
+        and(
+          eq(stockLevel.branchId, event.branchId),
+          eq(stockLevel.productId, item.id)
+        )
+      );
+
     const reason = random.pick([
       "damaged",
       "damaged",
@@ -1036,7 +1131,8 @@ const runHistory = async (
         reason === "count"
           ? await adjustStock(db, actor, {
               branchId: event.branchId,
-              counted: Math.max(0, random.int(-3, 2) + item.reorder),
+              // Counts turn up a few short, now and then a few over.
+              counted: Math.max(0, (shelf?.onHand ?? 0) + random.int(-3, 2)),
               mode: "count",
               note: "Cycle count",
               productId: item.id,

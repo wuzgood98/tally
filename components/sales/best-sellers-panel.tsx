@@ -6,23 +6,32 @@ import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import type { BestSeller } from "@/lib/queries/sales";
 
+const LINK = "text-brand text-sm font-medium hover:underline";
+
 export const BestSellersPanel = ({
   rows,
   days,
   className,
+  reportHref,
 }: {
   readonly rows: readonly BestSeller[];
   readonly days: number;
   readonly className?: string;
+  /** The sellers report, for people who can see reports. */
+  readonly reportHref?: string;
 }) => (
   <Panel
     action={
-      <Link
-        className="text-brand text-sm font-medium hover:underline"
-        href="/sales"
-      >
-        All sales
-      </Link>
+      <span className="flex gap-4">
+        {reportHref === undefined ? null : (
+          <Link className={LINK} href={reportHref}>
+            Fast and slow
+          </Link>
+        )}
+        <Link className={LINK} href="/sales">
+          All sales
+        </Link>
+      </span>
     }
     className={className}
     flush

@@ -10,6 +10,7 @@ import { Stat } from "@/components/ui/stat";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatLongDate } from "@/lib/format";
 import { formatCedis, formatCedisCompact } from "@/lib/money";
+import { canViewReports } from "@/lib/permissions";
 import { listMovements } from "@/lib/queries/movements";
 import {
   getBranchHealth,
@@ -74,6 +75,7 @@ const OverviewPage = async () => {
 
   // Rendered on the server only, so there is no client clock to disagree with.
   const today = formatLongDate(new Date());
+  const reports = canViewReports(viewer);
   const needReorder = totals.lowLines + totals.outLines;
 
   return (
@@ -86,6 +88,7 @@ const OverviewPage = async () => {
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat
           detail={`${formatCount(totals.units)} units · ${formatCedisCompact(totals.retailValue)} at shelf prices`}
+          href={reports ? "/reports/stock-value" : undefined}
           label="Stock value at cost"
           value={formatCedisCompact(totals.costValue)}
         />
@@ -174,6 +177,9 @@ const OverviewPage = async () => {
         <BestSellersPanel
           className={allBranches ? "xl:col-span-2" : undefined}
           days={BEST_SELLER_DAYS}
+          reportHref={
+            reports ? `/reports/sellers?days=${BEST_SELLER_DAYS}` : undefined
+          }
           rows={bestSellers}
         />
 
