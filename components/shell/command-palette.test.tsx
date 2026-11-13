@@ -6,6 +6,7 @@ import { createAgent } from "@ui-sdk/react/agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PaletteGroup } from "@/lib/palette";
+import type { PaletteProduct } from "@/lib/palette-search";
 
 import {
   CommandPalette,
@@ -20,6 +21,41 @@ const push = vi.fn((_href: string) => {
 const signOut = vi.fn(async () => {
   /* the app's action redirects to /login */
 });
+
+const RICE: PaletteProduct = {
+  active: true,
+  exact: false,
+  id: 7,
+  name: "Jasmine rice 5 kg",
+  onHand: 12,
+  sku: "GR-0001",
+};
+
+const OLD_KETTLE: PaletteProduct = {
+  active: false,
+  exact: false,
+  id: 9,
+  name: "Kettle, old model",
+  onHand: null,
+  sku: "HK-0009",
+};
+
+const matchingProducts = (text: string): PaletteProduct[] => {
+  const needle = text.trim().toLowerCase();
+
+  if (needle === "5012345678900") {
+    return [{ ...RICE, exact: true }];
+  }
+
+  return [RICE, OLD_KETTLE].filter((item) =>
+    item.name.toLowerCase().includes(needle)
+  );
+};
+
+const searchProducts = vi.fn(
+  async (text: string): Promise<PaletteProduct[]> =>
+    await Promise.resolve(matchingProducts(text))
+);
 
 const GROUPS: PaletteGroup[] = [
   {
@@ -69,7 +105,12 @@ const GROUPS: PaletteGroup[] = [
 
 const renderPalette = () =>
   render(
-    <CommandPalette groups={GROUPS} onNavigate={push} onSignOut={signOut}>
+    <CommandPalette
+      groups={GROUPS}
+      onNavigate={push}
+      onSignOut={signOut}
+      searchProducts={searchProducts}
+    >
       <PaletteFieldTrigger />
       <PaletteIconTrigger />
     </CommandPalette>
@@ -80,7 +121,17 @@ const agent = createAgent();
 beforeEach(() => {
   push.mockClear();
   signOut.mockClear();
+  searchProducts.mockClear();
 });
+
+const openAndType = async (text: string) => {
+  const user = userEvent.setup();
+  renderPalette();
+  await user.keyboard("{Control>}k{/Control}");
+  await user.type(await screen.findByRole("combobox"), text);
+
+  return user;
+};
 
 describe("CommandPalette", () => {
   it("opens with Ctrl+K and goes to a page found by a keyword", async () => {
@@ -140,6 +191,62 @@ describe("CommandPalette", () => {
     await user.type(await screen.findByRole("combobox"), "zzzz");
 
     expect(await screen.findByText("Nothing matches “zzzz”.")).toBeTruthy();
+  });
+
+  it("shows products with their stock, and opens one", async () => {
+    const user = await openAndType("rice");
+    const rice = await screen.findByRole("option", { name: /Jasmine rice/u });
+
+    expect(rice.textContent).toContain("12 on hand");
+
+    await user.click(rice);
+
+    expect(push).toHaveBeenCalledWith("/products/7");
+  });
+
+  it("tags discontinued products and says when one isn't stocked", async () => {
+    await openAndType("kettle");
+    const kettle = await screen.findByRole("option", { name: /Kettle/u });
+
+    expect(kettle.textContent).toContain("Discontinued");
+    expect(kettle.textContent).toContain("Not stocked");
+  });
+
+  it("opens a scanned barcode with Enter", async () => {
+    const user = await openAndType("5012345678900");
+
+    await screen.findByRole("option", { name: /Jasmine rice/u });
+    await user.keyboard("{Enter}");
+
+    expect(push).toHaveBeenCalledWith("/products/7");
+  });
+
+  it("keeps a matching page above products, and links to every result", async () => {
+    const user = await openAndType("low");
+
+    await vi.waitFor(() => {
+      expect(searchProducts).toHaveBeenCalledWith("low");
+    });
+
+    const first = screen
+      .getAllByRole("option")
+      .find((option) => option.hidden === false);
+
+    expect(first?.textContent).toBe("Low stock");
+
+    await user.clear(screen.getByRole("combobox"));
+    await user.type(screen.getByRole("combobox"), "rice");
+    await user.click(
+      await screen.findByRole("option", { name: /See all results/u })
+    );
+
+    expect(push).toHaveBeenCalledWith("/products?q=rice");
+  });
+
+  it("doesn't search products for a single letter", async () => {
+    await openAndType("r");
+
+    expect(searchProducts).not.toHaveBeenCalled();
   });
 
   it("lets an agent find the palette and search it", async () => {

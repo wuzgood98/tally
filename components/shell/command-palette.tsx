@@ -1,5 +1,6 @@
 "use client";
 
+import { useAsyncOptions } from "@ui-sdk/react/async-options";
 import {
   Command,
   CommandEmpty,
@@ -46,6 +47,15 @@ import type { ReactNode } from "react";
 
 import type { PaletteCommand, PaletteGroup, PaletteIcon } from "@/lib/palette";
 import { paletteScore } from "@/lib/palette-filter";
+import {
+  MIN_PRODUCT_QUERY,
+  productHref,
+  productScore,
+} from "@/lib/palette-products";
+import type { ProductSearch } from "@/lib/palette-products";
+import type { PaletteProduct } from "@/lib/palette-search";
+
+import { ProductResults } from "./palette-products";
 
 const SHORTCUT = "mod+k";
 const TITLE = "Search or jump to";
@@ -124,6 +134,7 @@ export interface CommandPaletteProps {
   readonly children: ReactNode;
   readonly onNavigate: (href: string) => void;
   readonly onSignOut: () => Promise<void>;
+  readonly searchProducts: ProductSearch;
 }
 
 /**
@@ -137,13 +148,21 @@ export const CommandPalette = ({
   children,
   onNavigate,
   onSignOut,
+  searchProducts,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
   const [query, setQuery] = useState("");
 
+  const products = useAsyncOptions<PaletteProduct>(
+    async (text) =>
+      text.trim().length < MIN_PRODUCT_QUERY ? [] : await searchProducts(text),
+    { debounce: 150 }
+  );
+
   const changeQuery = (text: string): void => {
     setQuery(text);
+    products.setQuery(text);
   };
 
   const byValue = useMemo(
@@ -165,6 +184,15 @@ export const CommandPalette = ({
   );
 
   const run = async (value: string): Promise<void> => {
+    const productPage = productHref(value, query);
+
+    if (productPage !== null) {
+      palette.close();
+      onNavigate(productPage);
+
+      return;
+    }
+
     const command = byValue.get(value);
 
     if (command === undefined) {
@@ -202,11 +230,15 @@ export const CommandPalette = ({
           <DialogTitle className="sr-only">{TITLE}</DialogTitle>
           <Command
             className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
-            filter={paletteScore}
+            filter={(item, text) =>
+              productScore(item.value, products.items) ??
+              paletteScore(item, text)
+            }
             onAction={run}
             onQueryChange={changeQuery}
             pendingAnnouncement="Working…"
             query={query}
+            status={products.status}
           >
             <div className="border-line flex items-center gap-2.5 border-b px-4">
               <Search
@@ -217,17 +249,26 @@ export const CommandPalette = ({
                 aria-label={TITLE}
                 autoComplete="off"
                 className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
-                placeholder="Search pages and actions…"
+                placeholder="Search pages, actions and products…"
               />
             </div>
             <CommandEmpty className="text-ink-3 text-center text-sm data-empty:px-4 data-empty:py-8">
-              Nothing matches “{query.trim()}”.
+              {(state) => {
+                if (!state.empty) {
+                  return null;
+                }
+
+                return state.loading
+                  ? "Searching…"
+                  : `Nothing matches “${query.trim()}”.`;
+              }}
             </CommandEmpty>
             <CommandList className="pb-safe max-h-none min-h-0 [scrollbar-width:thin] overflow-y-auto overscroll-contain px-2 pt-2">
               <>
                 {groups.map((group) => (
                   <CommandGroupOf group={group} key={group.label} />
                 ))}
+                <ProductResults products={products.items} query={query} />
               </>
             </CommandList>
           </Command>
