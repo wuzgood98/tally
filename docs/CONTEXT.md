@@ -116,7 +116,9 @@ Planned batches:
    - Dynamic positions go through CSS custom properties (`style={{ "--x": "40%" }}` with `left-(--x)`); `types/css-variables.d.ts` lets `style` take `--*` keys. The lint rules forbid setting other properties inline.
    - CSV downloads are route handlers beside the page (`/reports/stock-value/csv`), using `csvResponse` (`lib/reports/csv.ts`): a UTF-8 byte-order mark for Excel, cedis with two decimals, and text cells that start like a formula get a leading apostrophe. They return 404 to anyone the page would.
    - Walked through in the browser as head office (hover, keyboard, CSV, 390px); checked with curl that a manager gets only their branch whatever the switcher says, and storekeepers and cashiers get 404 and no nav link.
-3. **Fast and slow sellers**: units and sales net of returns, gross margin, days of cover; slow and dead lines (stock on hand, few or no sales); CSV.
+3. **Done**: `/reports/sellers` and its CSV. `getSellers` now also returns `stockValue` (units held × today's average cost). `groupSellers` (pure, tested) splits rows into **fast** (sold, most units first), **slow** (cover over `SLOW_COVER_DAYS` = 90, longest first) and **not selling** (in stock, nothing sold net; most money tied up first), with period totals. The page shows units, takings, gross margin and money tied up in unsold lines, then 15 rows per group ("the CSV has them all"); cover over a year reads "1 yr+", under 7 days is amber, none on hand is "Out".
+   - Margin is takings (VAT included) less cost: Tally stores no VAT rate, and Ghana's varies by item, so none is invented.
+   - **The demo data is too quiet for this report**: the seed rings up 2–4 baskets per store per day (kept low so seeding stays quick) against a month of stock, so 147 of 148 selling lines show as slow and even the best seller "lasts" years. The rules are right; the demo volume isn't. To raise with the user in Batch 5.
 4. **Shrinkage by branch**: damaged, expired, theft, internal use and count corrections at cost, plus losses in transit by route; CSV.
 5. Reseed, links from the overview, update this file, full verification.
 

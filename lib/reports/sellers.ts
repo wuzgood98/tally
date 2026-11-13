@@ -27,6 +27,8 @@ export interface SellerRow {
   readonly margin: number;
   /** Units on the shelves now (a line below zero counts as none). */
   readonly onHand: number;
+  /** Those units at today's average cost, in pesewas: what's tied up. */
+  readonly stockValue: number;
   /** Days the stock on hand lasts at this period's rate; null if nothing sold. */
   readonly daysOfCover: number | null;
 }
@@ -43,6 +45,7 @@ const sellerRow = z.object({
   returned_units: z.coerce.number(),
   sales: z.coerce.number(),
   sku: z.string(),
+  stock_value: z.coerce.number(),
   units: z.coerce.number(),
 });
 
@@ -96,7 +99,8 @@ export const getSellers = async (
       coalesce(r.units, 0) as returned_units,
       coalesce(r.sales, 0) as returned_sales,
       coalesce(r.cost, 0) as returned_cost,
-      coalesce(h.on_hand, 0) as on_hand
+      coalesce(h.on_hand, 0) as on_hand,
+      coalesce(h.on_hand, 0)::bigint * p.average_cost as stock_value
     from product p
     join category c on c.id = p.category_id
     left join sold s on s.product_id = p.id
@@ -127,7 +131,62 @@ export const getSellers = async (
       returnedUnits: row.returned_units,
       sales,
       sku: row.sku,
+      stockValue: row.stock_value,
       units,
     };
   });
+};
+
+/** Stock that would last longer than this at the period's rate is slow. */
+export const SLOW_COVER_DAYS = 90;
+
+export interface SellerGroups {
+  /** Sold something, most units first. */
+  readonly fast: readonly SellerRow[];
+  /** Sold, but the stock on hand lasts over `SLOW_COVER_DAYS`; longest first. */
+  readonly slow: readonly SellerRow[];
+  /** Holding stock, nothing sold (net); most money tied up first. */
+  readonly unsold: readonly SellerRow[];
+  readonly totals: {
+    readonly units: number;
+    readonly sales: number;
+    readonly cost: number;
+    readonly margin: number;
+    readonly unsoldValue: number;
+  };
+}
+
+/** Splits the report's rows into fast, slow and not selling, with totals. */
+export const groupSellers = (rows: readonly SellerRow[]): SellerGroups => {
+  const fast: SellerRow[] = [];
+  const slow: SellerRow[] = [];
+  const unsold: SellerRow[] = [];
+  const totals = { cost: 0, margin: 0, sales: 0, units: 0, unsoldValue: 0 };
+
+  for (const row of rows) {
+    totals.units += row.units;
+    totals.sales += row.sales;
+    totals.cost += row.cost;
+    totals.margin += row.margin;
+
+    if (row.units > 0) {
+      fast.push(row);
+    }
+
+    if (row.daysOfCover !== null && row.daysOfCover > SLOW_COVER_DAYS) {
+      slow.push(row);
+    }
+
+    if (row.units <= 0 && row.onHand > 0) {
+      unsold.push(row);
+      totals.unsoldValue += row.stockValue;
+    }
+  }
+
+  return {
+    fast: fast.toSorted((a, b) => b.units - a.units || b.sales - a.sales),
+    slow: slow.toSorted((a, b) => (b.daysOfCover ?? 0) - (a.daysOfCover ?? 0)),
+    totals,
+    unsold: unsold.toSorted((a, b) => b.stockValue - a.stockValue),
+  };
 };

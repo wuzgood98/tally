@@ -1,4 +1,4 @@
-import { ChartLine } from "lucide-react";
+import { ChartLine, ChartColumn } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -55,6 +55,14 @@ const ReportsPage = async () => {
         >
           What the stock was worth at the end of each day, by branch, with goods
           in transit.
+        </ReportCard>
+        <ReportCard
+          href="/reports/sellers"
+          icon={<ChartColumn />}
+          title="Fast and slow sellers"
+        >
+          Units, takings and margin net of returns, how long stock lasts, and
+          what isn&apos;t selling at all.
         </ReportCard>
       </div>
     </>
