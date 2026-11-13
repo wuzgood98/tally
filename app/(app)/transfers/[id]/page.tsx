@@ -15,7 +15,7 @@ import { canCancelTransfer, canReceiveTransfer } from "@/lib/permissions";
 import { getTransfer } from "@/lib/queries/transfers";
 import type { TransferDetail } from "@/lib/queries/transfers";
 import { param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 const transferId = (raw: string): number | null => {
   const id = Number(raw);
@@ -26,6 +26,7 @@ const transferId = (raw: string): number | null => {
 export const generateMetadata = async ({
   params,
 }: PageProps<"/transfers/[id]">): Promise<Metadata> => {
+  await requireBackOffice();
   const route = await params;
   const id = transferId(route.id);
   const transfer = id === null ? null : await getTransfer(id);
@@ -248,7 +249,7 @@ const TransferPage = async ({
   searchParams,
 }: PageProps<"/transfers/[id]">) => {
   const [viewer, route, query] = await Promise.all([
-    requireViewer(),
+    requireBackOffice(),
     params,
     searchParams,
   ]);

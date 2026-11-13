@@ -9,7 +9,7 @@ import { noStockBranchMessage } from "@/lib/access-messages";
 import { canAdjust, operableBranchIds } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
 import { intParam, param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import { ADJUSTMENT_REASONS } from "@/lib/stock/reasons";
 
 export const metadata: Metadata = { title: "Adjust stock" };
@@ -21,7 +21,10 @@ const CHANGE_REASONS = ADJUSTMENT_REASONS.filter(
 const NewAdjustmentPage = async ({
   searchParams,
 }: PageProps<"/adjustments/new">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
 
   const [branches, scope] = await Promise.all([
     listBranches(),

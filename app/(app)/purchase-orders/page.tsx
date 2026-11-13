@@ -20,7 +20,7 @@ import {
 } from "@/lib/queries/purchase-orders";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { enumParam, intParam, queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import {
   PURCHASE_ORDER_STATUS_LABELS,
   PURCHASE_ORDER_STATUSES,
@@ -38,7 +38,11 @@ const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
 const PurchaseOrdersPage = async ({
   searchParams,
 }: PageProps<"/purchase-orders">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
+
   const page = intParam(params, "page", 1);
   const status = enumParam(params, "status", STATUSES, "all");
 

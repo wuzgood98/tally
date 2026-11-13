@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { formatCount, formatDate } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { getPurchaseOrder } from "@/lib/queries/purchase-orders";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import { COMPANY_NAME } from "@/lib/site";
 
 const orderId = (raw: string): number | null => {
@@ -19,6 +19,7 @@ const orderId = (raw: string): number | null => {
 export const generateMetadata = async ({
   params,
 }: PageProps<"/purchase-orders/[id]/print">): Promise<Metadata> => {
+  await requireBackOffice();
   const route = await params;
   const id = orderId(route.id);
   const order = id === null ? null : await getPurchaseOrder(id);
@@ -37,7 +38,7 @@ const WARNINGS = {
 const PrintPurchaseOrderPage = async ({
   params,
 }: PageProps<"/purchase-orders/[id]/print">) => {
-  const [, route] = await Promise.all([requireViewer(), params]);
+  const [, route] = await Promise.all([requireBackOffice(), params]);
   const id = orderId(route.id);
   const order = id === null ? null : await getPurchaseOrder(id);
 

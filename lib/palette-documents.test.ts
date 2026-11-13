@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { searchPaletteDocuments } from "@/lib/palette-documents";
+import {
+  documentAccessFor,
+  searchPaletteDocuments,
+} from "@/lib/palette-documents";
 import { draftPurchaseOrder } from "@/lib/stock/purchase-orders";
 import { receiveGoods } from "@/lib/stock/receive";
 import { recordSale } from "@/lib/stock/sales";
@@ -112,5 +115,40 @@ describe("searchPaletteDocuments", () => {
     });
     expect(await numbersFor("5012345678900")).toEqual([]);
     expect(await numbersFor("PO-SPX-999")).toEqual([]);
+  });
+
+  it("finds a cashier only their own store's sales and returns", async () => {
+    const access = documentAccessFor(world.spintexCashier, [SPINTEX, KUMASI]);
+
+    const { documents } = await searchPaletteDocuments(
+      world.db,
+      "000001",
+      access
+    );
+
+    expect(documents.map((item) => item.number)).toEqual(["SAL-SPX-000001"]);
+
+    const kumasi = documentAccessFor(
+      { ...world.spintexCashier, branchId: KUMASI },
+      [SPINTEX, KUMASI]
+    );
+
+    const elsewhere = await searchPaletteDocuments(
+      world.db,
+      "SAL-SPX-000001",
+      kumasi
+    );
+
+    expect(elsewhere.documents).toEqual([]);
+  });
+
+  it("gives back-office staff every branch and every kind", () => {
+    for (const actor of [
+      world.admin,
+      world.spintexManager,
+      world.kumasiStorekeeper,
+    ]) {
+      expect(documentAccessFor(actor, [SPINTEX, KUMASI]).branchIds).toBeNull();
+    }
   });
 });

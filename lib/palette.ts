@@ -1,4 +1,5 @@
 import {
+  canBrowseBackOffice,
   canDraftPurchaseOrder,
   canManageCatalogue,
   canManageStaff,
@@ -66,7 +67,7 @@ const link = (
   keywords?: readonly string[]
 ): PaletteLink => ({ href, icon, keywords, kind: "link", label, value });
 
-const goTo = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
+const allPages = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
   const reports = canViewReports(viewer);
 
   return [
@@ -138,6 +139,17 @@ const goTo = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
       ? [link("go:/tills", "Tills", "/tills", "tills", ["api keys", "pos"])]
       : []),
   ];
+};
+
+/** Everything else in Go to is back office, which a cashier doesn't see. */
+const FRONT_OF_HOUSE = new Set(["go:/till", "go:/sales", "go:/products"]);
+
+const goTo = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
+  const pages = allPages(viewer, sellsSomewhere);
+
+  return canBrowseBackOffice(viewer)
+    ? pages
+    : pages.filter((page) => FRONT_OF_HOUSE.has(page.value));
 };
 
 const create = (

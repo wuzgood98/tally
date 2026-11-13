@@ -17,7 +17,7 @@ import type { ReorderLine } from "@/lib/queries/overview";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import type { BranchSummary, Scope } from "@/lib/scope";
 import { queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import type { Viewer } from "@/lib/session";
 import { topUpLinesParam } from "@/lib/stock/top-up";
 
@@ -96,7 +96,7 @@ const SupplierActions = ({
 );
 
 const LowStockPage = async () => {
-  const viewer = await requireViewer();
+  const viewer = await requireBackOffice();
 
   const [branches, scope] = await Promise.all([
     listBranches(),

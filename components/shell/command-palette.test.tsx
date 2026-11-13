@@ -342,6 +342,29 @@ describe("CommandPalette", () => {
     expect(switchScope).toHaveBeenCalledWith("KSI");
   });
 
+  it("has no Branch group for someone fixed to their store", async () => {
+    const user = userEvent.setup();
+    render(
+      <CommandPalette
+        branches={[]}
+        groups={GROUPS}
+        onNavigate={push}
+        onSetTheme={setTheme}
+        onSignOut={signOut}
+        onSwitchScope={switchScope}
+        scope="SPX"
+        search={search}
+        theme="system"
+      >
+        <PaletteFieldTrigger />
+      </CommandPalette>
+    );
+    await user.keyboard("{Control>}k{/Control}");
+    await user.type(await screen.findByRole("combobox"), "branch");
+
+    expect(screen.queryByRole("option", { name: /Switch branch/u })).toBeNull();
+  });
+
   it("picks a theme from the theme page", async () => {
     const user = await openAndType("dark");
 

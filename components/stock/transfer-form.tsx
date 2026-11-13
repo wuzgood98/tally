@@ -83,7 +83,7 @@ const totals = (lines: readonly TransferDraftLine[]) => {
   for (const line of lines) {
     const quantity = wholeNumber(line.quantity) ?? 0;
     units += quantity;
-    value += quantity * line.product.averageCost;
+    value += quantity * (line.product.averageCost ?? 0);
   }
 
   return { units, value };

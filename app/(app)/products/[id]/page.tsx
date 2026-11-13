@@ -14,6 +14,7 @@ import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import {
   canManageCatalogue,
+  canBrowseBackOffice,
   canSetReorderPoint,
   operableBranchIds,
 } from "@/lib/permissions";
@@ -57,6 +58,70 @@ const Fact = ({
     <dd className="tabular mt-0.5 font-medium">{children}</dd>
   </div>
 );
+
+const CostFacts = ({
+  averageCost,
+  sellPrice,
+  supplierName,
+}: {
+  readonly averageCost: number;
+  readonly sellPrice: number;
+  readonly supplierName: string | null;
+}) => {
+  const margin = sellPrice > 0 ? (sellPrice - averageCost) / sellPrice : 0;
+
+  return (
+    <>
+      <Fact label="Average cost">
+        {formatCedis(averageCost)}
+        <span className="text-ink-2 block text-xs font-normal">
+          {Math.round(margin * 100)}% margin
+        </span>
+      </Fact>
+      <Fact label="Supplier">{supplierName ?? "Not set"}</Fact>
+    </>
+  );
+};
+
+/** The latest movements: at the branch on screen, or everywhere. */
+const HistoryPanel = async ({
+  productId: id,
+  productName,
+  branchId,
+}: {
+  readonly productId: number;
+  readonly productName: string;
+  readonly branchId: string | undefined;
+}) => {
+  const history = await listMovements({ branchId, productId: id }, HISTORY);
+
+  return (
+    <Panel
+      action={
+        <Link
+          className="text-brand text-sm font-medium hover:underline"
+          href={`/movements${queryString({ product: id })}`}
+        >
+          All movements
+        </Link>
+      }
+      flush
+      id="history"
+      title={branchId === undefined ? "History" : "History at this branch"}
+    >
+      {history.length === 0 ? (
+        <p className="text-ink-2 p-4 text-sm">No stock has moved yet.</p>
+      ) : (
+        <MovementTable
+          caption={`Stock movements for ${productName}`}
+          rows={history}
+          showBranch={branchId === undefined}
+          showProduct={false}
+        />
+      )}
+    </Panel>
+  );
+};
 
 const NOTICES = {
   adjusted: "Adjustment saved. The new balance is below.",
@@ -146,17 +211,11 @@ const ProductPage = async ({
 
   const historyBranch = scope.kind === "branch" ? scope.branchId : undefined;
 
-  const history = await listMovements(
-    { branchId: historyBranch, productId: item.id },
-    HISTORY
-  );
+  // A cashier sees where it is and the shelf price: no cost, supplier,
+  // reorder figures or history.
+  const backOffice = canBrowseBackOffice(viewer);
 
   const totalOnHand = levels.reduce((sum, level) => sum + level.onHand, 0);
-
-  const margin =
-    item.sellPrice > 0
-      ? (item.sellPrice - item.averageCost) / item.sellPrice
-      : 0;
 
   const ownBranches = operableBranchIds(
     viewer,
@@ -252,31 +311,34 @@ const ProductPage = async ({
             </span>
           </Fact>
           <Fact label="Shelf price">{formatCedis(item.sellPrice)}</Fact>
-          <Fact label="Average cost">
-            {formatCedis(item.averageCost)}
-            <span className="text-ink-2 block text-xs font-normal">
-              {Math.round(margin * 100)}% margin
-            </span>
-          </Fact>
-          <Fact label="Supplier">{item.supplierName ?? "Not set"}</Fact>
+          {backOffice ? (
+            <CostFacts
+              averageCost={item.averageCost}
+              sellPrice={item.sellPrice}
+              supplierName={item.supplierName}
+            />
+          ) : null}
         </dl>
       </Panel>
 
       <div className="grid gap-6">
         <Panel
           action={
-            <LevelsSummary
-              inTransit={inTransit}
-              onHand={totalOnHand}
-              onOrder={onOrder}
-              unit={item.unit}
-            />
+            backOffice ? (
+              <LevelsSummary
+                inTransit={inTransit}
+                onHand={totalOnHand}
+                onOrder={onOrder}
+                unit={item.unit}
+              />
+            ) : null
           }
           flush
           id="levels"
           title="Stock by branch"
         >
           <BranchStockTable
+            brief={!backOffice}
             highlightBranchId={historyBranch}
             inTransit={inTransit}
             levels={levels}
@@ -304,32 +366,13 @@ const ProductPage = async ({
           </Panel>
         ) : null}
 
-        <Panel
-          action={
-            <Link
-              className="text-brand text-sm font-medium hover:underline"
-              href={`/movements${queryString({ product: item.id })}`}
-            >
-              All movements
-            </Link>
-          }
-          flush
-          id="history"
-          title={
-            historyBranch === undefined ? "History" : "History at this branch"
-          }
-        >
-          {history.length === 0 ? (
-            <p className="text-ink-2 p-4 text-sm">No stock has moved yet.</p>
-          ) : (
-            <MovementTable
-              caption={`Stock movements for ${item.name}`}
-              rows={history}
-              showBranch={historyBranch === undefined}
-              showProduct={false}
-            />
-          )}
-        </Panel>
+        {backOffice ? (
+          <HistoryPanel
+            branchId={historyBranch}
+            productId={item.id}
+            productName={item.name}
+          />
+        ) : null}
       </div>
     </>
   );

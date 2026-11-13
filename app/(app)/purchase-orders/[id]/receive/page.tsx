@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/format";
 import { pesewasToInput } from "@/lib/money";
 import { canReceive } from "@/lib/permissions";
 import { getPurchaseOrder } from "@/lib/queries/purchase-orders";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Receive against an order" };
 
@@ -23,7 +23,7 @@ const orderId = (raw: string): number | null => {
 const ReceiveAgainstOrderPage = async ({
   params,
 }: PageProps<"/purchase-orders/[id]/receive">) => {
-  const [viewer, route] = await Promise.all([requireViewer(), params]);
+  const [viewer, route] = await Promise.all([requireBackOffice(), params]);
   const id = orderId(route.id);
   const order = id === null ? null : await getPurchaseOrder(id);
 

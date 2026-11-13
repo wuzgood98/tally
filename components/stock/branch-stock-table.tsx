@@ -27,6 +27,11 @@ interface BranchStockTableProps {
   readonly salesDays: number;
   /** The branch on screen, highlighted. */
   readonly highlightBranchId?: string;
+  /**
+   * Just where it is and how many: for a cashier, who doesn't need what's
+   * coming in, what's selling or when it's reordered.
+   */
+  readonly brief?: boolean;
 }
 
 /** Coming in: shown as "+12", or a dash when there's nothing. */
@@ -46,6 +51,7 @@ export const BranchStockTable = ({
   sold,
   salesDays,
   highlightBranchId,
+  brief = false,
 }: BranchStockTableProps) => (
   <Table>
     <caption className="sr-only">Stock of {productName} at each branch</caption>
@@ -54,10 +60,14 @@ export const BranchStockTable = ({
         <Th>Branch</Th>
         <Th>Location</Th>
         <Th numeric>On hand</Th>
-        <Th numeric>On the way</Th>
-        <Th numeric>On order</Th>
-        <Th numeric>Sold, {salesDays} days</Th>
-        <Th numeric>Reorder at</Th>
+        {brief ? null : (
+          <>
+            <Th numeric>On the way</Th>
+            <Th numeric>On order</Th>
+            <Th numeric>Sold, {salesDays} days</Th>
+            <Th numeric>Reorder at</Th>
+          </>
+        )}
         <Th>Status</Th>
       </tr>
     </thead>
@@ -88,19 +98,23 @@ export const BranchStockTable = ({
             <Td numeric weight="medium">
               {formatCount(level.onHand)}
             </Td>
-            <Incoming units={inTransit.get(level.branchId) ?? 0} />
-            <Incoming units={onOrder.get(level.branchId) ?? 0} />
-            <Td numeric tone="muted">
-              {level.branchKind === "warehouse"
-                ? "—"
-                : formatCount(sold.get(level.branchId) ?? 0)}
-            </Td>
-            <Td numeric tone="muted">
-              {formatCount(threshold)}
-              {level.reorderOverride === null ? null : (
-                <span className="sr-only"> (set for this branch)</span>
-              )}
-            </Td>
+            {brief ? null : (
+              <>
+                <Incoming units={inTransit.get(level.branchId) ?? 0} />
+                <Incoming units={onOrder.get(level.branchId) ?? 0} />
+                <Td numeric tone="muted">
+                  {level.branchKind === "warehouse"
+                    ? "—"
+                    : formatCount(sold.get(level.branchId) ?? 0)}
+                </Td>
+                <Td numeric tone="muted">
+                  {formatCount(threshold)}
+                  {level.reorderOverride === null ? null : (
+                    <span className="sr-only"> (set for this branch)</span>
+                  )}
+                </Td>
+              </>
+            )}
             <Td>
               {level.stocked ? (
                 <StockBadge status={stockStatus(level.onHand, threshold)} />

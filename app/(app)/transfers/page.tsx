@@ -23,7 +23,7 @@ import {
 import type { TransferDirection } from "@/lib/queries/transfers";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { enumParam, intParam, queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import { TRANSFER_STATUS_LABELS } from "@/lib/stock/transfer-status";
 
 export const metadata: Metadata = { title: "Transfers" };
@@ -42,7 +42,11 @@ const DIRECTION_LABELS: Record<TransferDirection, string> = {
 };
 
 const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
+
   const page = intParam(params, "page", 1);
   const status = enumParam(params, "status", STATUSES, "all");
   const direction = enumParam(params, "direction", TRANSFER_DIRECTIONS, "both");

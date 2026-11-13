@@ -16,7 +16,7 @@ import { canRequestStock } from "@/lib/permissions";
 import { listStockRequests, REQUESTS_PAGE_SIZE } from "@/lib/queries/requests";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { enumParam, intParam, queryString } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import {
   STOCK_REQUEST_STATUS_LABELS,
   STOCK_REQUEST_STATUSES,
@@ -32,7 +32,11 @@ const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
 };
 
 const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
+
   const page = intParam(params, "page", 1);
   const status = enumParam(params, "status", STATUSES, "all");
 

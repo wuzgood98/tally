@@ -10,7 +10,7 @@ import { canDraftPurchaseOrder } from "@/lib/permissions";
 import { listSuppliers } from "@/lib/queries/products";
 import { getScope, listBranches } from "@/lib/scope";
 import { lineParam, param } from "@/lib/search-params";
-import { requireViewer } from "@/lib/session";
+import { requireBackOffice } from "@/lib/session";
 import { MAX_ORDER_LINES } from "@/lib/stock/purchase-orders";
 
 export const metadata: Metadata = { title: "New purchase order" };
@@ -39,7 +39,10 @@ const loadLines = async (text: string): Promise<DraftLine[]> => {
 const NewPurchaseOrderPage = async ({
   searchParams,
 }: PageProps<"/purchase-orders/new">) => {
-  const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
+  const [viewer, params] = await Promise.all([
+    requireBackOffice(),
+    searchParams,
+  ]);
 
   const [branches, suppliers, scope, initialLines] = await Promise.all([
     listBranches(),

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   canAdjust,
   canApprovePurchaseOrder,
+  canBrowseBackOffice,
+  canSeeBranch,
   canApproveReturn,
   canCancelDraftPurchaseOrder,
   canCancelTransfer,
@@ -16,6 +18,7 @@ import {
   canSetReorderPoint,
   operableBranchIds,
   sellableBranchIds,
+  visibleBranchIds,
 } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 
@@ -118,5 +121,21 @@ describe("permissions", () => {
     expect(canSetReorderPoint(storekeeper, "SPX")).toBe(false);
     expect(canManageCatalogue(manager)).toBe(false);
     expect(canManageCatalogue(admin)).toBe(true);
+  });
+
+  it("lets a cashier see only their own store and none of the back office", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+    const all = ["SPX", "KSI", "TMA"];
+
+    expect(visibleBranchIds(cashier, all)).toEqual(["SPX"]);
+    expect(canSeeBranch(cashier, "SPX")).toBe(true);
+    expect(canSeeBranch(cashier, "KSI")).toBe(false);
+    expect(canBrowseBackOffice(cashier)).toBe(false);
+
+    for (const actor of [admin, manager, storekeeper]) {
+      expect(visibleBranchIds(actor, all)).toEqual(all);
+      expect(canSeeBranch(actor, "KSI")).toBe(true);
+      expect(canBrowseBackOffice(actor)).toBe(true);
+    }
   });
 });
