@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { findPaletteProducts } from "@/app/(app)/palette-action";
+import { findPaletteResults } from "@/app/(app)/palette-action";
 import { signOut } from "@/app/login/actions";
 import { CommandPalette } from "@/components/shell/command-palette";
 import type { PaletteGroup } from "@/lib/palette";
@@ -27,7 +27,7 @@ export const CommandPaletteProvider = ({
         router.push(href);
       }}
       onSignOut={signOut}
-      searchProducts={findPaletteProducts}
+      search={findPaletteResults}
     >
       {children}
     </CommandPalette>

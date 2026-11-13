@@ -6,6 +6,8 @@ import { createAgent } from "@ui-sdk/react/agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PaletteGroup } from "@/lib/palette";
+import type { PaletteDocument } from "@/lib/palette-documents";
+import type { PaletteResults } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
 
 import {
@@ -52,9 +54,30 @@ const matchingProducts = (text: string): PaletteProduct[] => {
   );
 };
 
-const searchProducts = vi.fn(
-  async (text: string): Promise<PaletteProduct[]> =>
-    await Promise.resolve(matchingProducts(text))
+const ORDER: PaletteDocument = {
+  detail: "Spintex · Draft",
+  exact: false,
+  href: "/purchase-orders/3",
+  kind: "Purchase order",
+  number: "PO-SPX-000012",
+};
+
+const matchingDocuments = (text: string): PaletteDocument[] => {
+  const needle = text.trim().toUpperCase();
+
+  if (needle === "PO-SPX-000012") {
+    return [{ ...ORDER, exact: true }];
+  }
+
+  return needle.endsWith("12") ? [ORDER] : [];
+};
+
+const search = vi.fn(
+  async (text: string): Promise<PaletteResults> =>
+    await Promise.resolve({
+      documents: matchingDocuments(text),
+      products: matchingProducts(text),
+    })
 );
 
 const GROUPS: PaletteGroup[] = [
@@ -109,7 +132,7 @@ const renderPalette = () =>
       groups={GROUPS}
       onNavigate={push}
       onSignOut={signOut}
-      searchProducts={searchProducts}
+      search={search}
     >
       <PaletteFieldTrigger />
       <PaletteIconTrigger />
@@ -121,7 +144,7 @@ const agent = createAgent();
 beforeEach(() => {
   push.mockClear();
   signOut.mockClear();
-  searchProducts.mockClear();
+  search.mockClear();
 });
 
 const openAndType = async (text: string) => {
@@ -225,7 +248,7 @@ describe("CommandPalette", () => {
     const user = await openAndType("low");
 
     await vi.waitFor(() => {
-      expect(searchProducts).toHaveBeenCalledWith("low");
+      expect(search).toHaveBeenCalledWith("low");
     });
 
     const first = screen
@@ -243,10 +266,30 @@ describe("CommandPalette", () => {
     expect(push).toHaveBeenCalledWith("/products?q=rice");
   });
 
-  it("doesn't search products for a single letter", async () => {
+  it("finds a document by number and opens it", async () => {
+    const user = await openAndType("po 12");
+    const order = await screen.findByRole("option", { name: /PO-SPX-000012/u });
+
+    expect(order.textContent).toContain("Spintex · Draft");
+
+    await user.keyboard("{Enter}");
+
+    expect(push).toHaveBeenCalledWith("/purchase-orders/3");
+  });
+
+  it("opens a whole document number with Enter, above matching pages", async () => {
+    const user = await openAndType("PO-SPX-000012");
+
+    await screen.findByRole("option", { name: /PO-SPX-000012/u });
+    await user.keyboard("{Enter}");
+
+    expect(push).toHaveBeenCalledWith("/purchase-orders/3");
+  });
+
+  it("doesn't search for a single letter", async () => {
     await openAndType("r");
 
-    expect(searchProducts).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it("lets an agent find the palette and search it", async () => {

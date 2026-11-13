@@ -8,7 +8,7 @@ import {
 } from "@ui-sdk/react/command";
 import { ArrowRight, Package } from "lucide-react";
 
-import { productValue, SEE_ALL_PRODUCTS } from "@/lib/palette-products";
+import { productValue, SEE_ALL_PRODUCTS } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
 import { cn } from "@/lib/utils";
 

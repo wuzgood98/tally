@@ -48,13 +48,15 @@ import type { ReactNode } from "react";
 import type { PaletteCommand, PaletteGroup, PaletteIcon } from "@/lib/palette";
 import { paletteScore } from "@/lib/palette-filter";
 import {
-  MIN_PRODUCT_QUERY,
-  productHref,
-  productScore,
-} from "@/lib/palette-products";
-import type { ProductSearch } from "@/lib/palette-products";
-import type { PaletteProduct } from "@/lib/palette-search";
+  documentsFirst,
+  hitsOf,
+  MIN_SEARCH_LENGTH,
+  resultHref,
+  resultScore,
+} from "@/lib/palette-results";
+import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
 
+import { DocumentResults } from "./palette-documents";
 import { ProductResults } from "./palette-products";
 
 const SHORTCUT = "mod+k";
@@ -134,7 +136,7 @@ export interface CommandPaletteProps {
   readonly children: ReactNode;
   readonly onNavigate: (href: string) => void;
   readonly onSignOut: () => Promise<void>;
-  readonly searchProducts: ProductSearch;
+  readonly search: PaletteSearch;
 }
 
 /**
@@ -148,21 +150,29 @@ export const CommandPalette = ({
   children,
   onNavigate,
   onSignOut,
-  searchProducts,
+  search,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
   const [query, setQuery] = useState("");
 
-  const products = useAsyncOptions<PaletteProduct>(
+  const results = useAsyncOptions<PaletteHit>(
     async (text) =>
-      text.trim().length < MIN_PRODUCT_QUERY ? [] : await searchProducts(text),
+      text.trim().length < MIN_SEARCH_LENGTH ? [] : hitsOf(await search(text)),
     { debounce: 150 }
+  );
+
+  const products = results.items.flatMap((hit) =>
+    hit.type === "product" ? [hit.product] : []
+  );
+
+  const documents = results.items.flatMap((hit) =>
+    hit.type === "document" ? [hit.document] : []
   );
 
   const changeQuery = (text: string): void => {
     setQuery(text);
-    products.setQuery(text);
+    results.setQuery(text);
   };
 
   const byValue = useMemo(
@@ -184,11 +194,11 @@ export const CommandPalette = ({
   );
 
   const run = async (value: string): Promise<void> => {
-    const productPage = productHref(value, query);
+    const resultPage = resultHref(value, query, results.items);
 
-    if (productPage !== null) {
+    if (resultPage !== null) {
       palette.close();
-      onNavigate(productPage);
+      onNavigate(resultPage);
 
       return;
     }
@@ -231,14 +241,14 @@ export const CommandPalette = ({
           <Command
             className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
             filter={(item, text) =>
-              productScore(item.value, products.items) ??
+              resultScore(item.value, text, results.items) ??
               paletteScore(item, text)
             }
             onAction={run}
             onQueryChange={changeQuery}
             pendingAnnouncement="Working…"
             query={query}
-            status={products.status}
+            status={results.status}
           >
             <div className="border-line flex items-center gap-2.5 border-b px-4">
               <Search
@@ -249,7 +259,7 @@ export const CommandPalette = ({
                 aria-label={TITLE}
                 autoComplete="off"
                 className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
-                placeholder="Search pages, actions and products…"
+                placeholder="Search pages, products and document numbers…"
               />
             </div>
             <CommandEmpty className="text-ink-3 text-center text-sm data-empty:px-4 data-empty:py-8">
@@ -268,7 +278,17 @@ export const CommandPalette = ({
                 {groups.map((group) => (
                   <CommandGroupOf group={group} key={group.label} />
                 ))}
-                <ProductResults products={products.items} query={query} />
+                {documentsFirst(query) ? (
+                  <>
+                    <DocumentResults documents={documents} />
+                    <ProductResults products={products} query={query} />
+                  </>
+                ) : (
+                  <>
+                    <ProductResults products={products} query={query} />
+                    <DocumentResults documents={documents} />
+                  </>
+                )}
               </>
             </CommandList>
           </Command>
