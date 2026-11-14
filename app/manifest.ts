@@ -5,8 +5,8 @@ import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 
 /** Installable on a till or a storeroom tablet, opening straight to work. */
 const manifest = (): MetadataRoute.Manifest => ({
-  // Night shift is dark-first: the splash and title bar match the app.
-  background_color: BRAND_COLORS.night,
+  // The splash and title bar match the default light theme.
+  background_color: BRAND_COLORS.day,
   categories: ["business", "productivity"],
   description: SITE_DESCRIPTION,
   display: "standalone",
@@ -40,7 +40,7 @@ const manifest = (): MetadataRoute.Manifest => ({
     { name: "Receive goods", short_name: "Receive", url: "/receipts/new" },
   ],
   start_url: "/",
-  theme_color: BRAND_COLORS.night,
+  theme_color: BRAND_COLORS.day,
 });
 
 export default manifest;

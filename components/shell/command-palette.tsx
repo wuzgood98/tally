@@ -236,7 +236,7 @@ export interface CommandPaletteProps {
   readonly scope: string;
   readonly onSwitchScope: (scope: string) => Promise<void>;
   readonly theme: Theme;
-  readonly onSetTheme: (theme: Theme) => Promise<void>;
+  readonly onSetTheme: (theme: Theme) => void;
   /** The desktop sidebar, when there is one to collapse or expand. */
   readonly sidebar?: SidebarState;
 }
@@ -334,7 +334,7 @@ export const CommandPalette = ({
     const nextTheme = themeOf(value);
 
     if (nextTheme !== null) {
-      await onSetTheme(nextTheme);
+      onSetTheme(nextTheme);
       palette.close();
 
       return;

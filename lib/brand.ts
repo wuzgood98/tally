@@ -16,9 +16,11 @@ export const BRAND_COLORS = {
   accentInk: "#0a1530",
   /** The inset canvas pages sit on. */
   canvas: "#0f1012",
+  /** The light theme's page colour, the default: the installed app's splash and title bar. */
+  day: "#e9ebef",
   /** Hairlines between rows and around panels. */
   line: "#222328",
-  /** The dark theme's page colour: the social card, splash and title bar. */
+  /** The dark theme's page colour: the social card. */
   night: "#08090a",
   nightInk: "#ededef",
   nightInkFaint: "#6b6c74",

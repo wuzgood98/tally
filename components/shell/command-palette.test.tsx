@@ -84,8 +84,8 @@ const switchScope = vi.fn(async (_scope: string) => {
   /* the app's action sets the scope cookie */
 });
 
-const setTheme = vi.fn(async (_theme: string) => {
-  /* the app's action sets the theme cookie */
+const setTheme = vi.fn((_theme: string) => {
+  /* the app's provider hands it to next-themes */
 });
 
 const BRANCHES = [
