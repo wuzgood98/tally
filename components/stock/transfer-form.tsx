@@ -10,6 +10,7 @@ import { TransferLineRow } from "@/components/stock/transfer-line-row";
 import type { TransferDraftLine } from "@/components/stock/transfer-line-row";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame, FramePanel } from "@/components/ui/frame";
 import { Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
@@ -174,91 +175,100 @@ export const TransferForm = ({
 
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
-      <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
-        <Field>
-          <FieldLabel>Send from</FieldLabel>
-          <Select
-            disabled={sources.length === 1}
-            name="fromBranchId"
-            onValueChange={(value) => {
-              setFromId(value ?? "");
+      <Frame>
+        <FramePanel>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel>Send from</FieldLabel>
+              <Select
+                disabled={sources.length === 1}
+                name="fromBranchId"
+                onValueChange={(value) => {
+                  setFromId(value ?? "");
 
-              if (value === toId) {
-                setToId("");
-              }
-            }}
-            options={namedOptions(sources)}
-            value={fromId}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>Send to</FieldLabel>
-          <Select
-            name="toBranchId"
-            onValueChange={(value) => {
-              setToId(value ?? "");
-              setError(null);
-            }}
-            options={namedOptions(
-              destinations.filter((branch) => branch.id !== fromId)
-            )}
-            placeholder="Choose a branch"
-            required
-            value={toId === "" ? null : toId}
-          />
-        </Field>
-      </div>
-
-      <div className="border-line bg-surface rounded-xl border">
-        <div className="border-line border-b p-4">
-          <ProductPicker
-            autoFocus={initialLines.length === 0}
-            label="Add products"
-            onPick={addProduct}
-          />
-        </div>
-        {lines.length === 0 ? (
-          <p className="text-ink-2 p-6 text-center text-sm">
-            Nothing on this transfer yet. Scan the first item.
-          </p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Products on this transfer</caption>
-              <thead>
-                <tr className="text-ink-2 border-line border-b text-left text-xs">
-                  <th className="px-4 py-2 font-medium" scope="col">
-                    Product
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    At {from?.name ?? "sender"}
-                  </th>
-                  <th
-                    className="w-28 px-2 py-2 text-right font-medium"
-                    scope="col"
-                  >
-                    Send
-                  </th>
-                  <th className="w-12 px-2 py-2" scope="col">
-                    <span className="sr-only">Remove</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((line) => (
-                  <TransferLineRow
-                    available={available(line, fromId)}
-                    key={line.product.id}
-                    line={line}
-                    onChange={update}
-                    onRemove={remove}
-                  />
-                ))}
-              </tbody>
-            </table>
+                  if (value === toId) {
+                    setToId("");
+                  }
+                }}
+                options={namedOptions(sources)}
+                value={fromId}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Send to</FieldLabel>
+              <Select
+                name="toBranchId"
+                onValueChange={(value) => {
+                  setToId(value ?? "");
+                  setError(null);
+                }}
+                options={namedOptions(
+                  destinations.filter((branch) => branch.id !== fromId)
+                )}
+                placeholder="Choose a branch"
+                required
+                value={toId === "" ? null : toId}
+              />
+            </Field>
           </div>
-        )}
-      </div>
+        </FramePanel>
+      </Frame>
+
+      <Frame>
+        <FramePanel flush>
+          <div className="border-line border-b p-4">
+            <ProductPicker
+              autoFocus={initialLines.length === 0}
+              label="Add products"
+              onPick={addProduct}
+            />
+          </div>
+          {lines.length === 0 ? (
+            <p className="text-ink-2 p-6 text-center text-sm">
+              Nothing on this transfer yet. Scan the first item.
+            </p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Products on this transfer</caption>
+                <thead>
+                  <tr className="text-ink-2 border-line border-b text-left text-xs">
+                    <th className="px-4 py-2 font-medium" scope="col">
+                      Product
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      At {from?.name ?? "sender"}
+                    </th>
+                    <th
+                      className="w-28 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Send
+                    </th>
+                    <th className="w-12 px-2 py-2" scope="col">
+                      <span className="sr-only">Remove</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <TransferLineRow
+                      available={available(line, fromId)}
+                      key={line.product.id}
+                      line={line}
+                      onChange={update}
+                      onRemove={remove}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </FramePanel>
+      </Frame>
 
       <Field>
         <FieldLabel>

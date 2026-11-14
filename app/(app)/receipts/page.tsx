@@ -55,7 +55,20 @@ const ReceiptsPage = async ({ searchParams }: PageProps<"/receipts">) => {
         description={`Deliveries from suppliers, newest first · ${scopeLabel(scope, branches)}`}
         title="Goods received"
       />
-      <Panel flush>
+      <Panel
+        flush
+        footer={
+          <Pagination
+            href={(target) =>
+              `/receipts${queryString({ page: target > 1 ? target : null })}`
+            }
+            noun="receipts"
+            page={page}
+            pageSize={RECEIPTS_PAGE_SIZE}
+            total={total}
+          />
+        }
+      >
         {rows.length === 0 ? (
           <p className="text-ink-2 p-8 text-center text-sm">
             No deliveries recorded yet.
@@ -122,17 +135,6 @@ const ReceiptsPage = async ({ searchParams }: PageProps<"/receipts">) => {
             </tbody>
           </Table>
         )}
-        <div className="border-line border-t">
-          <Pagination
-            href={(target) =>
-              `/receipts${queryString({ page: target > 1 ? target : null })}`
-            }
-            noun="receipts"
-            page={page}
-            pageSize={RECEIPTS_PAGE_SIZE}
-            total={total}
-          />
-        </div>
       </Panel>
     </>
   );

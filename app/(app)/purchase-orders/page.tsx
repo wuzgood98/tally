@@ -100,7 +100,20 @@ const PurchaseOrdersPage = async ({
         </button>
       </form>
 
-      <Panel flush>
+      <Panel
+        flush
+        footer={
+          <Pagination
+            href={(target) =>
+              `/purchase-orders${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
+            }
+            noun="orders"
+            page={page}
+            pageSize={PURCHASE_ORDERS_PAGE_SIZE}
+            total={total}
+          />
+        }
+      >
         {rows.length === 0 ? (
           <p className="text-ink-2 p-8 text-center text-sm">
             No purchase orders match.
@@ -166,17 +179,6 @@ const PurchaseOrdersPage = async ({
             </tbody>
           </Table>
         )}
-        <div className="border-line border-t">
-          <Pagination
-            href={(target) =>
-              `/purchase-orders${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
-            }
-            noun="orders"
-            page={page}
-            pageSize={PURCHASE_ORDERS_PAGE_SIZE}
-            total={total}
-          />
-        </div>
       </Panel>
     </>
   );

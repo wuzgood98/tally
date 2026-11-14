@@ -9,6 +9,7 @@ import { requestStockAction } from "@/app/(app)/requests/actions";
 import { ProductPicker } from "@/components/stock/product-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
@@ -188,72 +189,82 @@ export const RequestForm = ({
         </Field>
       ) : null}
 
-      <div className="border-line bg-surface rounded-xl border">
-        <div className="border-line border-b p-4">
-          <ProductPicker
-            autoFocus={initialLines.length === 0}
-            label="Add products"
-            onPick={addProduct}
-          />
-        </div>
-        {lines.length === 0 ? (
-          <p className="text-ink-2 p-6 text-center text-sm">
-            Nothing requested yet. Scan or find the first product.
-          </p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Products requested</caption>
-              <thead>
-                <tr className="text-ink-2 border-line border-b text-left text-xs">
-                  <th className="px-4 py-2 font-medium" scope="col">
-                    Product
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    Here
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    At {warehouse.name}
-                  </th>
-                  <th
-                    className="w-28 px-2 py-2 text-right font-medium"
-                    scope="col"
-                  >
-                    Request
-                  </th>
-                  <th className="w-12 px-2 py-2" scope="col">
-                    <span className="sr-only">Remove</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((line) => (
-                  <RequestLineRow
-                    key={line.product.id}
-                    line={line}
-                    onChange={(productId, quantity) => {
-                      setLines((current) =>
-                        current.map((item) =>
-                          item.product.id === productId
-                            ? { ...item, quantity }
-                            : item
-                        )
-                      );
-                    }}
-                    onRemove={(productId) => {
-                      setLines((current) =>
-                        current.filter((item) => item.product.id !== productId)
-                      );
-                    }}
-                    storeId={storeId}
-                    warehouseId={warehouse.id}
-                  />
-                ))}
-              </tbody>
-            </table>
+      <Frame>
+        <FramePanel flush>
+          <div className="border-line border-b p-4">
+            <ProductPicker
+              autoFocus={initialLines.length === 0}
+              label="Add products"
+              onPick={addProduct}
+            />
           </div>
-        )}
-      </div>
+          {lines.length === 0 ? (
+            <p className="text-ink-2 p-6 text-center text-sm">
+              Nothing requested yet. Scan or find the first product.
+            </p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Products requested</caption>
+                <thead>
+                  <tr className="text-ink-2 border-line border-b text-left text-xs">
+                    <th className="px-4 py-2 font-medium" scope="col">
+                      Product
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Here
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      At {warehouse.name}
+                    </th>
+                    <th
+                      className="w-28 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Request
+                    </th>
+                    <th className="w-12 px-2 py-2" scope="col">
+                      <span className="sr-only">Remove</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <RequestLineRow
+                      key={line.product.id}
+                      line={line}
+                      onChange={(productId, quantity) => {
+                        setLines((current) =>
+                          current.map((item) =>
+                            item.product.id === productId
+                              ? { ...item, quantity }
+                              : item
+                          )
+                        );
+                      }}
+                      onRemove={(productId) => {
+                        setLines((current) =>
+                          current.filter(
+                            (item) => item.product.id !== productId
+                          )
+                        );
+                      }}
+                      storeId={storeId}
+                      warehouseId={warehouse.id}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </FramePanel>
+      </Frame>
 
       <Field>
         <FieldLabel>

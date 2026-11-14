@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Frame, FramePanel } from "@/components/ui/frame";
 import { cn } from "@/lib/utils";
 
 interface StatProps {
@@ -26,14 +27,11 @@ export const StatGroup = ({
   /** Columns only, such as `grid-cols-2 xl:grid-cols-4`. */
   readonly className?: string;
 }) => (
-  <div
-    className={cn(
-      "border-line bg-line grid gap-px overflow-hidden rounded-xl border",
-      className
-    )}
-  >
-    {children}
-  </div>
+  <Frame>
+    <FramePanel clip flush>
+      <div className={cn("bg-line grid gap-px", className)}>{children}</div>
+    </FramePanel>
+  </Frame>
 );
 
 export const Stat = ({
