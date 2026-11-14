@@ -110,6 +110,7 @@ const GROUPS: PaletteGroup[] = [
         keywords: ["reorder"],
         kind: "link",
         label: "Low stock",
+        shortcut: "alt+shift+l",
         value: "go:/low-stock",
       },
     ],
@@ -215,6 +216,44 @@ describe("CommandPalette", () => {
     expect(push).toHaveBeenCalledWith("/transfers/new");
   });
 
+  it("goes to a page from its shortcut, palette closed", async () => {
+    const user = userEvent.setup();
+    renderPalette();
+
+    await user.keyboard("{Alt>}{Shift>}l{/Shift}{/Alt}");
+
+    expect(push).toHaveBeenCalledWith("/low-stock");
+  });
+
+  it("shows a command's shortcut on its row and the keys in the footer", async () => {
+    const user = userEvent.setup();
+    renderPalette();
+
+    await user.keyboard("{Control>}k{/Control}");
+    await screen.findByRole("combobox");
+
+    const lowStock = screen
+      .getByText("Low stock")
+      .closest('[data-slot="command-item"]');
+
+    expect(lowStock?.getAttribute("aria-keyshortcuts")).toBe("Alt+Shift+L");
+    expect(lowStock?.querySelector("kbd")?.textContent).toContain(
+      "Alt+Shift+L"
+    );
+
+    const overview = screen
+      .getByText("Overview")
+      .closest('[data-slot="command-item"]');
+
+    expect(overview?.querySelector("kbd")).toBeNull();
+
+    for (const label of ["Open", "Move", "Close"]) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+
+    expect(screen.queryByText("Back")).toBeNull();
+  });
+
   it("signs out without navigating", async () => {
     const user = userEvent.setup();
     renderPalette();
@@ -276,7 +315,7 @@ describe("CommandPalette", () => {
       .getAllByRole("option")
       .find((option) => option.hidden === false);
 
-    expect(first?.textContent).toBe("Low stock");
+    expect(first).toBe(screen.getByRole("option", { name: "Low stock" }));
 
     await user.clear(screen.getByRole("combobox"));
     await user.type(screen.getByRole("combobox"), "rice");

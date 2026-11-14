@@ -20,6 +20,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@ui-sdk/react/dialog";
+import {
+  ScrollArea,
+  ScrollAreaContent,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from "@ui-sdk/react/scroll-area";
 import { useShortcut, useShortcutHint } from "@ui-sdk/react/shortcuts";
 import {
   ChartColumn,
@@ -46,8 +53,14 @@ import type { LucideIcon } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { Kbd } from "@/components/ui/kbd";
 import { ACCOUNT_GROUP } from "@/lib/palette";
-import type { PaletteCommand, PaletteGroup, PaletteIcon } from "@/lib/palette";
+import type {
+  PaletteCommand,
+  PaletteGroup,
+  PaletteIcon,
+  PaletteLink,
+} from "@/lib/palette";
 import { BRANCH_PAGE, scopeOf } from "@/lib/palette-branches";
 import type { PaletteBranch } from "@/lib/palette-branches";
 import { paletteScore } from "@/lib/palette-filter";
@@ -61,6 +74,7 @@ import {
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
 import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
 import type { Theme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
@@ -108,11 +122,23 @@ const usePalette = (): PaletteController => {
   return palette;
 };
 
-const PaletteItem = ({ command }: { readonly command: PaletteCommand }) => {
+interface ShortcutHint {
+  readonly text: string;
+  readonly ariaKeyshortcuts: string;
+}
+
+const PaletteRow = ({
+  command,
+  hint,
+}: {
+  readonly command: PaletteCommand;
+  readonly hint?: ShortcutHint;
+}) => {
   const Icon = ICONS[command.icon];
 
   return (
     <CommandItem
+      aria-keyshortcuts={hint?.ariaKeyshortcuts}
       className="text-ink-2 data-highlighted:bg-ink/6 data-highlighted:text-ink flex min-h-9 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-sm outline-none select-none data-pending:cursor-progress data-pending:opacity-60"
       keywords={
         command.keywords === undefined ? undefined : [...command.keywords]
@@ -123,8 +149,87 @@ const PaletteItem = ({ command }: { readonly command: PaletteCommand }) => {
       <CommandItemIcon className="text-ink-3 [&_svg]:size-4">
         <Icon aria-hidden="true" />
       </CommandItemIcon>
-      <span className="truncate">{command.label}</span>
+      <span className="grow truncate">{command.label}</span>
+      {hint === undefined ? null : (
+        // Keys only help where there's a keyboard.
+        <Kbd aria-hidden="true" className="pointer-coarse:hidden">
+          {hint.text}
+        </Kbd>
+      )}
     </CommandItem>
+  );
+};
+
+const ShortcutRow = ({
+  command,
+  shortcut,
+}: {
+  readonly command: PaletteCommand;
+  readonly shortcut: string;
+}) => <PaletteRow command={command} hint={useShortcutHint(shortcut)} />;
+
+const PaletteItem = ({ command }: { readonly command: PaletteCommand }) =>
+  command.shortcut === undefined ? (
+    <PaletteRow command={command} />
+  ) : (
+    <ShortcutRow command={command} shortcut={command.shortcut} />
+  );
+
+/** Registers one command's shortcut for as long as the app is open. */
+const CommandShortcut = ({
+  command,
+  onOpen,
+  shortcut,
+}: {
+  readonly command: PaletteLink;
+  readonly onOpen: (href: string) => void;
+  readonly shortcut: string;
+}) => {
+  useShortcut(
+    shortcut,
+    () => {
+      onOpen(command.href);
+    },
+    { description: command.label }
+  );
+
+  return null;
+};
+
+const FooterKey = ({
+  className,
+  keys,
+  label,
+}: {
+  readonly keys: readonly string[];
+  readonly label: string;
+  readonly className?: string;
+}) => (
+  <span className={cn("flex items-center gap-1.5", className)}>
+    <span className="flex gap-0.5">
+      {keys.map((key) => (
+        <Kbd key={key}>{key}</Kbd>
+      ))}
+    </span>
+    {label}
+  </span>
+);
+
+/** How to drive the palette from the keyboard. Hidden on touch screens. */
+const PaletteFooter = ({ onSubPage }: { readonly onSubPage: boolean }) => {
+  const enter = useShortcutHint("enter");
+  const backspace = useShortcutHint("backspace");
+
+  return (
+    <div
+      aria-hidden="true"
+      className="border-line text-ink-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2.5 text-xs pointer-coarse:hidden"
+    >
+      <FooterKey keys={[enter.text]} label="Open" />
+      <FooterKey keys={["↑", "↓"]} label="Move" />
+      {onSubPage ? <FooterKey keys={[backspace.text]} label="Back" /> : null}
+      <FooterKey className="ms-auto" keys={["Esc"]} label="Close" />
+    </div>
   );
 };
 
@@ -274,6 +379,21 @@ export const CommandPalette = ({
   return (
     <PaletteContext value={palette}>
       {children}
+      {groups.flatMap((group) =>
+        group.commands.map((command) =>
+          command.kind === "link" && command.shortcut !== undefined ? (
+            <CommandShortcut
+              command={command}
+              key={command.value}
+              onOpen={(href) => {
+                palette.close();
+                onNavigate(href);
+              }}
+              shortcut={command.shortcut}
+            />
+          ) : null
+        )
+      )}
       <Dialog
         controller={palette}
         onOpenChange={(open) => {
@@ -287,7 +407,7 @@ export const CommandPalette = ({
       >
         <DialogBackdrop className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs transition-opacity duration-150 data-ending-style:opacity-0 motion-reduce:transition-none" />
         <DialogContent
-          className="border-line-strong bg-surface text-ink shadow-float z-50 flex w-full flex-col gap-0 overflow-hidden border p-0 font-sans data-[presentation=dialog]:mx-auto data-[presentation=dialog]:mt-[12vh] data-[presentation=dialog]:mb-auto data-[presentation=dialog]:max-h-[min(32rem,76vh)] data-[presentation=dialog]:w-[calc(100%-2rem)] data-[presentation=dialog]:max-w-xl data-[presentation=dialog]:rounded-2xl data-[presentation=dialog]:transition data-[presentation=dialog]:duration-150 data-[presentation=dialog]:data-ending-style:scale-98 data-[presentation=dialog]:data-ending-style:opacity-0 data-[presentation=sheet]:max-h-[80svh] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 motion-reduce:data-[presentation=dialog]:transition-none"
+          className="border-line-strong bg-surface text-ink shadow-float z-50 flex w-full flex-col gap-0 overflow-hidden border p-0 font-sans data-[presentation=dialog]:mx-auto data-[presentation=dialog]:mt-[12vh] data-[presentation=dialog]:mb-auto data-[presentation=dialog]:max-h-[min(32rem,76vh)] data-[presentation=dialog]:w-[calc(100%-2rem)] data-[presentation=dialog]:max-w-xl data-[presentation=dialog]:rounded-2xl data-[presentation=dialog]:transition data-[presentation=dialog]:duration-150 data-[presentation=dialog]:data-ending-style:scale-98 data-[presentation=dialog]:data-ending-style:opacity-0 data-[presentation=sheet]:max-h-[min(80svh,calc(var(--visual-viewport-height,100svh)-0.5rem))] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 motion-reduce:data-[presentation=dialog]:transition-none"
           keepMounted
         >
           <DialogTitle className="sr-only">{TITLE}</DialogTitle>
@@ -328,35 +448,62 @@ export const CommandPalette = ({
                   : `Nothing matches “${query.trim()}”.`;
               }}
             </CommandEmpty>
-            <CommandList className="pb-safe max-h-none min-h-0 [scrollbar-width:thin] overflow-y-auto overscroll-contain px-2 pt-2">
-              <CommandPage>
-                {groups.map((group) =>
-                  group.label === ACCOUNT_GROUP ? null : (
-                    <CommandGroupOf group={group} key={group.label} />
-                  )
-                )}
-                <BranchGroup branches={branches} query={query} scope={scope} />
-                <ThemeGroup theme={theme} />
-                {groups.map((group) =>
-                  group.label === ACCOUNT_GROUP ? (
-                    <CommandGroupOf group={group} key={group.label} />
-                  ) : null
-                )}
-                {documentsFirst(query) ? (
-                  <>
-                    <DocumentResults documents={documents} />
-                    <ProductResults products={products} query={query} />
-                  </>
-                ) : (
-                  <>
-                    <ProductResults products={products} query={query} />
-                    <DocumentResults documents={documents} />
-                  </>
-                )}
-              </CommandPage>
-              <BranchPage branches={branches} scope={scope} />
-              <ThemePage theme={theme} />
-            </CommandList>
+            <ScrollArea className="flex min-h-0 flex-col rounded-none border-0">
+              <ScrollAreaViewport
+                aria-label="Commands"
+                // Scroll padding as tall as the fades keeps the highlight clear of them.
+                className="h-auto min-h-0 flex-1 scroll-py-8 overscroll-contain"
+              >
+                <ScrollAreaContent className="p-0">
+                  <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
+                    <CommandPage>
+                      {groups.map((group) =>
+                        group.label === ACCOUNT_GROUP ? null : (
+                          <CommandGroupOf group={group} key={group.label} />
+                        )
+                      )}
+                      <BranchGroup
+                        branches={branches}
+                        query={query}
+                        scope={scope}
+                      />
+                      <ThemeGroup theme={theme} />
+                      {groups.map((group) =>
+                        group.label === ACCOUNT_GROUP ? (
+                          <CommandGroupOf group={group} key={group.label} />
+                        ) : null
+                      )}
+                      {documentsFirst(query) ? (
+                        <>
+                          <DocumentResults documents={documents} />
+                          <ProductResults products={products} query={query} />
+                        </>
+                      ) : (
+                        <>
+                          <ProductResults products={products} query={query} />
+                          <DocumentResults documents={documents} />
+                        </>
+                      )}
+                    </CommandPage>
+                    <BranchPage branches={branches} scope={scope} />
+                    <ThemePage theme={theme} />
+                  </CommandList>
+                </ScrollAreaContent>
+              </ScrollAreaViewport>
+              {/* Grow in as the list scrolls past each edge, up to 2rem. */}
+              <div
+                aria-hidden="true"
+                className="from-surface pointer-events-none absolute inset-x-0 top-0 h-[min(2rem,var(--scroll-area-overflow-y-start))] bg-linear-to-b to-transparent [--scroll-area-overflow-y-start:inherit]"
+              />
+              <div
+                aria-hidden="true"
+                className="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-[min(2rem,var(--scroll-area-overflow-y-end))] bg-linear-to-t to-transparent [--scroll-area-overflow-y-end:inherit]"
+              />
+              <ScrollAreaScrollbar className="w-2 p-0.5">
+                <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
+              </ScrollAreaScrollbar>
+            </ScrollArea>
+            <PaletteFooter onSubPage={subPage !== undefined} />
           </Command>
         </DialogContent>
       </Dialog>
@@ -378,12 +525,7 @@ export const PaletteFieldTrigger = () => {
     >
       <Search aria-hidden="true" className="size-3.5 shrink-0" />
       <span className="grow truncate">Search…</span>
-      <kbd
-        aria-hidden="true"
-        className="border-line-strong figures text-2xs rounded-sm border px-1 leading-4"
-      >
-        {hint.text}
-      </kbd>
+      <Kbd aria-hidden="true">{hint.text}</Kbd>
     </DialogTrigger>
   );
 };

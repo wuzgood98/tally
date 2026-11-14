@@ -24,7 +24,7 @@ const fieldVariants = cva("", {
       /** A set of choices, like radios, under one label. */
       group: "grid gap-2",
       /** Label beside the control, for filter bars. */
-      inline: "flex items-center gap-2",
+      inline: "flex flex-row items-center gap-2",
       /** Label above the control. */
       stack: "grid content-start gap-1.5",
     },
