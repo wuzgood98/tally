@@ -1,4 +1,3 @@
-import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,7 +11,6 @@ import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { canApproveReturn, canSeeBranch } from "@/lib/permissions";
 import { getSale, getSaleReturns } from "@/lib/queries/sales";
-import { intParam } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 import { PAYMENT_LABELS } from "@/lib/stock/payment";
 
@@ -37,12 +35,8 @@ export const generateMetadata = async ({
   };
 };
 
-const SalePage = async ({ params, searchParams }: PageProps<"/sales/[id]">) => {
-  const [viewer, route, query] = await Promise.all([
-    requireViewer(),
-    params,
-    searchParams,
-  ]);
+const SalePage = async ({ params }: PageProps<"/sales/[id]">) => {
+  const [viewer, route] = await Promise.all([requireViewer(), params]);
 
   const id = saleId(route.id);
   const found = id === null ? null : await getSale(id);
@@ -55,10 +49,6 @@ const SalePage = async ({ params, searchParams }: PageProps<"/sales/[id]">) => {
   const returns = await getSaleReturns(found.id);
   const units = found.lines.reduce((sum, line) => sum + line.quantity, 0);
 
-  const justReturned = returns.find(
-    (item) => item.id === intParam(query, "returned", 0)
-  );
-
   const returnable = found.lines.flatMap((line) =>
     line.quantity > line.returned
       ? [{ ...line, returnable: line.quantity - line.returned }]
@@ -70,13 +60,6 @@ const SalePage = async ({ params, searchParams }: PageProps<"/sales/[id]">) => {
 
   return (
     <>
-      {justReturned === undefined ? null : (
-        <output className="bg-brand-soft text-good mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-          <CircleCheck aria-hidden="true" className="size-4" />
-          {justReturned.number} recorded. Refund the customer{" "}
-          {formatCedis(justReturned.refund)}.
-        </output>
-      )}
       <PageHeader
         description={`${found.branchName} · ${PAYMENT_LABELS[found.paymentMethod]}`}
         eyebrow={

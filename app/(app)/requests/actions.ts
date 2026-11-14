@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/lib/db";
+import { flash } from "@/lib/flash-server";
+import { getStockRequest } from "@/lib/queries/requests";
+import { getTransfer } from "@/lib/queries/transfers";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
 import {
@@ -16,6 +19,7 @@ import type {
   FulfilRawInput,
   StockRequestRawInput,
 } from "@/lib/stock/requests";
+import { transferNotice } from "@/lib/transfer-notices";
 
 export interface RequestActionState {
   readonly error: string | null;
@@ -46,8 +50,15 @@ export const requestStockAction = async (
   );
 
   if (result !== null) {
+    const request = await getStockRequest(result.id);
+
+    await flash({
+      description:
+        request === null ? undefined : `${request.warehouseName} has it now.`,
+      title: `${result.number} sent`,
+    });
     revalidatePath("/", "layout");
-    redirect(`/requests/${result.id}?requested=1`);
+    redirect(`/requests/${result.id}`);
   }
 
   return { error };
@@ -64,8 +75,15 @@ export const fulfilRequestAction = async (
   );
 
   if (result !== null) {
+    const transfer =
+      result.transferId === null ? null : await getTransfer(result.transferId);
+
+    if (transfer !== null) {
+      await flash(transferNotice("sent", transfer));
+    }
+
     revalidatePath("/", "layout");
-    redirect(`/transfers/${result.transferId ?? ""}?sent=1`);
+    redirect(`/transfers/${result.transferId ?? ""}`);
   }
 
   return { error };
@@ -81,8 +99,9 @@ export const cancelRequestAction = async (
   );
 
   if (result !== null) {
+    await flash({ title: `${result.number} cancelled` });
     revalidatePath("/", "layout");
-    redirect(`/requests/${result.id}?cancelled=1`);
+    redirect(`/requests/${result.id}`);
   }
 
   return { error };

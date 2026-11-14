@@ -47,6 +47,10 @@ export const formatDay = (day: string): string =>
 /** 12345 → "12,345" */
 export const formatCount = (value: number): string => count.format(value);
 
+/** "1 unit", "1,200 units". */
+export const formatUnits = (value: number): string =>
+  `${count.format(value)} ${value === 1 ? "unit" : "units"}`;
+
 /** +12 / −3, with a true minus sign. */
 export const formatSigned = (value: number): string =>
   value > 0 ? `+${count.format(value)}` : `−${count.format(Math.abs(value))}`;

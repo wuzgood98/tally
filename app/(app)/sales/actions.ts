@@ -4,24 +4,26 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/lib/db";
+import { flash } from "@/lib/flash-server";
+import { formatCedis } from "@/lib/money";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
 import { returnSale } from "@/lib/stock/returns";
-import type { ReturnRawInput } from "@/lib/stock/returns";
+import type { ReturnRawInput, ReturnResult } from "@/lib/stock/returns";
 
 /**
- * Records a manager-approved return, then reopens the sale with a notice.
+ * Records a manager-approved return, then reopens the sale with a toast.
  * returnSale checks the approver and every quantity again.
  */
 export const returnSaleAction = async (
   input: ReturnRawInput
 ): Promise<{ readonly error: string | null }> => {
   const viewer = await requireViewer();
-  let returnId: number | null = null;
+  let recorded: ReturnResult | null = null;
   let error: string | null = null;
 
   try {
-    ({ id: returnId } = await returnSale(getDb(), viewer, input));
+    recorded = await returnSale(getDb(), viewer, input);
   } catch (error_) {
     if (!(error_ instanceof StockError)) {
       throw error_;
@@ -30,9 +32,13 @@ export const returnSaleAction = async (
     ({ message: error } = error_);
   }
 
-  if (returnId !== null) {
+  if (recorded !== null) {
+    await flash({
+      description: `Refund the customer ${formatCedis(recorded.refund)}.`,
+      title: `${recorded.number} recorded`,
+    });
     revalidatePath("/", "layout");
-    redirect(`/sales/${input.saleId}?returned=${returnId}`);
+    redirect(`/sales/${input.saleId}`);
   }
 
   return { error };

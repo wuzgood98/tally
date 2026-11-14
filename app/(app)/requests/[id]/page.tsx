@@ -1,4 +1,3 @@
-import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,7 +14,6 @@ import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { canDispatchTransfer, canRequestStock } from "@/lib/permissions";
 import { getStockRequest } from "@/lib/queries/requests";
 import type { StockRequestDetail } from "@/lib/queries/requests";
-import { param } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 
 const requestId = (raw: string): number | null => {
@@ -111,15 +109,8 @@ const RequestedLines = ({
   </Table>
 );
 
-const RequestPage = async ({
-  params,
-  searchParams,
-}: PageProps<"/requests/[id]">) => {
-  const [viewer, route, query] = await Promise.all([
-    requireBackOffice(),
-    params,
-    searchParams,
-  ]);
+const RequestPage = async ({ params }: PageProps<"/requests/[id]">) => {
+  const [viewer, route] = await Promise.all([requireBackOffice(), params]);
 
   const id = requestId(route.id);
   const request = id === null ? null : await getStockRequest(id);
@@ -136,19 +127,8 @@ const RequestPage = async ({
     (canRequestStock(viewer, request.branchId) ||
       canDispatchTransfer(viewer, request.fromBranchId));
 
-  const notice =
-    param(query, "requested") === "1"
-      ? `Request sent to ${request.warehouseName}.`
-      : null;
-
   return (
     <>
-      {notice === null ? null : (
-        <output className="bg-brand-soft text-good mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-          <CircleCheck aria-hidden="true" className="size-4" />
-          {notice}
-        </output>
-      )}
       <PageHeader
         actions={<RequestStatusBadge status={request.status} />}
         description={`${request.storeName} asks ${request.warehouseName}`}

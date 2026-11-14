@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 
 import { getDb } from "@/lib/db";
 import type { Db } from "@/lib/db/client";
+import type { FlashMessage } from "@/lib/flash";
+import { flash } from "@/lib/flash-server";
 import type { Actor } from "@/lib/permissions";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
@@ -17,6 +19,7 @@ import {
 } from "@/lib/stock/purchase-orders";
 import type {
   DraftOrderRawInput,
+  OrderResult,
   OrderReasonRawInput,
   UpdateOrderRawInput,
 } from "@/lib/stock/purchase-orders";
@@ -27,20 +30,37 @@ export interface OrderActionState {
 
 type Notice = "saved" | "approved" | "cancelled" | "closed";
 
+const NOTICES: Record<Notice, (order: OrderResult) => FlashMessage> = {
+  approved: (order) => ({
+    action: { href: `/purchase-orders/${order.id}/print`, label: "Print it" },
+    description: "Print it or send it to the supplier.",
+    title: `${order.number} approved`,
+  }),
+  cancelled: (order) => ({ title: `${order.number} cancelled` }),
+  closed: (order) => ({
+    description: "Nothing more is expected against it.",
+    title: `${order.number} closed short`,
+  }),
+  saved: (order) => ({
+    description: "Head office approves it before it goes out.",
+    title: `${order.number} saved as a draft`,
+  }),
+};
+
 /**
  * Runs one purchase order step for the signed-in person, then opens the
- * order with a notice. The domain functions check permission and input again.
+ * order with a toast. The domain functions check permission and input again.
  */
 const runStep = async (
-  step: (db: Db, actor: Actor) => Promise<{ readonly id: number }>,
+  step: (db: Db, actor: Actor) => Promise<OrderResult>,
   notice: Notice
 ): Promise<OrderActionState> => {
   const viewer = await requireViewer();
-  let orderId: number | null = null;
+  let order: OrderResult | null = null;
   let error: string | null = null;
 
   try {
-    ({ id: orderId } = await step(getDb(), viewer));
+    order = await step(getDb(), viewer);
   } catch (error_) {
     if (!(error_ instanceof StockError)) {
       throw error_;
@@ -49,9 +69,10 @@ const runStep = async (
     ({ message: error } = error_);
   }
 
-  if (orderId !== null) {
+  if (order !== null) {
+    await flash(NOTICES[notice](order));
     revalidatePath("/", "layout");
-    redirect(`/purchase-orders/${orderId}?${notice}=1`);
+    redirect(`/purchase-orders/${order.id}`);
   }
 
   return { error };

@@ -181,7 +181,7 @@ Decisions the user accepted:
 Batches:
 
 1. **Done**: the toaster, the flash cookie and `FlashToast`; receipts converted ("GRN-… saved", "N units added to stock.", "Receive another"). Walked through in the browser at desktop and 390px.
-2. Convert the remaining redirect banners: products (saved, adjusted), purchase orders, transfers, requests, sale returns.
+2. **Done**: every other redirect banner is a toast, and no detail page reads a notice from the URL any more. Products ("Product added" / "Product saved"), adjustments ("+1, leaving 59 on hand."), purchase orders (saved as a draft, approved with a "Print it" link, cancelled, closed short), transfers and request fulfilment (`transferNotice` in `lib/transfer-notices.ts`, pure and tested: units, route, shortfall, "Send another"; the action loads the transfer for names and counts), requests (sent, cancelled) and sale returns (number and refund). `formatUnits` (`lib/format.ts`) says "1 unit" / "5 units". Walked through: an adjustment toasts on the product page with a clean URL, and a refresh doesn't repeat it.
 3. In-place actions: stock settings, staff, tills, branch switch and theme.
 4. Verify and tidy.
 

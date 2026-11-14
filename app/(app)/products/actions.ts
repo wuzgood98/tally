@@ -11,6 +11,7 @@ import {
   updateProduct,
 } from "@/lib/catalogue";
 import { getDb } from "@/lib/db";
+import { flash } from "@/lib/flash-server";
 import { formInt, formOptional, formText } from "@/lib/form";
 import { parseCedis } from "@/lib/money";
 import { requireViewer } from "@/lib/session";
@@ -113,8 +114,11 @@ export const saveProduct = async (
   const result = await save(productId, form);
 
   if (result.ok) {
+    await flash({
+      title: productId === null ? "Product added" : "Product saved",
+    });
     revalidatePath("/", "layout");
-    redirect(`/products/${result.id}?saved=1`);
+    redirect(`/products/${result.id}`);
   }
 
   return { error: result.error, values: readValues(form) };

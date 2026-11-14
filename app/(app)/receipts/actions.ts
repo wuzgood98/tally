@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getDb } from "@/lib/db";
 import { flash } from "@/lib/flash-server";
-import { formatCount } from "@/lib/format";
+import { formatUnits } from "@/lib/format";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
 import { receiveGoods } from "@/lib/stock/receive";
@@ -42,7 +42,7 @@ export const receiveAction = async (
 
     await flash({
       action: { href: "/receipts/new", label: "Receive another" },
-      description: `${formatCount(units)} ${units === 1 ? "unit" : "units"} added to stock.`,
+      description: `${formatUnits(units)} added to stock.`,
       title: `${receipt.number} saved`,
     });
     revalidatePath("/", "layout");

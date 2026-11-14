@@ -1,4 +1,4 @@
-import { CircleCheck, PackagePlus, Pencil, Printer } from "lucide-react";
+import { PackagePlus, Pencil, Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -28,7 +28,6 @@ import {
 } from "@/lib/permissions";
 import { getPurchaseOrder } from "@/lib/queries/purchase-orders";
 import type { PurchaseOrderDetail } from "@/lib/queries/purchase-orders";
-import { param } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import type { Viewer } from "@/lib/session";
 
@@ -47,28 +46,6 @@ export const generateMetadata = async ({
   const order = id === null ? null : await getPurchaseOrder(id);
 
   return { title: order?.number ?? "Purchase order" };
-};
-
-const NOTICES = {
-  approved: "Approved. Print it or send it to the supplier.",
-  cancelled: "Cancelled.",
-  closed: "Closed short. Nothing more is expected against it.",
-  saved: "Draft saved. Head office approves it before it goes out.",
-} as const;
-
-const NOTICE_KINDS = ["saved", "approved", "cancelled", "closed"] as const;
-
-type Query = Record<string, string | string[] | undefined>;
-
-const Notice = ({ query }: { readonly query: Query }) => {
-  const kind = NOTICE_KINDS.find((key) => param(query, key) === "1");
-
-  return kind === undefined ? null : (
-    <output className="bg-brand-soft text-good mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-      <CircleCheck aria-hidden="true" className="size-4" />
-      {NOTICES[kind]}
-    </output>
-  );
 };
 
 const Fact = ({
@@ -168,13 +145,8 @@ const Actions = ({
 
 const PurchaseOrderPage = async ({
   params,
-  searchParams,
 }: PageProps<"/purchase-orders/[id]">) => {
-  const [viewer, route, query] = await Promise.all([
-    requireBackOffice(),
-    params,
-    searchParams,
-  ]);
+  const [viewer, route] = await Promise.all([requireBackOffice(), params]);
 
   const id = orderId(route.id);
   const order = id === null ? null : await getPurchaseOrder(id);
@@ -189,7 +161,6 @@ const PurchaseOrderPage = async ({
 
   return (
     <>
-      <Notice query={query} />
       <PageHeader
         actions={
           <>
