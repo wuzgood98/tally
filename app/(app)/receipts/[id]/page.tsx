@@ -1,4 +1,3 @@
-import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,7 +8,6 @@ import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { getReceipt } from "@/lib/queries/receipts";
-import { param } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 
 const receiptId = (raw: string): number | null => {
@@ -29,15 +27,8 @@ export const generateMetadata = async ({
   return { title: receipt?.number ?? "Receipt" };
 };
 
-const ReceiptPage = async ({
-  params,
-  searchParams,
-}: PageProps<"/receipts/[id]">) => {
-  const [, route, query] = await Promise.all([
-    requireBackOffice(),
-    params,
-    searchParams,
-  ]);
+const ReceiptPage = async ({ params }: PageProps<"/receipts/[id]">) => {
+  const [, route] = await Promise.all([requireBackOffice(), params]);
 
   const id = receiptId(route.id);
   const receipt = id === null ? null : await getReceipt(id);
@@ -46,21 +37,10 @@ const ReceiptPage = async ({
     notFound();
   }
 
-  const justSaved = param(query, "saved") === "1";
   const units = receipt.lines.reduce((sum, line) => sum + line.quantity, 0);
 
   return (
     <>
-      {justSaved ? (
-        <output className="bg-brand-soft text-good mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-          <CircleCheck aria-hidden="true" className="size-4" />
-          Saved. {formatCount(units)} units added to {receipt.branchName}.
-          <Link className="ml-auto underline" href="/receipts/new">
-            Receive another
-          </Link>
-        </output>
-      ) : null}
-
       <PageHeader
         actions={
           receipt.purchaseOrderId === null ? undefined : (

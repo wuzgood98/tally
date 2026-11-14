@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 
 import { getDb } from "@/lib/db";
 import type { Db } from "@/lib/db/client";
+import { flash } from "@/lib/flash-server";
 import type { Actor } from "@/lib/permissions";
+import { getTransfer } from "@/lib/queries/transfers";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
 import {
@@ -18,6 +20,8 @@ import type {
   DispatchRawInput,
   ReceiveTransferRawInput,
 } from "@/lib/stock/transfer";
+import { transferNotice } from "@/lib/transfer-notices";
+import type { TransferStep } from "@/lib/transfer-notices";
 
 export interface TransferActionState {
   readonly error: string | null;
@@ -25,12 +29,12 @@ export interface TransferActionState {
 
 /**
  * Runs one transfer step for the signed-in person, then opens the transfer
- * with a notice. The domain functions validate the input again, so a
+ * with a toast saying what moved. The domain functions validate the input again, so a
  * hand-crafted request gets no further than the form would.
  */
 const runStep = async (
   step: (db: Db, actor: Actor) => Promise<{ readonly id: number }>,
-  notice: "sent" | "received" | "cancelled"
+  notice: TransferStep
 ): Promise<TransferActionState> => {
   const viewer = await requireViewer();
   let transferId: number | null = null;
@@ -47,8 +51,14 @@ const runStep = async (
   }
 
   if (transferId !== null) {
+    const transfer = await getTransfer(transferId);
+
+    if (transfer !== null) {
+      await flash(transferNotice(notice, transfer));
+    }
+
     revalidatePath("/", "layout");
-    redirect(`/transfers/${transferId}?${notice}=1`);
+    redirect(`/transfers/${transferId}`);
   }
 
   return { error };

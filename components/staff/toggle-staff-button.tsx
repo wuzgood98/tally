@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@ui-sdk/react/toast";
 import { useState, useTransition } from "react";
 
 import { toggleStaff } from "@/app/(app)/staff/actions";
@@ -28,6 +29,12 @@ const ReactivateButton = ({
           startTransition(async () => {
             const result = await toggleStaff(userId, true);
             setError(result.error);
+
+            if (result.error === null) {
+              toast.success(`${name} reactivated`, {
+                description: "They can sign in again.",
+              });
+            }
           });
         }}
         size="sm"
@@ -56,7 +63,17 @@ export const ToggleStaffButton = ({
     <ConfirmDialog
       confirmLabel="Deactivate"
       description={`${name} is signed out on every device and can't sign in again until head office reactivates the account. Their sales, counts and other records stay as they are.`}
-      onConfirm={async () => await toggleStaff(userId, false)}
+      onConfirm={async () => {
+        const result = await toggleStaff(userId, false);
+
+        if (result.error === null) {
+          toast.success(`${name} deactivated`, {
+            description: "Signed out on every device.",
+          });
+        }
+
+        return result;
+      }}
       pendingLabel="Deactivating…"
       title={`Deactivate ${name}?`}
       tone="danger"

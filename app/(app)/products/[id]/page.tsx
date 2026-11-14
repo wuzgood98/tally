@@ -1,4 +1,4 @@
-import { CircleCheck, ClipboardList, PackagePlus, Pencil } from "lucide-react";
+import { ClipboardList, PackagePlus, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,7 +24,7 @@ import { getProductOnOrder } from "@/lib/queries/purchase-orders";
 import { getProductUnitsSold } from "@/lib/queries/sales";
 import { getProductInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
-import { param, queryString } from "@/lib/search-params";
+import { queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 
 const HISTORY = 25;
@@ -123,22 +123,6 @@ const HistoryPanel = async ({
   );
 };
 
-const NOTICES = {
-  adjusted: "Adjustment saved. The new balance is below.",
-  saved: "Product saved.",
-} as const;
-
-/** The confirmation to show after a redirect here, if any. */
-const noticeFor = (
-  query: Record<string, string | string[] | undefined>
-): string | null => {
-  if (param(query, "adjusted") === "1") {
-    return NOTICES.adjusted;
-  }
-
-  return param(query, "saved") === "1" ? NOTICES.saved : null;
-};
-
 const sumOf = (byBranch: ReadonlyMap<string, number>): number => {
   let total = 0;
 
@@ -181,15 +165,8 @@ const LevelsSummary = ({
   );
 };
 
-const ProductPage = async ({
-  params,
-  searchParams,
-}: PageProps<"/products/[id]">) => {
-  const [viewer, route, query] = await Promise.all([
-    requireViewer(),
-    params,
-    searchParams,
-  ]);
+const ProductPage = async ({ params }: PageProps<"/products/[id]">) => {
+  const [viewer, route] = await Promise.all([requireViewer(), params]);
 
   const id = productId(route.id);
   const item = id === null ? null : await getProduct(id);
@@ -237,16 +214,8 @@ const ProductPage = async ({
     (level) => level.branchId === settingsBranchId
   );
 
-  const notice = noticeFor(query);
-
   return (
     <>
-      {notice === null ? null : (
-        <output className="bg-brand-soft text-good mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-          <CircleCheck aria-hidden="true" className="size-4" />
-          {notice}
-        </output>
-      )}
       <PageHeader
         actions={
           <>

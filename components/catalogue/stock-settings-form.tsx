@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@ui-sdk/react/toast";
 import { useActionState } from "react";
 
 import { saveStockSettings } from "@/app/(app)/products/actions";
@@ -26,7 +27,15 @@ export const StockSettingsForm = ({
   binLocation,
 }: StockSettingsFormProps) => {
   const [state, action, pending] = useActionState<SettingsState, FormData>(
-    saveStockSettings.bind(null, productId, branchId),
+    async (previous, form) => {
+      const next = await saveStockSettings(productId, branchId, previous, form);
+
+      if (next.saved) {
+        toast.success(`Saved for ${branchName}`);
+      }
+
+      return next;
+    },
     { error: null, saved: false }
   );
 
@@ -62,13 +71,9 @@ export const StockSettingsForm = ({
       </Button>
       <output
         aria-live="polite"
-        className={
-          state.error === null
-            ? "text-good text-sm sm:col-span-3"
-            : "text-danger text-sm sm:col-span-3"
-        }
+        className="text-danger text-sm empty:hidden sm:col-span-3"
       >
-        {state.error ?? (state.saved ? "Saved." : "")}
+        {state.error}
       </output>
     </form>
   );
