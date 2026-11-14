@@ -94,7 +94,20 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
         </button>
       </form>
 
-      <Panel flush>
+      <Panel
+        flush
+        footer={
+          <Pagination
+            href={(target) =>
+              `/requests${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
+            }
+            noun="requests"
+            page={page}
+            pageSize={REQUESTS_PAGE_SIZE}
+            total={total}
+          />
+        }
+      >
         {rows.length === 0 ? (
           <p className="text-ink-2 p-8 text-center text-sm">
             No requests match.
@@ -141,17 +154,6 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
             </tbody>
           </Table>
         )}
-        <div className="border-line border-t">
-          <Pagination
-            href={(target) =>
-              `/requests${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
-            }
-            noun="requests"
-            page={page}
-            pageSize={REQUESTS_PAGE_SIZE}
-            total={total}
-          />
-        </div>
       </Panel>
     </>
   );

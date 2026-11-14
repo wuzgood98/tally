@@ -52,7 +52,20 @@ const SalesPage = async ({ searchParams }: PageProps<"/sales">) => {
         description={`Today: ${formatCount(today.count)} ${today.count === 1 ? "sale" : "sales"}, ${formatCedis(today.total)} · ${scopeLabel(scope, branches)}`}
         title="Sales"
       />
-      <Panel flush>
+      <Panel
+        flush
+        footer={
+          <Pagination
+            href={(target) =>
+              `/sales${queryString({ page: target > 1 ? target : null })}`
+            }
+            noun="sales"
+            page={page}
+            pageSize={SALES_PAGE_SIZE}
+            total={total}
+          />
+        }
+      >
         {rows.length === 0 ? (
           <p className="text-ink-2 p-8 text-center text-sm">
             No sales recorded yet.
@@ -106,17 +119,6 @@ const SalesPage = async ({ searchParams }: PageProps<"/sales">) => {
             </tbody>
           </Table>
         )}
-        <div className="border-line border-t">
-          <Pagination
-            href={(target) =>
-              `/sales${queryString({ page: target > 1 ? target : null })}`
-            }
-            noun="sales"
-            page={page}
-            pageSize={SALES_PAGE_SIZE}
-            total={total}
-          />
-        </div>
       </Panel>
     </>
   );

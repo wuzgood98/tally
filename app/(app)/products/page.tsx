@@ -157,7 +157,18 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
         </form>
       </search>
 
-      <Panel flush>
+      <Panel
+        flush
+        footer={
+          <Pagination
+            href={hrefFor}
+            noun="products"
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+          />
+        }
+      >
         {rows.length === 0 ? (
           <div className="p-8 text-center">
             <p className="font-medium">No products match.</p>
@@ -226,15 +237,6 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
             </tbody>
           </Table>
         )}
-        <div className="border-line border-t">
-          <Pagination
-            href={hrefFor}
-            noun="products"
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-          />
-        </div>
       </Panel>
     </>
   );

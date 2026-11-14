@@ -130,7 +130,20 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
         </button>
       </form>
 
-      <Panel flush>
+      <Panel
+        flush
+        footer={
+          <Pagination
+            href={(target) =>
+              `/transfers${queryString({ ...filters, page: target > 1 ? target : null })}`
+            }
+            noun="transfers"
+            page={page}
+            pageSize={TRANSFERS_PAGE_SIZE}
+            total={total}
+          />
+        }
+      >
         {rows.length === 0 ? (
           <p className="text-ink-2 p-8 text-center text-sm">
             No transfers match.
@@ -189,17 +202,6 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
             </tbody>
           </Table>
         )}
-        <div className="border-line border-t">
-          <Pagination
-            href={(target) =>
-              `/transfers${queryString({ ...filters, page: target > 1 ? target : null })}`
-            }
-            noun="transfers"
-            page={page}
-            pageSize={TRANSFERS_PAGE_SIZE}
-            total={total}
-          />
-        </div>
       </Panel>
     </>
   );

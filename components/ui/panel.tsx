@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import {
   Frame,
+  FrameFooter,
   FrameHeader,
   FramePanel,
   FrameTitle,
@@ -16,6 +17,8 @@ interface PanelProps {
   /** Tables run edge to edge; prose gets padding. */
   readonly flush?: boolean;
   readonly id?: string;
+  /** Sits on the frame under the panel, such as a table's pagination. */
+  readonly footer?: ReactNode;
 }
 
 /** A titled card: the heading sits on the frame, the content in its panel. */
@@ -26,6 +29,7 @@ export const Panel = ({
   className,
   flush = false,
   id,
+  footer,
 }: PanelProps) => (
   <Frame
     aria-labelledby={
@@ -47,5 +51,6 @@ export const Panel = ({
     <FramePanel clip flush={flush}>
       {children}
     </FramePanel>
+    {footer === undefined ? null : <FrameFooter>{footer}</FrameFooter>}
   </Frame>
 );

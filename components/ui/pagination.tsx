@@ -43,7 +43,7 @@ export const Pagination = ({
   const last = Math.min(total, page * pageSize);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
       <p className="text-ink-2 tabular">
         {total === 0
           ? `No ${noun}`
