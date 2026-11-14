@@ -5,8 +5,8 @@ import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 
 /** Installable on a till or a storeroom tablet, opening straight to work. */
 const manifest = (): MetadataRoute.Manifest => ({
-  // The splash stays dark; the title bar matches the default light theme.
-  background_color: BRAND_COLORS.night,
+  // The splash and title bar match the default light theme.
+  background_color: BRAND_COLORS.day,
   categories: ["business", "productivity"],
   description: SITE_DESCRIPTION,
   display: "standalone",
