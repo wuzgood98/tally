@@ -8,6 +8,12 @@ export const isSidebarCollapsed = (
   cookie: { readonly value: string } | undefined
 ): boolean => cookie?.value === SIDEBAR_COLLAPSED;
 
+/** Where there is a sidebar (Tailwind's lg); below it the header nav takes over. */
+export const SIDEBAR_MEDIA = "(width >= 64rem)";
+
+/** Ctrl+B, or Cmd+B on a Mac, as in most editors. */
+export const SIDEBAR_SHORTCUT = "mod+b";
+
 /** The palette command that collapses or expands it. */
 export const SIDEBAR_COMMAND = "sidebar:toggle";
 

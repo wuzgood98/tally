@@ -7,6 +7,7 @@ import {
   CommandItemIcon,
   CommandPage,
 } from "@ui-sdk/react/command";
+import { useShortcutHint } from "@ui-sdk/react/shortcuts";
 import {
   Check,
   ChevronRight,
@@ -19,8 +20,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { memo } from "react";
 
+import { Kbd } from "@/components/ui/kbd";
 import { THEME_PAGE, themeValue } from "@/lib/palette-theme";
-import { SIDEBAR_COMMAND, sidebarActionLabel } from "@/lib/sidebar";
+import {
+  SIDEBAR_COMMAND,
+  SIDEBAR_SHORTCUT,
+  sidebarActionLabel,
+} from "@/lib/sidebar";
 import { THEME_LABELS, THEMES } from "@/lib/theme";
 import type { Theme } from "@/lib/theme";
 
@@ -50,6 +56,8 @@ const ThemeGroupRows = ({ theme, sidebarCollapsed }: ThemeGroupProps) => {
   const SidebarIcon =
     sidebarCollapsed === true ? PanelLeftOpen : PanelLeftClose;
 
+  const sidebarHint = useShortcutHint(SIDEBAR_SHORTCUT);
+
   return (
     <CommandGroup className="pb-1">
       <CommandGroupLabel className={labelClass}>Appearance</CommandGroupLabel>
@@ -74,6 +82,7 @@ const ThemeGroupRows = ({ theme, sidebarCollapsed }: ThemeGroupProps) => {
       </CommandItem>
       {sidebarCollapsed === undefined ? null : (
         <CommandItem
+          aria-keyshortcuts={sidebarHint.ariaKeyshortcuts}
           className={itemClass}
           keywords={["sidebar", "menu", "navigation", "collapse", "expand"]}
           label={sidebarActionLabel(sidebarCollapsed)}
@@ -85,6 +94,10 @@ const ThemeGroupRows = ({ theme, sidebarCollapsed }: ThemeGroupProps) => {
           <span className="grow truncate">
             {sidebarActionLabel(sidebarCollapsed)}
           </span>
+          {/* Keys only help where there's a keyboard. */}
+          <Kbd aria-hidden="true" className="pointer-coarse:hidden">
+            {sidebarHint.text}
+          </Kbd>
         </CommandItem>
       )}
     </CommandGroup>

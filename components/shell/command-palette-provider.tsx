@@ -13,6 +13,7 @@ import { CommandPalette } from "@/components/shell/command-palette";
 import { useSidebar } from "@/components/shell/sidebar";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
+import { SIDEBAR_MEDIA } from "@/lib/sidebar";
 import type { Theme } from "@/lib/theme";
 
 interface CommandPaletteProviderProps {
@@ -23,11 +24,8 @@ interface CommandPaletteProviderProps {
   readonly theme: Theme;
 }
 
-/** Where the sidebar shows (Tailwind's lg); below it the header nav has no toggle. */
-const DESKTOP = "(width >= 64rem)";
-
 const subscribeToDesktop = (onChange: () => void) => {
-  const query = window.matchMedia(DESKTOP);
+  const query = window.matchMedia(SIDEBAR_MEDIA);
   query.addEventListener("change", onChange);
 
   return () => {
@@ -35,7 +33,7 @@ const subscribeToDesktop = (onChange: () => void) => {
   };
 };
 
-const isDesktop = () => window.matchMedia(DESKTOP).matches;
+const isDesktop = () => window.matchMedia(SIDEBAR_MEDIA).matches;
 
 const notOnServer = () => false;
 

@@ -1,7 +1,12 @@
 "use client";
 
 import { createCookieStorage } from "@ui-sdk/core";
-import { Tooltip, TooltipTrigger } from "@ui-sdk/react/tooltip";
+import { useShortcut } from "@ui-sdk/react/shortcuts";
+import {
+  Tooltip,
+  TooltipShortcut,
+  TooltipTrigger,
+} from "@ui-sdk/react/tooltip";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { createContext, use, useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -10,6 +15,8 @@ import { TooltipContent } from "@/components/ui/tooltip";
 import {
   SIDEBAR_COLLAPSED,
   SIDEBAR_COOKIE,
+  SIDEBAR_MEDIA,
+  SIDEBAR_SHORTCUT,
   sidebarActionLabel,
 } from "@/lib/sidebar";
 import { cn } from "@/lib/utils";
@@ -73,6 +80,18 @@ export const SidebarProvider = ({
 
   const state = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
 
+  // Works from a field too, as Ctrl/Cmd+K does. Phones have no sidebar to
+  // toggle, so the keys do nothing there rather than flip a hidden setting.
+  useShortcut(
+    SIDEBAR_SHORTCUT,
+    () => {
+      if (window.matchMedia(SIDEBAR_MEDIA).matches) {
+        toggle();
+      }
+    },
+    { allowInInput: true, description: "Collapse or expand the sidebar" }
+  );
+
   return <SidebarContext value={state}>{children}</SidebarContext>;
 };
 
@@ -124,7 +143,7 @@ export const SidebarToggle = () => {
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   return (
-    <Tooltip>
+    <Tooltip shortcut={SIDEBAR_SHORTCUT}>
       <TooltipTrigger
         aria-controls="sidebar"
         className="press text-ink-3 hover:text-ink hover:bg-surface-2 -ms-2 hidden size-8 shrink-0 place-items-center rounded-md lg:grid"
@@ -132,7 +151,10 @@ export const SidebarToggle = () => {
       >
         <Icon aria-hidden="true" className="size-4" />
       </TooltipTrigger>
-      <TooltipContent side="bottom">{label}</TooltipContent>
+      <TooltipContent align="start" side="bottom">
+        {label}
+        <TooltipShortcut className="text-canvas/60" />
+      </TooltipContent>
     </Tooltip>
   );
 };
