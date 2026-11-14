@@ -38,6 +38,11 @@ interface PaletteCommandBase {
   readonly label: string;
   readonly icon: PaletteIcon;
   readonly keywords?: readonly string[];
+  /**
+   * Runs the command from anywhere, palette open or not, in `useShortcut`
+   * form. Alt+Shift (Option+Shift) leaves the browser's own keys alone.
+   */
+  readonly shortcut?: string;
 }
 
 export interface PaletteLink extends PaletteCommandBase {
@@ -67,6 +72,11 @@ const link = (
   keywords?: readonly string[]
 ): PaletteLink => ({ href, icon, keywords, kind: "link", label, value });
 
+const withShortcut = (command: PaletteLink, shortcut: string): PaletteLink => ({
+  ...command,
+  shortcut,
+});
+
 const allPages = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
   const reports = canViewReports(viewer);
 
@@ -76,11 +86,17 @@ const allPages = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
       ? [link("go:/till", "Till", "/till", "till", ["sell", "checkout", "pos"])]
       : []),
     link("go:/sales", "Sales", "/sales", "sales", ["receipts", "returns"]),
-    link("go:/products", "Products", "/products", "products", ["catalogue"]),
-    link("go:/low-stock", "Low stock", "/low-stock", "low-stock", [
-      "reorder",
-      "out of stock",
-    ]),
+    withShortcut(
+      link("go:/products", "Products", "/products", "products", ["catalogue"]),
+      "alt+shift+p"
+    ),
+    withShortcut(
+      link("go:/low-stock", "Low stock", "/low-stock", "low-stock", [
+        "reorder",
+        "out of stock",
+      ]),
+      "alt+shift+l"
+    ),
     link("go:/receipts", "Receive goods", "/receipts", "receipts", [
       "grn",
       "deliveries",
@@ -175,16 +191,24 @@ const create = (
 
   return [
     ...(sellsSomewhere
-      ? [link("new:sale", "New sale", "/till", "till", ["sell", "ring up"])]
+      ? [
+          withShortcut(
+            link("new:sale", "New sale", "/till", "till", ["sell", "ring up"]),
+            "alt+shift+s"
+          ),
+        ]
       : []),
     ...(handlesStock
       ? [
-          link(
-            "new:receipt",
-            "Receive a delivery",
-            "/receipts/new",
-            "receipts",
-            ["receive goods", "new receipt", "grn", "delivery"]
+          withShortcut(
+            link(
+              "new:receipt",
+              "Receive a delivery",
+              "/receipts/new",
+              "receipts",
+              ["receive goods", "new receipt", "grn", "delivery"]
+            ),
+            "alt+shift+r"
           ),
           link(
             "new:adjustment",
@@ -193,9 +217,16 @@ const create = (
             "adjustments",
             ["count", "write off", "damaged"]
           ),
-          link("new:transfer", "New transfer", "/transfers/new", "transfers", [
-            "send stock",
-          ]),
+          withShortcut(
+            link(
+              "new:transfer",
+              "New transfer",
+              "/transfers/new",
+              "transfers",
+              ["send stock"]
+            ),
+            "alt+shift+t"
+          ),
         ]
       : []),
     ...(drafts

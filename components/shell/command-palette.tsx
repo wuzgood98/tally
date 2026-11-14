@@ -53,8 +53,14 @@ import type { LucideIcon } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { Kbd } from "@/components/ui/kbd";
 import { ACCOUNT_GROUP } from "@/lib/palette";
-import type { PaletteCommand, PaletteGroup, PaletteIcon } from "@/lib/palette";
+import type {
+  PaletteCommand,
+  PaletteGroup,
+  PaletteIcon,
+  PaletteLink,
+} from "@/lib/palette";
 import { BRANCH_PAGE, scopeOf } from "@/lib/palette-branches";
 import type { PaletteBranch } from "@/lib/palette-branches";
 import { paletteScore } from "@/lib/palette-filter";
@@ -68,6 +74,7 @@ import {
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
 import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
 import type { Theme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
@@ -115,11 +122,23 @@ const usePalette = (): PaletteController => {
   return palette;
 };
 
-const PaletteItem = ({ command }: { readonly command: PaletteCommand }) => {
+interface ShortcutHint {
+  readonly text: string;
+  readonly ariaKeyshortcuts: string;
+}
+
+const PaletteRow = ({
+  command,
+  hint,
+}: {
+  readonly command: PaletteCommand;
+  readonly hint?: ShortcutHint;
+}) => {
   const Icon = ICONS[command.icon];
 
   return (
     <CommandItem
+      aria-keyshortcuts={hint?.ariaKeyshortcuts}
       className="text-ink-2 data-highlighted:bg-ink/6 data-highlighted:text-ink flex min-h-9 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-sm outline-none select-none data-pending:cursor-progress data-pending:opacity-60"
       keywords={
         command.keywords === undefined ? undefined : [...command.keywords]
@@ -130,8 +149,87 @@ const PaletteItem = ({ command }: { readonly command: PaletteCommand }) => {
       <CommandItemIcon className="text-ink-3 [&_svg]:size-4">
         <Icon aria-hidden="true" />
       </CommandItemIcon>
-      <span className="truncate">{command.label}</span>
+      <span className="grow truncate">{command.label}</span>
+      {hint === undefined ? null : (
+        // Keys only help where there's a keyboard.
+        <Kbd aria-hidden="true" className="pointer-coarse:hidden">
+          {hint.text}
+        </Kbd>
+      )}
     </CommandItem>
+  );
+};
+
+const ShortcutRow = ({
+  command,
+  shortcut,
+}: {
+  readonly command: PaletteCommand;
+  readonly shortcut: string;
+}) => <PaletteRow command={command} hint={useShortcutHint(shortcut)} />;
+
+const PaletteItem = ({ command }: { readonly command: PaletteCommand }) =>
+  command.shortcut === undefined ? (
+    <PaletteRow command={command} />
+  ) : (
+    <ShortcutRow command={command} shortcut={command.shortcut} />
+  );
+
+/** Registers one command's shortcut for as long as the app is open. */
+const CommandShortcut = ({
+  command,
+  onOpen,
+  shortcut,
+}: {
+  readonly command: PaletteLink;
+  readonly onOpen: (href: string) => void;
+  readonly shortcut: string;
+}) => {
+  useShortcut(
+    shortcut,
+    () => {
+      onOpen(command.href);
+    },
+    { description: command.label }
+  );
+
+  return null;
+};
+
+const FooterKey = ({
+  className,
+  keys,
+  label,
+}: {
+  readonly keys: readonly string[];
+  readonly label: string;
+  readonly className?: string;
+}) => (
+  <span className={cn("flex items-center gap-1.5", className)}>
+    <span className="flex gap-0.5">
+      {keys.map((key) => (
+        <Kbd key={key}>{key}</Kbd>
+      ))}
+    </span>
+    {label}
+  </span>
+);
+
+/** How to drive the palette from the keyboard. Hidden on touch screens. */
+const PaletteFooter = ({ onSubPage }: { readonly onSubPage: boolean }) => {
+  const enter = useShortcutHint("enter");
+  const backspace = useShortcutHint("backspace");
+
+  return (
+    <div
+      aria-hidden="true"
+      className="border-line text-ink-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2.5 text-xs pointer-coarse:hidden"
+    >
+      <FooterKey keys={[enter.text]} label="Open" />
+      <FooterKey keys={["↑", "↓"]} label="Move" />
+      {onSubPage ? <FooterKey keys={[backspace.text]} label="Back" /> : null}
+      <FooterKey className="ms-auto" keys={["Esc"]} label="Close" />
+    </div>
   );
 };
 
@@ -281,6 +379,21 @@ export const CommandPalette = ({
   return (
     <PaletteContext value={palette}>
       {children}
+      {groups.flatMap((group) =>
+        group.commands.map((command) =>
+          command.kind === "link" && command.shortcut !== undefined ? (
+            <CommandShortcut
+              command={command}
+              key={command.value}
+              onOpen={(href) => {
+                palette.close();
+                onNavigate(href);
+              }}
+              shortcut={command.shortcut}
+            />
+          ) : null
+        )
+      )}
       <Dialog
         controller={palette}
         onOpenChange={(open) => {
@@ -380,6 +493,7 @@ export const CommandPalette = ({
                 <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
               </ScrollAreaScrollbar>
             </ScrollArea>
+            <PaletteFooter onSubPage={subPage !== undefined} />
           </Command>
         </DialogContent>
       </Dialog>
@@ -401,12 +515,7 @@ export const PaletteFieldTrigger = () => {
     >
       <Search aria-hidden="true" className="size-3.5 shrink-0" />
       <span className="grow truncate">Search…</span>
-      <kbd
-        aria-hidden="true"
-        className="border-line-strong figures text-2xs rounded-sm border px-1 leading-4"
-      >
-        {hint.text}
-      </kbd>
+      <Kbd aria-hidden="true">{hint.text}</Kbd>
     </DialogTrigger>
   );
 };
