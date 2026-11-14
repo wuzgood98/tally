@@ -7,11 +7,20 @@ import {
   CommandItemIcon,
   CommandPage,
 } from "@ui-sdk/react/command";
-import { Check, ChevronRight, Monitor, Moon, Sun } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  Monitor,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sun,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { memo } from "react";
 
 import { THEME_PAGE, themeValue } from "@/lib/palette-theme";
+import { SIDEBAR_COMMAND, sidebarActionLabel } from "@/lib/sidebar";
 import { THEME_LABELS, THEMES } from "@/lib/theme";
 import type { Theme } from "@/lib/theme";
 
@@ -28,9 +37,18 @@ const ICONS: Record<Theme, LucideIcon> = {
   system: Monitor,
 };
 
-/** "Theme…", which opens the theme page. */
-const ThemeGroupRows = ({ theme }: { readonly theme: Theme }) => {
+interface ThemeGroupProps {
+  readonly theme: Theme;
+  /** Whether the sidebar is collapsed; undefined where there's none (phones). */
+  readonly sidebarCollapsed?: boolean;
+}
+
+/** "Theme…", which opens the theme page, and the sidebar toggle. */
+const ThemeGroupRows = ({ theme, sidebarCollapsed }: ThemeGroupProps) => {
   const Icon = ICONS[theme];
+
+  const SidebarIcon =
+    sidebarCollapsed === true ? PanelLeftOpen : PanelLeftClose;
 
   return (
     <CommandGroup className="pb-1">
@@ -54,6 +72,21 @@ const ThemeGroupRows = ({ theme }: { readonly theme: Theme }) => {
           className="text-ink-3 size-4 shrink-0 rtl:-scale-x-100"
         />
       </CommandItem>
+      {sidebarCollapsed === undefined ? null : (
+        <CommandItem
+          className={itemClass}
+          keywords={["sidebar", "menu", "navigation", "collapse", "expand"]}
+          label={sidebarActionLabel(sidebarCollapsed)}
+          value={SIDEBAR_COMMAND}
+        >
+          <CommandItemIcon className={iconClass}>
+            <SidebarIcon aria-hidden="true" />
+          </CommandItemIcon>
+          <span className="grow truncate">
+            {sidebarActionLabel(sidebarCollapsed)}
+          </span>
+        </CommandItem>
+      )}
     </CommandGroup>
   );
 };

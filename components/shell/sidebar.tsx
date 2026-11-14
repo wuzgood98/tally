@@ -7,7 +7,11 @@ import { createContext, use, useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { TooltipContent } from "@/components/ui/tooltip";
-import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "@/lib/sidebar";
+import {
+  SIDEBAR_COLLAPSED,
+  SIDEBAR_COOKIE,
+  sidebarActionLabel,
+} from "@/lib/sidebar";
 import { cn } from "@/lib/utils";
 
 interface SidebarState {
@@ -39,22 +43,27 @@ const save = (collapsed: boolean) => {
   }
 };
 
-interface SidebarFrameProps {
+/** The sidebar's state, for the toggle and the command palette. */
+export const useSidebar = (): SidebarState => {
+  const state = use(SidebarContext);
+
+  if (!state) {
+    throw new Error("useSidebar must be used inside SidebarProvider.");
+  }
+
+  return state;
+};
+
+interface SidebarProviderProps {
   readonly defaultCollapsed: boolean;
-  readonly className: string;
   readonly children: ReactNode;
 }
 
-/**
- * The app's two-column grid. `data-sidebar="collapsed"` drives the `rail:`
- * variant in `globals.css`, so the server-rendered parts of the sidebar follow
- * the state without being client components.
- */
-export const SidebarFrame = ({
+/** Holds the state above the palette, so a command can toggle it too. */
+export const SidebarProvider = ({
   defaultCollapsed,
-  className,
   children,
-}: SidebarFrameProps) => {
+}: SidebarProviderProps) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const toggle = useCallback(() => {
@@ -64,20 +73,34 @@ export const SidebarFrame = ({
 
   const state = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
 
+  return <SidebarContext value={state}>{children}</SidebarContext>;
+};
+
+interface SidebarFrameProps {
+  readonly className: string;
+  readonly children: ReactNode;
+}
+
+/**
+ * The app's two-column grid. `data-sidebar="collapsed"` drives the `rail:`
+ * variant in `globals.css`, so the server-rendered parts of the sidebar follow
+ * the state without being client components.
+ */
+export const SidebarFrame = ({ className, children }: SidebarFrameProps) => {
+  const { collapsed } = useSidebar();
+
   return (
-    <SidebarContext value={state}>
-      <div
-        className={cn(
-          className,
-          collapsed
-            ? "lg:grid-cols-[3.25rem_minmax(0,1fr)]"
-            : "lg:grid-cols-[14.5rem_minmax(0,1fr)]"
-        )}
-        data-sidebar={collapsed ? "collapsed" : "expanded"}
-      >
-        {children}
-      </div>
-    </SidebarContext>
+    <div
+      className={cn(
+        className,
+        collapsed
+          ? "lg:grid-cols-[3.25rem_minmax(0,1fr)]"
+          : "lg:grid-cols-[14.5rem_minmax(0,1fr)]"
+      )}
+      data-sidebar={collapsed ? "collapsed" : "expanded"}
+    >
+      {children}
+    </div>
   );
 };
 
@@ -96,14 +119,8 @@ export const Sidebar = ({ className, children }: SidebarProps) => (
 
 /** Sits at the start of the desktop header, in the same place either way. */
 export const SidebarToggle = () => {
-  const state = use(SidebarContext);
-
-  if (!state) {
-    throw new Error("SidebarToggle must sit inside SidebarFrame.");
-  }
-
-  const { collapsed, toggle } = state;
-  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  const { collapsed, toggle } = useSidebar();
+  const label = sidebarActionLabel(collapsed);
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   return (

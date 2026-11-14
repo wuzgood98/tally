@@ -73,6 +73,7 @@ import {
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
 import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
+import { SIDEBAR_COMMAND } from "@/lib/sidebar";
 import type { Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -260,6 +261,11 @@ const placeholderFor = (subPage: string | undefined): string => {
   return "Search pages, products and document numbers…";
 };
 
+export interface PaletteSidebar {
+  readonly collapsed: boolean;
+  readonly onToggle: () => void;
+}
+
 export interface CommandPaletteProps {
   readonly groups: readonly PaletteGroup[];
   readonly children: ReactNode;
@@ -272,6 +278,8 @@ export interface CommandPaletteProps {
   readonly onSwitchScope: (scope: string) => Promise<void>;
   readonly theme: Theme;
   readonly onSetTheme: (theme: Theme) => Promise<void>;
+  /** The desktop sidebar, when there is one to collapse or expand. */
+  readonly sidebar?: PaletteSidebar;
 }
 
 /**
@@ -291,6 +299,7 @@ export const CommandPalette = ({
   onSwitchScope,
   theme,
   onSetTheme,
+  sidebar,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
@@ -352,6 +361,13 @@ export const CommandPalette = ({
     if (resultPage !== null) {
       palette.close();
       onNavigate(resultPage);
+
+      return;
+    }
+
+    if (value === SIDEBAR_COMMAND) {
+      sidebar?.onToggle();
+      palette.close();
 
       return;
     }
@@ -484,7 +500,10 @@ export const CommandPalette = ({
                         query={query}
                         scope={scope}
                       />
-                      <ThemeGroup theme={theme} />
+                      <ThemeGroup
+                        sidebarCollapsed={sidebar?.collapsed}
+                        theme={theme}
+                      />
                       {groups.map((group) =>
                         group.label === ACCOUNT_GROUP ? (
                           <CommandGroupOf group={group} key={group.label} />

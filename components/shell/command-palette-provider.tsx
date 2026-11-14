@@ -2,6 +2,7 @@
 
 import { toast } from "@ui-sdk/react/toast";
 import { useRouter } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 import { findPaletteResults } from "@/app/(app)/palette-action";
@@ -9,6 +10,7 @@ import { setScope } from "@/app/(app)/scope-action";
 import { signOut } from "@/app/login/actions";
 import { setTheme } from "@/app/theme-action";
 import { CommandPalette } from "@/components/shell/command-palette";
+import { useSidebar } from "@/components/shell/sidebar";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
 import type { Theme } from "@/lib/theme";
@@ -21,6 +23,22 @@ interface CommandPaletteProviderProps {
   readonly theme: Theme;
 }
 
+/** Where the sidebar shows (Tailwind's lg); below it the header nav has no toggle. */
+const DESKTOP = "(width >= 64rem)";
+
+const subscribeToDesktop = (onChange: () => void) => {
+  const query = window.matchMedia(DESKTOP);
+  query.addEventListener("change", onChange);
+
+  return () => {
+    query.removeEventListener("change", onChange);
+  };
+};
+
+const isDesktop = () => window.matchMedia(DESKTOP).matches;
+
+const notOnServer = () => false;
+
 /** The palette wired to the app: Next's router and the sign-out action. */
 export const CommandPaletteProvider = ({
   groups,
@@ -30,6 +48,13 @@ export const CommandPaletteProvider = ({
   theme,
 }: CommandPaletteProviderProps) => {
   const router = useRouter();
+  const sidebar = useSidebar();
+
+  const desktop = useSyncExternalStore(
+    subscribeToDesktop,
+    isDesktop,
+    notOnServer
+  );
 
   return (
     <CommandPalette
@@ -56,6 +81,11 @@ export const CommandPaletteProvider = ({
         }
       }}
       scope={scope}
+      sidebar={
+        desktop
+          ? { collapsed: sidebar.collapsed, onToggle: sidebar.toggle }
+          : undefined
+      }
       theme={theme}
       search={findPaletteResults}
     >
