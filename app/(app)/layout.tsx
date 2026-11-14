@@ -24,8 +24,11 @@ import {
   PaletteIconTrigger,
 } from "@/components/shell/command-palette";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-provider";
+import { FlashToast } from "@/components/shell/flash-toast";
 import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
+import { Toaster } from "@/components/ui/toaster";
+import { FLASH_COOKIE, parseFlash } from "@/lib/flash";
 import { paletteCommands } from "@/lib/palette";
 import {
   canApprovePurchaseOrder,
@@ -320,6 +323,8 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
           </main>
         </div>
       </div>
+      <Toaster />
+      <FlashToast flash={parseFlash(jar.get(FLASH_COOKIE)?.value)} />
     </CommandPaletteProvider>
   );
 };

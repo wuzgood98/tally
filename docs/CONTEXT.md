@@ -169,6 +169,22 @@ Batches:
 2. **Done**: lists, searches and the palette. The product page for a cashier: no Average cost, margin or Supplier (`CostFacts`), no History (`HistoryPanel`, which now loads its own movements, so a cashier's page never queries them), and `BranchStockTable` in `brief` mode (branch, location, on hand, status; no on the way, on order, sold or reorder at). These are server components, so nothing hidden reaches the browser. `lookup-action` sends `averageCost: null` to anyone who can't browse the back office (`PickedProduct.averageCost` is now `number | null`; the receive and order forms leave the cost blank on null). Palette: Go to keeps only Till, Sales and Products for a cashier (`FRONT_OF_HOUSE` in `lib/palette.ts`); document search takes a `DocumentAccess` (`documentAccessFor`: everything for back office, a cashier's own store's SAL and RET only), transfers matching either end; the layout passes no branches when the switcher is hidden, so `BranchGroup` and `BranchPage` render nothing. The product list and sales pages never showed cost.
 3. **Done**: verified. curl matrix of 35 routes (incl. every report page and CSV, the PO print page) as cashier, storekeeper, manager and head office: a cashier gets 307 to `/till` for `/`, 200 for Till, Sales, own-store sales and Products, 404 for everything else; the other roles are unchanged (their 404s and 307s come from the existing action guards, such as receiving a closed PO). Browser as the Spintex cashier at desktop and 390px: nav Till / Sales / Products, the store name in the header, the palette's Go to is Till, Sales and Products with no Branch group, "000042" finds only Spintex sales and a transfer number finds nothing, the till lookup's response carries `"averageCost":null`, and the product page shows only the agreed facts.
 
+**Toast notifications** are in progress (November 2026), one commit per batch.
+
+Decisions the user accepted:
+
+- **Toasts replace the green success banners.** A Server Action that redirects calls `flash({ title, description?, action? })` (`lib/flash-server.ts`) first; that sets a one-shot `tally-flash` cookie (httpOnly, 60 s). Setting a cookie makes Next re-render the layouts, so the app layout reads it (`parseFlash`, `lib/flash.ts`, zod-checked; links must be in-app paths) and `FlashToast` shows it once, then calls `clearFlash` (`app/flash-action.ts`). URLs stay clean (no more `?saved=1`) and a refresh doesn't repeat it. In-place actions toast directly with `toast()` from `@ui-sdk/react/toast`.
+- **Errors stay inline** next to the form that failed. Toast an error only where there's no form to show it in.
+- **The till keeps its own banner** (change due must not time out mid-sale).
+- **Bottom right**, ui-sdk's `ToastRegion` styled in `components/ui/toaster.tsx` (mounted once in the app layout; icon per type, optional link action through Next's router, dismiss button), motion in the `toast-motion` utility (rises in, fades out, follows a swipe; opacity only under reduced motion).
+
+Batches:
+
+1. **Done**: the toaster, the flash cookie and `FlashToast`; receipts converted ("GRN-… saved", "N units added to stock.", "Receive another"). Walked through in the browser at desktop and 390px.
+2. Convert the remaining redirect banners: products (saved, adjusted), purchase orders, transfers, requests, sale returns.
+3. In-place actions: stock settings, staff, tills, branch switch and theme.
+4. Verify and tidy.
+
 ## Stack
 
 Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), React 19.3, TypeScript 5, Tailwind CSS v4, Drizzle ORM 0.45 on PostgreSQL, Better Auth 1.7 (email and password plus the admin plugin), zod 4, Vitest 5, Ultracite 8.2 (Oxlint + Oxfmt), pnpm, Windows. Versions are in `package.json`; read the bundled Next docs before using any Next API (see `AGENTS.md`).

@@ -201,6 +201,46 @@
   }
 }
 
+/* Toasts rise from the edge they sit on and fade as they go. */
+@utility toast-motion {
+  translate: var(--toast-swipe-x, 0px) var(--toast-swipe-y, 0px);
+  transition:
+    opacity 200ms ease,
+    translate 260ms var(--ease-out-quick);
+
+  &[data-starting-style] {
+    opacity: 0;
+    translate: 0 calc(100% + 1rem);
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+    translate: var(--toast-swipe-x, 0px)
+      calc(var(--toast-swipe-y, 0px) + 0.5rem);
+    transition-duration: 150ms;
+  }
+
+  /* The finger leads while swiping; a swipe that dismisses keeps going. */
+  &[data-swiping] {
+    transition: none;
+  }
+
+  &[data-ending-style][data-swipe-direction="right"] {
+    translate: 110% 0;
+  }
+
+  &[data-ending-style][data-swipe-direction="down"] {
+    translate: 0 110%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &[data-starting-style],
+    &[data-ending-style] {
+      translate: none;
+    }
+  }
+}
+
 /* The faint light at the top of the canvas: night shift's one flourish. */
 @utility canvas-glow {
   background-image: radial-gradient(
