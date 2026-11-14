@@ -1,10 +1,10 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useActionState } from "react";
 
 import { signIn } from "@/app/login/actions";
 import type { SignInState } from "@/app/login/actions";
-import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -16,26 +16,28 @@ export const SignInForm = ({ next }: { readonly next: string | undefined }) => {
   const invalid = state.error === null ? undefined : true;
 
   return (
-    <form action={action} className="grid gap-4" noValidate>
+    <form action={action} className="mt-3 grid gap-2" noValidate>
       <input name="next" type="hidden" value={next ?? ""} />
-      <Field invalid={invalid}>
-        <FieldLabel>Work email</FieldLabel>
+      <Field invalid={invalid} layout="rule">
+        <FieldLabel tone="caption">Email</FieldLabel>
         <Input
           aria-describedby={invalid ? "sign-in-error" : undefined}
           autoComplete="username"
           defaultValue={state.email}
           inputMode="email"
+          look="line"
           name="email"
           required
           spellCheck={false}
           type="email"
         />
       </Field>
-      <Field invalid={invalid}>
-        <FieldLabel>Password</FieldLabel>
+      <Field invalid={invalid} layout="rule">
+        <FieldLabel tone="caption">Password</FieldLabel>
         <PasswordInput
           aria-describedby={invalid ? "sign-in-error" : undefined}
           autoComplete="current-password"
+          look="line"
           name="password"
           required
         />
@@ -47,9 +49,15 @@ export const SignInForm = ({ next }: { readonly next: string | undefined }) => {
       >
         {state.error}
       </p>
-      <Button size="md" disabled={pending} type="submit">
-        {pending ? "Signing in…" : "Sign in"}
-      </Button>
+      <button
+        className="press bg-ink text-paper hover:bg-brand text-md flex h-11 items-center justify-between rounded-sm px-3.5 font-semibold disabled:opacity-70 data-pending:cursor-progress"
+        data-pending={pending ? "" : undefined}
+        disabled={pending}
+        type="submit"
+      >
+        {pending ? "Scanning in…" : "Scan in"}
+        <ArrowRight aria-hidden="true" className="size-4" />
+      </button>
     </form>
   );
 };

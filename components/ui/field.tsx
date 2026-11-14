@@ -25,6 +25,8 @@ const fieldVariants = cva("", {
       group: "grid gap-2",
       /** Label beside the control, for filter bars. */
       inline: "flex flex-row items-center gap-2",
+      /** Label beside a ruled field, like a printed shelf label. */
+      rule: "grid grid-cols-[5rem_1fr] items-center gap-x-2",
       /** Label above the control. */
       stack: "grid content-start gap-1.5",
     },
@@ -49,6 +51,8 @@ const labelVariants = cva("text-sm", {
     tone: {
       /** Reads as a prompt beside a filter, not a heading. */
       quiet: "text-ink-2",
+      /** Small capitals on a printed label. */
+      caption: "text-ink-2 text-2xs font-medium tracking-widest uppercase",
       strong: "font-medium",
     },
   },

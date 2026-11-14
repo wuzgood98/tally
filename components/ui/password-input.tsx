@@ -10,18 +10,32 @@ type PasswordInputProps = Omit<
   ComponentProps<typeof PasswordInputPrimitive>,
   "children" | "className"
 > &
-  Pick<ComponentProps<"input">, "id" | "aria-describedby" | "placeholder">;
+  Pick<ComponentProps<"input">, "id" | "aria-describedby" | "placeholder"> & {
+    /** Boxed like every field, or written on a rule (the sign-in label). */
+    readonly look?: "box" | "line";
+  };
+
+const CONTROL_LOOK = { box: "field pe-10", line: "field-line pe-10" } as const;
+
+/*
+ * ui-sdk draws the wrapper as a box of its own, with a focus ring when the
+ * control inside is focused. Here the control draws the field, so the wrapper
+ * is reset to a plain container and focus looks like every other field's.
+ */
+const WRAPPER =
+  "relative h-auto rounded-none border-0 bg-transparent p-0 outline-none";
 
 export const PasswordInput = ({
   id,
   "aria-describedby": describedBy,
   placeholder,
+  look = "box",
   ...props
 }: PasswordInputProps) => (
-  <PasswordInputPrimitive className="relative" {...props}>
+  <PasswordInputPrimitive className={WRAPPER} {...props}>
     <PasswordInputControl
       aria-describedby={describedBy}
-      className="field pe-10"
+      className={CONTROL_LOOK[look]}
       id={id}
       placeholder={placeholder}
     />

@@ -109,6 +109,8 @@
 
   --shadow-popover: 0 20px 50px -12px rgb(0 0 0 / 0.45);
   --shadow-float: 0 24px 60px -24px rgb(0 0 0 / 0.5);
+  /* The sign-in label lifting off the bins; a filter, so its torn edge casts it too. */
+  --drop-shadow-label: 0 30px 40px rgb(0 0 0 / 0.45);
 
   /* Strong ease-out: movement starts at once, so the UI feels like it heard you. */
   --ease-out-quick: cubic-bezier(0.23, 1, 0.32, 1);
@@ -339,6 +341,123 @@
 @keyframes pending-pulse {
   to {
     opacity: 0.35;
+  }
+}
+
+/*
+ * The sign-in page's shelf label: printed paper in both themes, so it
+ * redefines the tokens its children read. Anything inside (fields, the
+ * password toggle, the mark) draws in label ink without knowing it.
+ */
+@utility label-paper {
+  --paper: #f4f1ea;
+  --surface: #f4f1ea;
+  --surface-2: #ebe7dd;
+  --ink: #141414;
+  --ink-2: #5f5b53;
+  --ink-3: #7d786e;
+  --line: #d6d1c6;
+  --line-strong: #b9b3a6;
+  --accent: #2f5bd8;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfe6f8;
+  --danger: #b42c1a;
+  /* ui-sdk's tokens resolve at :root, so they're restated here in label ink. */
+  --ui-background: transparent;
+  --ui-foreground: var(--ink);
+  --ui-muted: var(--surface-2);
+  --ui-muted-foreground: var(--ink-2);
+  --ui-border: var(--line);
+  --ui-input: var(--line-strong);
+  --ui-primary: var(--accent);
+  --ui-primary-foreground: var(--accent-ink);
+  --ui-destructive: var(--danger);
+  --ui-ring: var(--accent);
+  --ui-ring-border: var(--accent);
+  background-color: var(--paper);
+  color: var(--ink);
+  color-scheme: light;
+}
+
+/* The torn top edge a label printer leaves. */
+@utility label-tear {
+  --tear: 7px;
+  clip-path: polygon(
+    0 var(--tear),
+    4% 0,
+    8% var(--tear),
+    12% 0,
+    16% var(--tear),
+    20% 0,
+    24% var(--tear),
+    28% 0,
+    32% var(--tear),
+    36% 0,
+    40% var(--tear),
+    44% 0,
+    48% var(--tear),
+    52% 0,
+    56% var(--tear),
+    60% 0,
+    64% var(--tear),
+    68% 0,
+    72% var(--tear),
+    76% 0,
+    80% var(--tear),
+    84% 0,
+    88% var(--tear),
+    92% 0,
+    96% var(--tear),
+    100% 0,
+    100% 100%,
+    0 100%
+  );
+}
+
+/* A field written on a printed rule rather than in a box. */
+@utility field-line {
+  @apply border-line-strong text-ink placeholder:text-ink-3 h-9 w-full border-0 border-b bg-transparent px-0 font-mono text-sm;
+  transition: border-color 120ms ease;
+
+  &:focus-visible {
+    @apply border-ink outline-none;
+    box-shadow: 0 1px 0 0 var(--ink);
+  }
+
+  &[aria-invalid="true"] {
+    @apply border-danger;
+  }
+}
+
+/* The label feeding out of the printer, once, on arrival. */
+@utility print-in {
+  animation: print-in 600ms var(--ease-out-quick) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes print-in {
+  from {
+    opacity: 0;
+    translate: 0 -1.25rem;
+  }
+}
+
+/* A bin's stock bar filling from the floor. */
+@utility bar-rise {
+  transform-origin: bottom;
+  animation: bar-rise 800ms var(--ease-out-quick) var(--bar-delay, 0ms) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes bar-rise {
+  from {
+    scale: 1 0;
   }
 }
 

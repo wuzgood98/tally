@@ -11,6 +11,7 @@ const signInAs = async (formData: FormData) => {
   await signIn({ email: "", error: null }, formData);
 };
 
+/** The label's line items: one row per demo seat, each its own sign-in. */
 export const DemoAccounts = ({
   next,
 }: {
@@ -18,22 +19,20 @@ export const DemoAccounts = ({
 }) => (
   <section
     aria-labelledby="demo-heading"
-    className="border-line mt-8 border-t pt-6"
+    className="border-ink-2 mt-4 border-t border-dashed pt-3 font-mono text-xs"
   >
-    <h2
-      className="text-ink-2 text-xs font-medium tracking-wide uppercase"
-      id="demo-heading"
-    >
-      Demo accounts
-    </h2>
-    <p className="text-ink-2 mt-1 text-sm">
-      Sample data for a fictional retailer. Every account uses the password{" "}
-      <code className="bg-surface-2 rounded px-1 py-0.5 font-mono text-xs">
-        {DEMO_PASSWORD}
-      </code>
-      .
-    </p>
-    <ul className="mt-3 grid gap-2">
+    <div className="flex items-baseline justify-between gap-3">
+      <h2
+        className="text-ink-2 text-2xs tracking-widest uppercase"
+        id="demo-heading"
+      >
+        Demo seats
+      </h2>
+      <p className="text-ink-2 text-2xs">
+        password <span className="text-ink font-medium">{DEMO_PASSWORD}</span>
+      </p>
+    </div>
+    <ul className="mt-1.5 grid">
       {PICKS.map((person) => (
         <li key={person.email}>
           <form action={signInAs}>
@@ -41,17 +40,19 @@ export const DemoAccounts = ({
             <input name="password" type="hidden" value={DEMO_PASSWORD} />
             <input name="next" type="hidden" value={next ?? ""} />
             <button
-              className="press border-line bg-surface hover:border-line-strong hover:bg-surface-2 flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left"
+              aria-label={`Sign in as ${person.name}, ${ROLE_LABEL[person.role]}`}
+              className="group hover:bg-surface-2 flex w-full items-baseline justify-between gap-3 rounded-sm px-1.5 py-1 text-left"
               type="submit"
             >
-              <span className="grid">
-                <span className="text-sm font-medium">{person?.name}</span>
-                <span className="text-ink-2 text-xs">
+              <span className="text-ink-2 min-w-0 truncate">
+                <span className="text-ink font-medium">
                   {ROLE_LABEL[person.role]}
-                  {person.branchId ? " · Spintex" : " · all branches"}
                 </span>
+                {person.branchId ? " · Spintex" : " · all sites"}
               </span>
-              <span className="text-brand text-sm font-medium">Sign in</span>
+              <span className="text-brand shrink-0 font-semibold group-hover:underline">
+                use
+              </span>
             </button>
           </form>
         </li>

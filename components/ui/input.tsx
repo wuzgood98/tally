@@ -6,8 +6,8 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-const inputVariants = cva("field", {
-  defaultVariants: { format: "text", size: "md" },
+const inputVariants = cva("", {
+  defaultVariants: { format: "text", look: "box", size: "md" },
   variants: {
     format: {
       /** Right-aligned figures, for quantities and money in a column. */
@@ -18,6 +18,12 @@ const inputVariants = cva("field", {
       /** SKUs and shelf locations: codes kept in capitals. */
       sku: "font-mono uppercase",
       text: "",
+    },
+    look: {
+      /** The standard boxed field. */
+      box: "field",
+      /** Written on a printed rule, for the sign-in label. */
+      line: "field-line",
     },
     size: {
       md: "",
@@ -41,6 +47,7 @@ type InputProps = Omit<
 export const Input = ({
   className,
   format,
+  look,
   size,
   icon,
   ...props
@@ -48,7 +55,7 @@ export const Input = ({
   const input = (
     <InputPrimitive
       className={cn(
-        inputVariants({ format, size }),
+        inputVariants({ format, look, size }),
         icon === undefined ? undefined : "ps-9",
         icon === undefined ? className : undefined
       )}

@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { DemoAccounts } from "@/components/auth/demo-accounts";
+import { LabelBarcode } from "@/components/auth/label-barcode";
 import { SignInForm } from "@/components/auth/sign-in-form";
+import { StockBins } from "@/components/auth/stock-bins";
 import { TallyMark } from "@/components/brand/tally-mark";
 import { JsonLd } from "@/components/seo/json-ld";
+import { BRANCHES } from "@/lib/db/seed-data";
 import { isDemo } from "@/lib/demo";
 import { param } from "@/lib/search-params";
 import { PUBLIC_PAGE_METADATA } from "@/lib/seo";
@@ -17,6 +20,9 @@ export const metadata: Metadata = {
   title: "Sign in",
 };
 
+/** The demo's sites head the bins; a real deployment's stay unnamed. */
+const DEMO_SITE_NAMES = BRANCHES.map((branch) => branch.name);
+
 const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
   const [viewer, params] = await Promise.all([getViewer(), searchParams]);
 
@@ -25,26 +31,41 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
   }
 
   const nextPath = param(params, "next") || undefined;
+  const demo = isDemo();
 
   return (
-    <main className="canvas-glow grid min-h-svh place-items-center px-4 py-12">
+    <main className="bg-canvas relative isolate grid min-h-svh place-items-center overflow-hidden px-4 py-12">
       <JsonLd data={appJsonLd()} />
-      <div className="w-full max-w-sm">
-        <div className="border-line bg-surface shadow-float rounded-2xl border p-6">
-          <div className="flex items-center gap-2.5">
-            <TallyMark className="text-brand size-7" />
-            <div>
-              <p className="text-md leading-tight font-semibold">Tally</p>
-              <p className="text-ink-3 text-xs">{COMPANY_NAME} stock control</p>
+      <StockBins names={demo ? DEMO_SITE_NAMES : []} />
+      {/* The drop shadow sits outside the clipped label, so the torn edge casts it too. */}
+      <div className="print-in drop-shadow-label relative w-full max-w-84">
+        <article className="label-paper label-tear px-5 pt-6 pb-5">
+          <div className="text-ink-2 text-2xs flex items-center justify-between gap-3 font-mono tracking-widest uppercase">
+            <span className="flex min-w-0 items-center gap-2">
+              <TallyMark className="text-ink size-4 shrink-0" />
+              <span className="truncate">Tally · {COMPANY_NAME}</span>
+            </span>
+            <span className="shrink-0">No. 0001</span>
+          </div>
+          <h1 className="mt-4 text-4xl leading-none font-bold tracking-tighter">
+            Staff
+            <br />
+            sign-in
+          </h1>
+          <div className="border-ink mt-3 border-t-2">
+            <div className="border-ink-2 flex items-center justify-between border-b border-dashed py-2 font-mono text-xs">
+              <span>
+                SKU <span className="font-semibold">STAFF-ACCESS</span>
+              </span>
+              <span>
+                Qty <span className="font-semibold">1 seat</span>
+              </span>
             </div>
           </div>
-          <h1 className="mt-7 text-xl font-semibold tracking-tight">Sign in</h1>
-          <p className="text-ink-3 mt-1 mb-5 text-sm">
-            Use the account head office set up for you.
-          </p>
           <SignInForm next={nextPath} />
-        </div>
-        {isDemo() ? <DemoAccounts next={nextPath} /> : null}
+          {demo ? <DemoAccounts next={nextPath} /> : null}
+          <LabelBarcode />
+        </article>
       </div>
     </main>
   );
