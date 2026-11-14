@@ -8,6 +8,7 @@ import {
   CommandPage,
 } from "@ui-sdk/react/command";
 import { Building2, Check, ChevronRight, Store, Warehouse } from "lucide-react";
+import { memo } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -142,7 +143,7 @@ const PickRow = ({
 );
 
 /** Every branch, the one on screen ticked. */
-export const BranchPage = ({ branches, scope }: BranchProps) => {
+const BranchPageRows = ({ branches, scope }: BranchProps) => {
   if (branches.length === 0) {
     return null;
   }
@@ -176,3 +177,5 @@ export const BranchPage = ({ branches, scope }: BranchProps) => {
     </CommandPage>
   );
 };
+
+export const BranchPage = memo(BranchPageRows);

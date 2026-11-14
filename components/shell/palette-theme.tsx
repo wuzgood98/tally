@@ -9,6 +9,7 @@ import {
 } from "@ui-sdk/react/command";
 import { Check, ChevronRight, Monitor, Moon, Sun } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { memo } from "react";
 
 import { THEME_PAGE, themeValue } from "@/lib/palette-theme";
 import { THEME_LABELS, THEMES } from "@/lib/theme";
@@ -28,7 +29,7 @@ const ICONS: Record<Theme, LucideIcon> = {
 };
 
 /** "Theme…", which opens the theme page. */
-export const ThemeGroup = ({ theme }: { readonly theme: Theme }) => {
+const ThemeGroupRows = ({ theme }: { readonly theme: Theme }) => {
   const Icon = ICONS[theme];
 
   return (
@@ -57,8 +58,10 @@ export const ThemeGroup = ({ theme }: { readonly theme: Theme }) => {
   );
 };
 
+export const ThemeGroup = memo(ThemeGroupRows);
+
 /** System, light and dark, the one in use ticked. */
-export const ThemePage = ({ theme }: { readonly theme: Theme }) => (
+const ThemePageRows = ({ theme }: { readonly theme: Theme }) => (
   <CommandPage value={THEME_PAGE}>
     <CommandGroup className="pb-1">
       <CommandGroupLabel className={labelClass}>Theme</CommandGroupLabel>
@@ -94,3 +97,5 @@ export const ThemePage = ({ theme }: { readonly theme: Theme }) => (
     </CommandGroup>
   </CommandPage>
 );
+
+export const ThemePage = memo(ThemePageRows);

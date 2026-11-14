@@ -50,7 +50,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { createContext, use, useMemo, useState } from "react";
+import { createContext, memo, use, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { Kbd } from "@/components/ui/kbd";
@@ -233,7 +233,9 @@ const PaletteFooter = ({ onSubPage }: { readonly onSubPage: boolean }) => {
   );
 };
 
-const CommandGroupOf = ({ group }: { readonly group: PaletteGroup }) => (
+// Memoised: the groups come from the server and don't change while the
+// palette is open, so its own state changes needn't re-render every row.
+const CommandGroupOfRows = ({ group }: { readonly group: PaletteGroup }) => (
   <CommandGroup className="pb-1">
     <CommandGroupLabel className="text-ink-3 px-2.5 pt-2 pb-1 text-xs">
       {group.label}
@@ -243,6 +245,8 @@ const CommandGroupOf = ({ group }: { readonly group: PaletteGroup }) => (
     ))}
   </CommandGroup>
 );
+
+const CommandGroupOf = memo(CommandGroupOfRows);
 
 const placeholderFor = (subPage: string | undefined): string => {
   if (subPage === BRANCH_PAGE) {
@@ -295,23 +299,33 @@ export const CommandPalette = ({
   const subPage = pages.at(-1);
 
   const results = useAsyncOptions<PaletteHit>(
-    async (text) =>
-      text.trim().length < MIN_SEARCH_LENGTH ? [] : hitsOf(await search(text)),
+    async (text) => hitsOf(await search(text)),
     { debounce: 150 }
   );
 
-  const products = results.items.flatMap((hit) =>
+  // Products and documents live on the first page only, once enough is typed.
+  const searching =
+    subPage === undefined && query.trim().length >= MIN_SEARCH_LENGTH;
+
+  const hits = searching ? results.items : [];
+
+  const products = hits.flatMap((hit) =>
     hit.type === "product" ? [hit.product] : []
   );
 
-  const documents = results.items.flatMap((hit) =>
+  const documents = hits.flatMap((hit) =>
     hit.type === "document" ? [hit.document] : []
   );
 
   const changeQuery = (text: string): void => {
     setQuery(text);
-    // Products and documents live on the first page only.
-    results.setQuery(subPage === undefined ? text : "");
+
+    // Too short to search: leave the last results be (`searching` hides
+    // them) rather than set an empty query, whose "loading" blip re-renders
+    // every row twice, which is what made opening the palette lag.
+    if (subPage === undefined && text.trim().length >= MIN_SEARCH_LENGTH) {
+      results.setQuery(text);
+    }
   };
 
   const byValue = useMemo(
@@ -333,7 +347,7 @@ export const CommandPalette = ({
   );
 
   const run = async (value: string): Promise<void> => {
-    const resultPage = resultHref(value, query, results.items);
+    const resultPage = resultHref(value, query, hits);
 
     if (resultPage !== null) {
       palette.close();
@@ -397,8 +411,12 @@ export const CommandPalette = ({
       <Dialog
         controller={palette}
         onOpenChange={(open) => {
-          if (open) {
+          // Reset only what changed: every state update re-renders the list.
+          if (open && pages.length > 0) {
             setPages([]);
+          }
+
+          if (open && query !== "") {
             changeQuery("");
           }
         }}
@@ -414,8 +432,7 @@ export const CommandPalette = ({
           <Command
             className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
             filter={(item, text) =>
-              resultScore(item.value, text, results.items) ??
-              paletteScore(item, text)
+              resultScore(item.value, text, hits) ?? paletteScore(item, text)
             }
             onAction={run}
             onPagesChange={setPages}
@@ -423,7 +440,7 @@ export const CommandPalette = ({
             pages={pages}
             pendingAnnouncement="Working…"
             query={query}
-            status={results.status}
+            status={searching ? results.status : "idle"}
           >
             <div className="border-line flex items-center gap-2.5 border-b px-4">
               <Search
