@@ -10,6 +10,7 @@ import { ReceiptLineRow } from "@/components/stock/receipt-line-row";
 import type { DraftLine } from "@/components/stock/receipt-line-row";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
@@ -180,108 +181,120 @@ export const ReceiveForm = ({
 
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
-      <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-3">
-        <Field>
-          <FieldLabel>Receiving at</FieldLabel>
-          <Select
-            disabled={branches.length === 1}
-            name="branchId"
-            onValueChange={(value) => {
-              setBranchId(value ?? "");
-            }}
-            options={namedOptions(branches)}
-            value={branchId}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>Supplier</FieldLabel>
-          <Select
-            defaultValue={order === undefined ? null : order.supplierId}
-            disabled={order !== undefined}
-            name="supplierId"
-            options={namedOptions(suppliers)}
-            placeholder="Choose a supplier"
-            required
-          />
-        </Field>
-        <Field>
-          <FieldLabel>
-            <span>
-              Invoice or waybill no.{" "}
-              <span className="text-ink-3 font-normal">(optional)</span>
-            </span>
-          </FieldLabel>
-          <Input
-            autoComplete="off"
-            format="code"
-            maxLength={60}
-            name="supplierReference"
-          />
-        </Field>
-      </div>
+      <Frame>
+        <FramePanel>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field>
+              <FieldLabel>Receiving at</FieldLabel>
+              <Select
+                disabled={branches.length === 1}
+                name="branchId"
+                onValueChange={(value) => {
+                  setBranchId(value ?? "");
+                }}
+                options={namedOptions(branches)}
+                value={branchId}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Supplier</FieldLabel>
+              <Select
+                defaultValue={order === undefined ? null : order.supplierId}
+                disabled={order !== undefined}
+                name="supplierId"
+                options={namedOptions(suppliers)}
+                placeholder="Choose a supplier"
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel>
+                <span>
+                  Invoice or waybill no.{" "}
+                  <span className="text-ink-3 font-normal">(optional)</span>
+                </span>
+              </FieldLabel>
+              <Input
+                autoComplete="off"
+                format="code"
+                maxLength={60}
+                name="supplierReference"
+              />
+            </Field>
+          </div>
+        </FramePanel>
+      </Frame>
 
-      <div className="border-line bg-surface rounded-xl border">
-        {/* Against an order, only what was ordered: extras go on their own receipt. */}
-        {order === undefined ? (
-          <div className="border-line border-b p-4">
-            <ProductPicker
-              autoFocus={initialProduct === null}
-              label="Add products"
-              onPick={addProduct}
-            />
-          </div>
-        ) : null}
-        {lines.length === 0 ? (
-          <p className="text-ink-2 p-6 text-center text-sm">
-            Nothing on this delivery yet. Scan the first item.
-          </p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Products on this delivery</caption>
-              <thead>
-                <tr className="text-ink-2 border-line border-b text-left text-xs">
-                  <th className="px-4 py-2 font-medium" scope="col">
-                    Product
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    Now at branch
-                  </th>
-                  <th
-                    className="w-28 px-2 py-2 text-right font-medium"
-                    scope="col"
-                  >
-                    Quantity
-                  </th>
-                  <th
-                    className="w-36 px-2 py-2 text-right font-medium"
-                    scope="col"
-                  >
-                    Unit cost (GH₵)
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    Line total
-                  </th>
-                  <th className="w-12 px-2 py-2" scope="col">
-                    <span className="sr-only">Remove</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((line) => (
-                  <ReceiptLineRow
-                    branchId={branchId}
-                    key={line.product.id}
-                    line={line}
-                    onChange={update}
-                    onRemove={remove}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <Frame>
+        <FramePanel flush>
+          {/* Against an order, only what was ordered: extras go on their own receipt. */}
+          {order === undefined ? (
+            <div className="border-line border-b p-4">
+              <ProductPicker
+                autoFocus={initialProduct === null}
+                label="Add products"
+                onPick={addProduct}
+              />
+            </div>
+          ) : null}
+          {lines.length === 0 ? (
+            <p className="text-ink-2 p-6 text-center text-sm">
+              Nothing on this delivery yet. Scan the first item.
+            </p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Products on this delivery</caption>
+                <thead>
+                  <tr className="text-ink-2 border-line border-b text-left text-xs">
+                    <th className="px-4 py-2 font-medium" scope="col">
+                      Product
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Now at branch
+                    </th>
+                    <th
+                      className="w-28 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Quantity
+                    </th>
+                    <th
+                      className="w-36 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Unit cost (GH₵)
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Line total
+                    </th>
+                    <th className="w-12 px-2 py-2" scope="col">
+                      <span className="sr-only">Remove</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <ReceiptLineRow
+                      branchId={branchId}
+                      key={line.product.id}
+                      line={line}
+                      onChange={update}
+                      onRemove={remove}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </FramePanel>
+      </Frame>
 
       <Field>
         <FieldLabel>

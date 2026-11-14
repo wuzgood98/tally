@@ -1,17 +1,24 @@
 import type { ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import {
+  Frame,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/ui/frame";
 
 interface PanelProps {
   readonly title?: ReactNode;
   readonly action?: ReactNode;
   readonly children: ReactNode;
+  /** Placement only, such as margins or grid spans: it lands on the frame. */
   readonly className?: string;
   /** Tables run edge to edge; prose gets padding. */
   readonly flush?: boolean;
   readonly id?: string;
 }
 
+/** A titled card: the heading sits on the frame, the content in its panel. */
 export const Panel = ({
   title,
   action,
@@ -20,26 +27,25 @@ export const Panel = ({
   flush = false,
   id,
 }: PanelProps) => (
-  <section
+  <Frame
     aria-labelledby={
       title !== undefined && id !== undefined ? `${id}-title` : undefined
     }
-    className={cn(
-      "border-line bg-surface min-w-0 overflow-hidden rounded-xl border",
-      className
-    )}
+    as="section"
+    className={className}
   >
     {title === undefined ? null : (
-      <div className="border-line flex min-h-11 items-center justify-between gap-3 border-b px-4 py-2">
-        <h2
-          className="text-sm font-medium"
-          id={id === undefined ? undefined : `${id}-title`}
-        >
-          {title}
-        </h2>
-        {action}
-      </div>
+      <FrameHeader>
+        <div className="flex items-center justify-between gap-3">
+          <FrameTitle id={id === undefined ? undefined : `${id}-title`}>
+            {title}
+          </FrameTitle>
+          {action}
+        </div>
+      </FrameHeader>
     )}
-    <div className={flush ? undefined : "p-4"}>{children}</div>
-  </section>
+    <FramePanel clip flush={flush}>
+      {children}
+    </FramePanel>
+  </Frame>
 );

@@ -14,6 +14,7 @@ import { ReceiptLineRow } from "@/components/stock/receipt-line-row";
 import type { DraftLine } from "@/components/stock/receipt-line-row";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame, FramePanel } from "@/components/ui/frame";
 import { Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
@@ -176,93 +177,105 @@ export const PurchaseOrderForm = ({
 
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
-      <div className="border-line bg-surface grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
-        <Field>
-          <FieldLabel>Deliver to</FieldLabel>
-          <Select
-            disabled={editing || branches.length === 1}
-            onValueChange={(value) => {
-              setBranchId(value ?? "");
-            }}
-            options={namedOptions(branches)}
-            value={branchId}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>Supplier</FieldLabel>
-          <Select
-            disabled={editing}
-            onValueChange={(value) => {
-              setSupplierId(value ?? "");
-              setError(null);
-            }}
-            options={namedOptions(suppliers)}
-            placeholder="Choose a supplier"
-            required
-            value={supplierId === "" ? null : supplierId}
-          />
-        </Field>
-      </div>
-
-      <div className="border-line bg-surface rounded-xl border">
-        <div className="border-line border-b p-4">
-          <ProductPicker
-            autoFocus={initialLines.length === 0}
-            label="Add products"
-            onPick={addProduct}
-          />
-        </div>
-        {lines.length === 0 ? (
-          <p className="text-ink-2 p-6 text-center text-sm">
-            Nothing on this order yet. Scan or find the first product.
-          </p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Products on this order</caption>
-              <thead>
-                <tr className="text-ink-2 border-line border-b text-left text-xs">
-                  <th className="px-4 py-2 font-medium" scope="col">
-                    Product
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    Now at branch
-                  </th>
-                  <th
-                    className="w-28 px-2 py-2 text-right font-medium"
-                    scope="col"
-                  >
-                    Order
-                  </th>
-                  <th
-                    className="w-36 px-2 py-2 text-right font-medium"
-                    scope="col"
-                  >
-                    Agreed cost (GH₵)
-                  </th>
-                  <th className="px-2 py-2 text-right font-medium" scope="col">
-                    Line total
-                  </th>
-                  <th className="w-12 px-2 py-2" scope="col">
-                    <span className="sr-only">Remove</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((line) => (
-                  <ReceiptLineRow
-                    branchId={branchId}
-                    key={line.product.id}
-                    line={line}
-                    onChange={update}
-                    onRemove={remove}
-                  />
-                ))}
-              </tbody>
-            </table>
+      <Frame>
+        <FramePanel>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel>Deliver to</FieldLabel>
+              <Select
+                disabled={editing || branches.length === 1}
+                onValueChange={(value) => {
+                  setBranchId(value ?? "");
+                }}
+                options={namedOptions(branches)}
+                value={branchId}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Supplier</FieldLabel>
+              <Select
+                disabled={editing}
+                onValueChange={(value) => {
+                  setSupplierId(value ?? "");
+                  setError(null);
+                }}
+                options={namedOptions(suppliers)}
+                placeholder="Choose a supplier"
+                required
+                value={supplierId === "" ? null : supplierId}
+              />
+            </Field>
           </div>
-        )}
-      </div>
+        </FramePanel>
+      </Frame>
+
+      <Frame>
+        <FramePanel flush>
+          <div className="border-line border-b p-4">
+            <ProductPicker
+              autoFocus={initialLines.length === 0}
+              label="Add products"
+              onPick={addProduct}
+            />
+          </div>
+          {lines.length === 0 ? (
+            <p className="text-ink-2 p-6 text-center text-sm">
+              Nothing on this order yet. Scan or find the first product.
+            </p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Products on this order</caption>
+                <thead>
+                  <tr className="text-ink-2 border-line border-b text-left text-xs">
+                    <th className="px-4 py-2 font-medium" scope="col">
+                      Product
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Now at branch
+                    </th>
+                    <th
+                      className="w-28 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Order
+                    </th>
+                    <th
+                      className="w-36 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Agreed cost (GH₵)
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Line total
+                    </th>
+                    <th className="w-12 px-2 py-2" scope="col">
+                      <span className="sr-only">Remove</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <ReceiptLineRow
+                      branchId={branchId}
+                      key={line.product.id}
+                      line={line}
+                      onChange={update}
+                      onRemove={remove}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </FramePanel>
+      </Frame>
 
       <Field>
         <FieldLabel>

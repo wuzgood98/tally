@@ -1,9 +1,9 @@
 import { ChartColumn, ChartLine, PackageMinus } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { Frame, FramePanelLink } from "@/components/ui/frame";
 import { PageHeader } from "@/components/ui/page-header";
 import { loadReportContext } from "@/lib/reports/context";
 import { requireViewer } from "@/lib/session";
@@ -21,16 +21,17 @@ const ReportCard = ({
   readonly title: string;
   readonly children: ReactNode;
 }) => (
-  <Link
-    className="press border-line bg-surface hover:border-line-strong grid gap-2 rounded-xl border p-4"
-    href={href}
-  >
-    <span className="text-brand [&_svg]:size-5" aria-hidden="true">
-      {icon}
-    </span>
-    <span className="font-semibold">{title}</span>
-    <span className="text-ink-2 text-sm">{children}</span>
-  </Link>
+  <Frame>
+    <FramePanelLink href={href}>
+      <span className="grid gap-2">
+        <span className="text-brand [&_svg]:size-5" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="font-semibold">{title}</span>
+        <span className="text-ink-2 text-sm">{children}</span>
+      </span>
+    </FramePanelLink>
+  </Frame>
 );
 
 const ReportsPage = async () => {

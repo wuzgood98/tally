@@ -12,6 +12,7 @@ import { TillLineRow } from "@/components/sales/till-line-row";
 import type { BasketLine } from "@/components/sales/till-line-row";
 import { ProductPicker } from "@/components/stock/product-picker";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame, FramePanel } from "@/components/ui/frame";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
 import type { PaymentMethod } from "@/lib/db/schema";
@@ -167,76 +168,78 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
       {lastSale === null ? null : <LastSale recorded={lastSale} />}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <div className="border-line bg-surface min-w-0 rounded-xl border">
-          <div className="border-line grid gap-4 border-b p-4" ref={scanArea}>
-            {stores.length > 1 ? (
-              <Field>
-                <FieldLabel>Till at</FieldLabel>
-                <Select
-                  onValueChange={(value) => {
-                    setStoreId(value ?? "");
-                  }}
-                  options={namedOptions(stores)}
-                  value={storeId}
-                />
-              </Field>
-            ) : null}
-            <ProductPicker autoFocus label="Scan items" onPick={addProduct} />
-          </div>
-          {lines.length === 0 ? (
-            <p className="text-ink-2 p-6 text-center text-sm">
-              The basket is empty. Scan the first item.
-            </p>
-          ) : (
-            <div className="relative overflow-x-auto">
-              <table className="w-full text-sm">
-                <caption className="sr-only">Basket</caption>
-                <thead>
-                  <tr className="text-ink-2 border-line border-b text-left text-xs">
-                    <th className="px-4 py-2 font-medium" scope="col">
-                      Item
-                    </th>
-                    <th
-                      className="px-2 py-2 text-right font-medium"
-                      scope="col"
-                    >
-                      Price
-                    </th>
-                    <th
-                      className="w-24 px-2 py-2 text-right font-medium"
-                      scope="col"
-                    >
-                      Qty
-                    </th>
-                    <th
-                      className="px-2 py-2 text-right font-medium"
-                      scope="col"
-                    >
-                      Amount
-                    </th>
-                    <th className="w-12 px-2 py-2" scope="col">
-                      <span className="sr-only">Remove</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((line) => (
-                    <TillLineRow
-                      branchId={storeId}
-                      flash={
-                        bump?.productId === line.product.id ? bump.count : 0
-                      }
-                      key={line.product.id}
-                      line={line}
-                      onChange={update}
-                      onRemove={remove}
-                    />
-                  ))}
-                </tbody>
-              </table>
+        <Frame>
+          <FramePanel flush>
+            <div className="border-line grid gap-4 border-b p-4" ref={scanArea}>
+              {stores.length > 1 ? (
+                <Field>
+                  <FieldLabel>Till at</FieldLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      setStoreId(value ?? "");
+                    }}
+                    options={namedOptions(stores)}
+                    value={storeId}
+                  />
+                </Field>
+              ) : null}
+              <ProductPicker autoFocus label="Scan items" onPick={addProduct} />
             </div>
-          )}
-        </div>
+            {lines.length === 0 ? (
+              <p className="text-ink-2 p-6 text-center text-sm">
+                The basket is empty. Scan the first item.
+              </p>
+            ) : (
+              <div className="relative overflow-x-auto">
+                <table className="w-full text-sm">
+                  <caption className="sr-only">Basket</caption>
+                  <thead>
+                    <tr className="text-ink-2 border-line border-b text-left text-xs">
+                      <th className="px-4 py-2 font-medium" scope="col">
+                        Item
+                      </th>
+                      <th
+                        className="px-2 py-2 text-right font-medium"
+                        scope="col"
+                      >
+                        Price
+                      </th>
+                      <th
+                        className="w-24 px-2 py-2 text-right font-medium"
+                        scope="col"
+                      >
+                        Qty
+                      </th>
+                      <th
+                        className="px-2 py-2 text-right font-medium"
+                        scope="col"
+                      >
+                        Amount
+                      </th>
+                      <th className="w-12 px-2 py-2" scope="col">
+                        <span className="sr-only">Remove</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => (
+                      <TillLineRow
+                        branchId={storeId}
+                        flash={
+                          bump?.productId === line.product.id ? bump.count : 0
+                        }
+                        key={line.product.id}
+                        line={line}
+                        onChange={update}
+                        onRemove={remove}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </FramePanel>
+        </Frame>
 
         <TillCheckout
           error={error}
