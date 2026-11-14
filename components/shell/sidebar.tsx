@@ -8,8 +8,16 @@ import {
   TooltipTrigger,
 } from "@ui-sdk/react/tooltip";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { createContext, use, useCallback, useMemo, useState } from "react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
+import { flushSync } from "react-dom";
 
 import { TooltipContent } from "@/components/ui/tooltip";
 import {
@@ -61,6 +69,31 @@ export const useSidebar = (): SidebarState => {
   return state;
 };
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+/**
+ * Runs the change inside a view transition: the browser snapshots the page,
+ * the layout changes once, and the snapshots animate (styles in
+ * `globals.css`). Animating the column width instead would re-layout every
+ * table on every frame. Without support, or with reduced motion, it snaps.
+ */
+const withTransition = (change: () => void) => {
+  const animate =
+    "startViewTransition" in document &&
+    !window.matchMedia(REDUCED_MOTION).matches;
+
+  if (!animate) {
+    change();
+
+    return;
+  }
+
+  document.startViewTransition(() => {
+    // The DOM has to be updated before the callback returns.
+    flushSync(change);
+  });
+};
+
 interface SidebarProviderProps {
   readonly defaultCollapsed: boolean;
   readonly children: ReactNode;
@@ -72,11 +105,19 @@ export const SidebarProvider = ({
   children,
 }: SidebarProviderProps) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  // A view transition runs its change a frame or more later, after any other
+  // toggle in between, so each change flips the latest value, not the one
+  // there was when the key was pressed.
+  const latest = useRef(defaultCollapsed);
 
   const toggle = useCallback(() => {
-    setCollapsed(!collapsed);
-    save(!collapsed);
-  }, [collapsed]);
+    withTransition(() => {
+      const next = !latest.current;
+      latest.current = next;
+      setCollapsed(next);
+      save(next);
+    });
+  }, []);
 
   const state = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
 
@@ -130,7 +171,10 @@ interface SidebarProps {
 
 export const Sidebar = ({ className, children }: SidebarProps) => (
   <InSidebarContext value>
-    <aside className={className} id="sidebar">
+    <aside
+      className={cn(className, "lg:[view-transition-name:sidebar]")}
+      id="sidebar"
+    >
       {children}
     </aside>
   </InSidebarContext>
