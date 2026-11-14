@@ -55,7 +55,6 @@ import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from "@/lib/sidebar";
 import { COMPANY_NAME, ROLE_LABELS } from "@/lib/site";
-import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 
 const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const viewer = await requireViewer();
@@ -217,7 +216,6 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
         }
         groups={paletteCommands(viewer, branches)}
         scope={scope.kind === "all" ? "all" : scope.branchId}
-        theme={parseTheme(jar.get(THEME_COOKIE)?.value)}
       >
         <SidebarFrame className="bg-paper lg:grid lg:min-h-svh lg:py-2 lg:pr-2 print:block print:bg-transparent print:p-0">
           <a

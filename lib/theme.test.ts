@@ -4,11 +4,11 @@ import { themeOf, themeValue } from "@/lib/palette-theme";
 import { parseTheme, themeColors } from "@/lib/theme";
 
 describe("theme", () => {
-  it("follows the device unless a known theme was saved", () => {
+  it("uses the default theme unless a known theme was saved", () => {
     expect(parseTheme("dark")).toBe("dark");
-    expect(parseTheme("light")).toBe("light");
-    expect(parseTheme(undefined)).toBe("system");
-    expect(parseTheme("purple")).toBe("system");
+    expect(parseTheme("system")).toBe("system");
+    expect(parseTheme(undefined)).toBe("light");
+    expect(parseTheme("purple")).toBe("light");
   });
 
   it("gives the browser one chrome colour for a chosen theme, two for the device's", () => {

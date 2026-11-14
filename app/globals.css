@@ -43,7 +43,7 @@
  * closing. Graphite with an inset canvas, one ice-blue accent, amber for
  * "running low", coral for "out". Geist for words, Geist Mono for SKUs,
  * barcodes and every number that needs to line up. Designed dark-first; light
- * mirrors it in cool greys. Follows the device unless someone picks a theme in the palette.
+ * mirrors it in cool greys. Light by default; dark or the device's setting can be picked in the palette.
  * Printing is always light.
  */
 
