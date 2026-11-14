@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@ui-sdk/react/toast";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -43,6 +44,16 @@ export const CommandPaletteProvider = ({
         const formData = new FormData();
         formData.set("scope", next);
         await setScope(formData);
+
+        // The palette closes, so say where they are now.
+        const name =
+          next === "all"
+            ? "All branches"
+            : branches.find((item) => item.id === next)?.name;
+
+        if (name !== undefined) {
+          toast.success(`Showing ${name}`, { id: "scope" });
+        }
       }}
       scope={scope}
       theme={theme}

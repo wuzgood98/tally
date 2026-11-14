@@ -169,7 +169,7 @@ Batches:
 2. **Done**: lists, searches and the palette. The product page for a cashier: no Average cost, margin or Supplier (`CostFacts`), no History (`HistoryPanel`, which now loads its own movements, so a cashier's page never queries them), and `BranchStockTable` in `brief` mode (branch, location, on hand, status; no on the way, on order, sold or reorder at). These are server components, so nothing hidden reaches the browser. `lookup-action` sends `averageCost: null` to anyone who can't browse the back office (`PickedProduct.averageCost` is now `number | null`; the receive and order forms leave the cost blank on null). Palette: Go to keeps only Till, Sales and Products for a cashier (`FRONT_OF_HOUSE` in `lib/palette.ts`); document search takes a `DocumentAccess` (`documentAccessFor`: everything for back office, a cashier's own store's SAL and RET only), transfers matching either end; the layout passes no branches when the switcher is hidden, so `BranchGroup` and `BranchPage` render nothing. The product list and sales pages never showed cost.
 3. **Done**: verified. curl matrix of 35 routes (incl. every report page and CSV, the PO print page) as cashier, storekeeper, manager and head office: a cashier gets 307 to `/till` for `/`, 200 for Till, Sales, own-store sales and Products, 404 for everything else; the other roles are unchanged (their 404s and 307s come from the existing action guards, such as receiving a closed PO). Browser as the Spintex cashier at desktop and 390px: nav Till / Sales / Products, the store name in the header, the palette's Go to is Till, Sales and Products with no Branch group, "000042" finds only Spintex sales and a transfer number finds nothing, the till lookup's response carries `"averageCost":null`, and the product page shows only the agreed facts.
 
-**Toast notifications** are in progress (November 2026), one commit per batch.
+**Toast notifications** are done (November 2026), on the branch `toast-notifications`, one commit per batch. Verified: types, lint, 270 tests, production build, `next start` smoke test as head office.
 
 Decisions the user accepted:
 
@@ -182,8 +182,8 @@ Batches:
 
 1. **Done**: the toaster, the flash cookie and `FlashToast`; receipts converted ("GRN-… saved", "N units added to stock.", "Receive another"). Walked through in the browser at desktop and 390px.
 2. **Done**: every other redirect banner is a toast, and no detail page reads a notice from the URL any more. Products ("Product added" / "Product saved"), adjustments ("+1, leaving 59 on hand."), purchase orders (saved as a draft, approved with a "Print it" link, cancelled, closed short), transfers and request fulfilment (`transferNotice` in `lib/transfer-notices.ts`, pure and tested: units, route, shortfall, "Send another"; the action loads the transfer for names and counts), requests (sent, cancelled) and sale returns (number and refund). `formatUnits` (`lib/format.ts`) says "1 unit" / "5 units". Walked through: an adjustment toasts on the product page with a clean URL, and a refresh doesn't repeat it.
-3. In-place actions: stock settings, staff, tills, branch switch and theme.
-4. Verify and tidy.
+3. **Done**: in-place actions toast from the client after the action returns no error: stock settings ("Saved for Amasaman", replacing the inline "Saved."; errors stay inline), deactivate / reactivate staff, revoke a till key, and a branch switch from the palette ("Showing Kumasi", since the palette closes). Deliberately no toast for adding staff or a till (the one-time password or key panel is the confirmation and must not time out), the theme (the change is the confirmation), or the header switcher (the change happens where you clicked).
+4. **Done**: verified (see above).
 
 ## Stack
 
