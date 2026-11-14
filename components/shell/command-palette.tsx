@@ -20,6 +20,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@ui-sdk/react/dialog";
+import {
+  ScrollArea,
+  ScrollAreaContent,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from "@ui-sdk/react/scroll-area";
 import { useShortcut, useShortcutHint } from "@ui-sdk/react/shortcuts";
 import {
   ChartColumn,
@@ -328,35 +335,51 @@ export const CommandPalette = ({
                   : `Nothing matches “${query.trim()}”.`;
               }}
             </CommandEmpty>
-            <CommandList className="pb-safe max-h-none min-h-0 [scrollbar-width:thin] overflow-y-auto overscroll-contain px-2 pt-2">
-              <CommandPage>
-                {groups.map((group) =>
-                  group.label === ACCOUNT_GROUP ? null : (
-                    <CommandGroupOf group={group} key={group.label} />
-                  )
-                )}
-                <BranchGroup branches={branches} query={query} scope={scope} />
-                <ThemeGroup theme={theme} />
-                {groups.map((group) =>
-                  group.label === ACCOUNT_GROUP ? (
-                    <CommandGroupOf group={group} key={group.label} />
-                  ) : null
-                )}
-                {documentsFirst(query) ? (
-                  <>
-                    <DocumentResults documents={documents} />
-                    <ProductResults products={products} query={query} />
-                  </>
-                ) : (
-                  <>
-                    <ProductResults products={products} query={query} />
-                    <DocumentResults documents={documents} />
-                  </>
-                )}
-              </CommandPage>
-              <BranchPage branches={branches} scope={scope} />
-              <ThemePage theme={theme} />
-            </CommandList>
+            <ScrollArea className="flex min-h-0 flex-col rounded-none border-0">
+              <ScrollAreaViewport
+                aria-label="Commands"
+                className="h-auto min-h-0 flex-1 overscroll-contain"
+              >
+                <ScrollAreaContent className="p-0">
+                  <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
+                    <CommandPage>
+                      {groups.map((group) =>
+                        group.label === ACCOUNT_GROUP ? null : (
+                          <CommandGroupOf group={group} key={group.label} />
+                        )
+                      )}
+                      <BranchGroup
+                        branches={branches}
+                        query={query}
+                        scope={scope}
+                      />
+                      <ThemeGroup theme={theme} />
+                      {groups.map((group) =>
+                        group.label === ACCOUNT_GROUP ? (
+                          <CommandGroupOf group={group} key={group.label} />
+                        ) : null
+                      )}
+                      {documentsFirst(query) ? (
+                        <>
+                          <DocumentResults documents={documents} />
+                          <ProductResults products={products} query={query} />
+                        </>
+                      ) : (
+                        <>
+                          <ProductResults products={products} query={query} />
+                          <DocumentResults documents={documents} />
+                        </>
+                      )}
+                    </CommandPage>
+                    <BranchPage branches={branches} scope={scope} />
+                    <ThemePage theme={theme} />
+                  </CommandList>
+                </ScrollAreaContent>
+              </ScrollAreaViewport>
+              <ScrollAreaScrollbar className="w-2 p-0.5">
+                <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
+              </ScrollAreaScrollbar>
+            </ScrollArea>
           </Command>
         </DialogContent>
       </Dialog>
