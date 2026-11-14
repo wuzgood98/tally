@@ -26,6 +26,19 @@
 }
 
 /*
+ * Inside the desktop sidebar when it's shrunk to icons (data-sidebar on the
+ * app frame, from the sidebar cookie). Desktop only: below lg the sidebar is
+ * hidden and the header nav takes over.
+ */
+@custom-variant rail {
+  @media (width >= 64rem) {
+    &:where([data-sidebar="collapsed"] *) {
+      @slot;
+    }
+  }
+}
+
+/*
  * Tally, "Night shift": a precise instrument for the back office after
  * closing. Graphite with an inset canvas, one ice-blue accent, amber for
  * "running low", coral for "out". Geist for words, Geist Mono for SKUs,
