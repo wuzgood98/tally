@@ -26,6 +26,19 @@
 }
 
 /*
+ * Inside the desktop sidebar when it's shrunk to icons (data-sidebar on the
+ * app frame, from the sidebar cookie). Desktop only: below lg the sidebar is
+ * hidden and the header nav takes over.
+ */
+@custom-variant rail {
+  @media (width >= 64rem) {
+    &:where([data-sidebar="collapsed"] *) {
+      @slot;
+    }
+  }
+}
+
+/*
  * Tally, "Night shift": a precise instrument for the back office after
  * closing. Graphite with an inset canvas, one ice-blue accent, amber for
  * "running low", coral for "out". Geist for words, Geist Mono for SKUs,
@@ -173,6 +186,34 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/*
+ * The sidebar collapsing or expanding (a view transition from
+ * components/shell/sidebar.tsx). The layout changes once; these snapshots of
+ * the sidebar and the canvas slide and resize. Each snapshot keeps its real
+ * size, pinned top-left and clipped to its box, so text never stretches.
+ */
+::view-transition-group(sidebar),
+::view-transition-group(canvas) {
+  animation-duration: 160ms;
+  animation-timing-function: var(--ease-out-quick);
+}
+
+::view-transition-image-pair(sidebar),
+::view-transition-image-pair(canvas) {
+  overflow: clip;
+}
+
+::view-transition-old(sidebar),
+::view-transition-new(sidebar),
+::view-transition-old(canvas),
+::view-transition-new(canvas) {
+  width: auto;
+  height: auto;
+  object-fit: none;
+  object-position: left top;
+  animation-duration: 160ms;
 }
 
 /* Popups grow from their trigger and leave a touch faster than they came. */

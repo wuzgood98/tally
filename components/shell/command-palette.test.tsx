@@ -418,6 +418,43 @@ describe("CommandPalette", () => {
     expect(setTheme).toHaveBeenCalledWith("dark");
   });
 
+  it("collapses the sidebar from the palette", async () => {
+    const user = userEvent.setup();
+
+    const toggleSidebar = vi.fn(() => {
+      /* the app flips the sidebar */
+    });
+
+    render(
+      <CommandPalette
+        branches={BRANCHES}
+        groups={GROUPS}
+        onNavigate={push}
+        onSetTheme={setTheme}
+        onSignOut={signOut}
+        onSwitchScope={switchScope}
+        scope="SPX"
+        search={search}
+        sidebar={{ collapsed: false, toggle: toggleSidebar }}
+        theme="system"
+      >
+        <PaletteFieldTrigger />
+      </CommandPalette>
+    );
+    await user.keyboard("{Control>}k{/Control}");
+    await user.type(await screen.findByRole("combobox"), "sidebar");
+    await user.keyboard("{Enter}");
+
+    expect(toggleSidebar).toHaveBeenCalledOnce();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("has no sidebar command where there's no sidebar", async () => {
+    await openAndType("sidebar");
+
+    expect(screen.queryByRole("option", { name: /sidebar/u })).toBeNull();
+  });
+
   it("doesn't search for a single letter", async () => {
     await openAndType("r");
 

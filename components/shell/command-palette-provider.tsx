@@ -9,6 +9,7 @@ import { setScope } from "@/app/(app)/scope-action";
 import { signOut } from "@/app/login/actions";
 import { setTheme } from "@/app/theme-action";
 import { CommandPalette } from "@/components/shell/command-palette";
+import { useIsDesktop, useSidebar } from "@/components/shell/sidebar";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
 import type { Theme } from "@/lib/theme";
@@ -30,6 +31,9 @@ export const CommandPaletteProvider = ({
   theme,
 }: CommandPaletteProviderProps) => {
   const router = useRouter();
+  const sidebar = useSidebar();
+
+  const desktop = useIsDesktop();
 
   return (
     <CommandPalette
@@ -56,6 +60,7 @@ export const CommandPaletteProvider = ({
         }
       }}
       scope={scope}
+      sidebar={desktop ? sidebar : undefined}
       theme={theme}
       search={findPaletteResults}
     >

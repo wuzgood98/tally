@@ -7,8 +7,6 @@ import {
   CommandGroup,
   CommandGroupLabel,
   CommandInput,
-  CommandItem,
-  CommandItemIcon,
   CommandList,
   CommandPage,
 } from "@ui-sdk/react/command";
@@ -53,6 +51,7 @@ import type { LucideIcon } from "lucide-react";
 import { createContext, memo, use, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { shellIconButton } from "@/components/shell/icon-button";
 import { Kbd } from "@/components/ui/kbd";
 import { ACCOUNT_GROUP } from "@/lib/palette";
 import type {
@@ -72,14 +71,18 @@ import {
   resultScore,
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
+import { SIDEBAR_COMMAND } from "@/lib/palette-sidebar";
 import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
+import type { SidebarState } from "@/lib/sidebar";
 import type { Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
+import { AppearanceGroup } from "./palette-appearance";
 import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
 import { ProductResults } from "./palette-products";
-import { ThemeGroup, ThemePage } from "./palette-theme";
+import { PaletteRow, ShortcutPaletteRow } from "./palette-row";
+import { ThemePage } from "./palette-theme";
 
 const SHORTCUT = "mod+k";
 const TITLE = "Search or jump to";
@@ -122,58 +125,20 @@ const usePalette = (): PaletteController => {
   return palette;
 };
 
-interface ShortcutHint {
-  readonly text: string;
-  readonly ariaKeyshortcuts: string;
-}
+const PaletteItem = ({ command }: { readonly command: PaletteCommand }) => {
+  const row = {
+    icon: ICONS[command.icon],
+    keywords: command.keywords,
+    label: command.label,
+    value: command.value,
+  };
 
-const PaletteRow = ({
-  command,
-  hint,
-}: {
-  readonly command: PaletteCommand;
-  readonly hint?: ShortcutHint;
-}) => {
-  const Icon = ICONS[command.icon];
-
-  return (
-    <CommandItem
-      aria-keyshortcuts={hint?.ariaKeyshortcuts}
-      className="text-ink-2 data-highlighted:bg-ink/6 data-highlighted:text-ink flex min-h-9 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-sm outline-none select-none data-pending:cursor-progress data-pending:opacity-60"
-      keywords={
-        command.keywords === undefined ? undefined : [...command.keywords]
-      }
-      label={command.label}
-      value={command.value}
-    >
-      <CommandItemIcon className="text-ink-3 [&_svg]:size-4">
-        <Icon aria-hidden="true" />
-      </CommandItemIcon>
-      <span className="grow truncate">{command.label}</span>
-      {hint === undefined ? null : (
-        // Keys only help where there's a keyboard.
-        <Kbd aria-hidden="true" className="pointer-coarse:hidden">
-          {hint.text}
-        </Kbd>
-      )}
-    </CommandItem>
+  return command.shortcut === undefined ? (
+    <PaletteRow {...row} />
+  ) : (
+    <ShortcutPaletteRow {...row} shortcut={command.shortcut} />
   );
 };
-
-const ShortcutRow = ({
-  command,
-  shortcut,
-}: {
-  readonly command: PaletteCommand;
-  readonly shortcut: string;
-}) => <PaletteRow command={command} hint={useShortcutHint(shortcut)} />;
-
-const PaletteItem = ({ command }: { readonly command: PaletteCommand }) =>
-  command.shortcut === undefined ? (
-    <PaletteRow command={command} />
-  ) : (
-    <ShortcutRow command={command} shortcut={command.shortcut} />
-  );
 
 /** Registers one command's shortcut for as long as the app is open. */
 const CommandShortcut = ({
@@ -272,6 +237,8 @@ export interface CommandPaletteProps {
   readonly onSwitchScope: (scope: string) => Promise<void>;
   readonly theme: Theme;
   readonly onSetTheme: (theme: Theme) => Promise<void>;
+  /** The desktop sidebar, when there is one to collapse or expand. */
+  readonly sidebar?: SidebarState;
 }
 
 /**
@@ -291,6 +258,7 @@ export const CommandPalette = ({
   onSwitchScope,
   theme,
   onSetTheme,
+  sidebar,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
@@ -352,6 +320,13 @@ export const CommandPalette = ({
     if (resultPage !== null) {
       palette.close();
       onNavigate(resultPage);
+
+      return;
+    }
+
+    if (value === SIDEBAR_COMMAND) {
+      sidebar?.toggle();
+      palette.close();
 
       return;
     }
@@ -423,9 +398,12 @@ export const CommandPalette = ({
         pendingAnnouncement="Working…"
         presentation="auto"
       >
-        <DialogBackdrop className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs transition-opacity duration-150 data-ending-style:opacity-0 motion-reduce:transition-none" />
+        {/* Own view-transition layers, so toggling the sidebar from here
+            fades the palette out above the sliding sidebar and canvas
+            instead of dropping it beneath them. */}
+        <DialogBackdrop className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs transition-opacity duration-150 [view-transition-name:palette-backdrop] data-ending-style:opacity-0 motion-reduce:transition-none" />
         <DialogContent
-          className="border-line-strong bg-surface text-ink shadow-float z-50 flex w-full flex-col gap-0 overflow-hidden border p-0 font-sans data-[presentation=dialog]:mx-auto data-[presentation=dialog]:mt-[12vh] data-[presentation=dialog]:mb-auto data-[presentation=dialog]:max-h-[min(32rem,76vh)] data-[presentation=dialog]:w-[calc(100%-2rem)] data-[presentation=dialog]:max-w-xl data-[presentation=dialog]:rounded-2xl data-[presentation=dialog]:transition data-[presentation=dialog]:duration-150 data-[presentation=dialog]:data-ending-style:scale-98 data-[presentation=dialog]:data-ending-style:opacity-0 data-[presentation=sheet]:max-h-[min(80svh,calc(var(--visual-viewport-height,100svh)-0.5rem))] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 motion-reduce:data-[presentation=dialog]:transition-none"
+          className="border-line-strong bg-surface text-ink shadow-float z-50 flex w-full flex-col gap-0 overflow-hidden border p-0 font-sans [view-transition-name:palette] data-[presentation=dialog]:mx-auto data-[presentation=dialog]:mt-[12vh] data-[presentation=dialog]:mb-auto data-[presentation=dialog]:max-h-[min(32rem,76vh)] data-[presentation=dialog]:w-[calc(100%-2rem)] data-[presentation=dialog]:max-w-xl data-[presentation=dialog]:rounded-2xl data-[presentation=dialog]:transition data-[presentation=dialog]:duration-150 data-[presentation=dialog]:data-ending-style:scale-98 data-[presentation=dialog]:data-ending-style:opacity-0 data-[presentation=sheet]:max-h-[min(80svh,calc(var(--visual-viewport-height,100svh)-0.5rem))] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 motion-reduce:data-[presentation=dialog]:transition-none"
           keepMounted
         >
           <DialogTitle className="sr-only">{TITLE}</DialogTitle>
@@ -484,7 +462,7 @@ export const CommandPalette = ({
                         query={query}
                         scope={scope}
                       />
-                      <ThemeGroup theme={theme} />
+                      <AppearanceGroup sidebar={sidebar} theme={theme} />
                       {groups.map((group) =>
                         group.label === ACCOUNT_GROUP ? (
                           <CommandGroupOf group={group} key={group.label} />
@@ -556,7 +534,7 @@ export const PaletteIconTrigger = () => {
     <DialogTrigger
       aria-keyshortcuts={hint.ariaKeyshortcuts}
       aria-label={TITLE}
-      className="press text-ink-2 hover:text-ink hover:bg-surface-2 grid size-8 shrink-0 place-items-center rounded-md"
+      className={shellIconButton}
       controller={palette}
     >
       <Search aria-hidden="true" className="size-4" />
