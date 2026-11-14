@@ -451,7 +451,8 @@ export const CommandPalette = ({
             <ScrollArea className="flex min-h-0 flex-col rounded-none border-0">
               <ScrollAreaViewport
                 aria-label="Commands"
-                className="h-auto min-h-0 flex-1 overscroll-contain"
+                // Scroll padding as tall as the fades keeps the highlight clear of them.
+                className="h-auto min-h-0 flex-1 scroll-py-8 overscroll-contain"
               >
                 <ScrollAreaContent className="p-0">
                   <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
@@ -489,6 +490,15 @@ export const CommandPalette = ({
                   </CommandList>
                 </ScrollAreaContent>
               </ScrollAreaViewport>
+              {/* Grow in as the list scrolls past each edge, up to 2rem. */}
+              <div
+                aria-hidden="true"
+                className="from-surface pointer-events-none absolute inset-x-0 top-0 h-[min(2rem,var(--scroll-area-overflow-y-start))] bg-linear-to-b to-transparent [--scroll-area-overflow-y-start:inherit]"
+              />
+              <div
+                aria-hidden="true"
+                className="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-[min(2rem,var(--scroll-area-overflow-y-end))] bg-linear-to-t to-transparent [--scroll-area-overflow-y-end:inherit]"
+              />
               <ScrollAreaScrollbar className="w-2 p-0.5">
                 <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
               </ScrollAreaScrollbar>
