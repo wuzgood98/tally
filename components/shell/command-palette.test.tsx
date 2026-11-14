@@ -435,7 +435,7 @@ describe("CommandPalette", () => {
         onSwitchScope={switchScope}
         scope="SPX"
         search={search}
-        sidebar={{ collapsed: false, onToggle: toggleSidebar }}
+        sidebar={{ collapsed: false, toggle: toggleSidebar }}
         theme="system"
       >
         <PaletteFieldTrigger />

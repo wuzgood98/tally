@@ -15,10 +15,12 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
 
+import { shellIconButton } from "@/components/shell/icon-button";
 import { TooltipContent } from "@/components/ui/tooltip";
 import {
   SIDEBAR_COLLAPSED,
@@ -27,12 +29,26 @@ import {
   SIDEBAR_SHORTCUT,
   sidebarActionLabel,
 } from "@/lib/sidebar";
+import type { SidebarState } from "@/lib/sidebar";
 import { cn } from "@/lib/utils";
 
-interface SidebarState {
-  readonly collapsed: boolean;
-  readonly toggle: () => void;
-}
+/** Whether the window is wide enough to have a sidebar. */
+const isDesktop = (): boolean => window.matchMedia(SIDEBAR_MEDIA).matches;
+
+const subscribeToDesktop = (onChange: () => void) => {
+  const query = window.matchMedia(SIDEBAR_MEDIA);
+  query.addEventListener("change", onChange);
+
+  return () => {
+    query.removeEventListener("change", onChange);
+  };
+};
+
+const notOnServer = () => false;
+
+/** Follows the window across the lg breakpoint; false on the server. */
+export const useIsDesktop = (): boolean =>
+  useSyncExternalStore(subscribeToDesktop, isDesktop, notOnServer);
 
 const SidebarContext = createContext<SidebarState | null>(null);
 
@@ -122,16 +138,13 @@ export const SidebarProvider = ({
   const state = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
 
   // Works from a field too, as Ctrl/Cmd+K does. Phones have no sidebar to
-  // toggle, so the keys do nothing there rather than flip a hidden setting.
-  useShortcut(
-    SIDEBAR_SHORTCUT,
-    () => {
-      if (window.matchMedia(SIDEBAR_MEDIA).matches) {
-        toggle();
-      }
-    },
-    { allowInInput: true, description: "Collapse or expand the sidebar" }
-  );
+  // toggle, so there the shortcut stands aside: `when` is checked before
+  // ui-sdk claims the key, so the browser keeps its own Ctrl+B.
+  useShortcut(SIDEBAR_SHORTCUT, toggle, {
+    allowInInput: true,
+    description: "Collapse or expand the sidebar",
+    when: isDesktop,
+  });
 
   return <SidebarContext value={state}>{children}</SidebarContext>;
 };
@@ -190,7 +203,7 @@ export const SidebarToggle = () => {
     <Tooltip shortcut={SIDEBAR_SHORTCUT}>
       <TooltipTrigger
         aria-controls="sidebar"
-        className="press text-ink-3 hover:text-ink hover:bg-surface-2 -ms-2 hidden size-8 shrink-0 place-items-center rounded-md lg:grid"
+        className={cn(shellIconButton, "text-ink-3 -ms-2 hidden lg:grid")}
         onClick={toggle}
       >
         <Icon aria-hidden="true" className="size-4" />

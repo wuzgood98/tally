@@ -2,7 +2,6 @@
 
 import { toast } from "@ui-sdk/react/toast";
 import { useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 import { findPaletteResults } from "@/app/(app)/palette-action";
@@ -10,10 +9,9 @@ import { setScope } from "@/app/(app)/scope-action";
 import { signOut } from "@/app/login/actions";
 import { setTheme } from "@/app/theme-action";
 import { CommandPalette } from "@/components/shell/command-palette";
-import { useSidebar } from "@/components/shell/sidebar";
+import { useIsDesktop, useSidebar } from "@/components/shell/sidebar";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
-import { SIDEBAR_MEDIA } from "@/lib/sidebar";
 import type { Theme } from "@/lib/theme";
 
 interface CommandPaletteProviderProps {
@@ -23,19 +21,6 @@ interface CommandPaletteProviderProps {
   readonly scope: string;
   readonly theme: Theme;
 }
-
-const subscribeToDesktop = (onChange: () => void) => {
-  const query = window.matchMedia(SIDEBAR_MEDIA);
-  query.addEventListener("change", onChange);
-
-  return () => {
-    query.removeEventListener("change", onChange);
-  };
-};
-
-const isDesktop = () => window.matchMedia(SIDEBAR_MEDIA).matches;
-
-const notOnServer = () => false;
 
 /** The palette wired to the app: Next's router and the sign-out action. */
 export const CommandPaletteProvider = ({
@@ -48,11 +33,7 @@ export const CommandPaletteProvider = ({
   const router = useRouter();
   const sidebar = useSidebar();
 
-  const desktop = useSyncExternalStore(
-    subscribeToDesktop,
-    isDesktop,
-    notOnServer
-  );
+  const desktop = useIsDesktop();
 
   return (
     <CommandPalette
@@ -79,11 +60,7 @@ export const CommandPaletteProvider = ({
         }
       }}
       scope={scope}
-      sidebar={
-        desktop
-          ? { collapsed: sidebar.collapsed, onToggle: sidebar.toggle }
-          : undefined
-      }
+      sidebar={desktop ? sidebar : undefined}
       theme={theme}
       search={findPaletteResults}
     >

@@ -25,6 +25,7 @@ import {
 } from "@/components/shell/command-palette";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-provider";
 import { FlashToast } from "@/components/shell/flash-toast";
+import { shellIconButton } from "@/components/shell/icon-button";
 import { NavLink } from "@/components/shell/nav-link";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import {
@@ -318,7 +319,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
                   <form action={signOut}>
                     <button
                       aria-label={`Sign out ${viewer.name}`}
-                      className="press text-ink-2 hover:text-ink hover:bg-surface-2 grid size-8 place-items-center rounded-md"
+                      className={shellIconButton}
                       type="submit"
                     >
                       <LogOut aria-hidden="true" className="size-4" />

@@ -35,13 +35,14 @@ export const NavLink = ({
   const rail = useSidebarRail();
   const hasBadge = badge !== undefined && badge > 0;
 
-  // bg-transparent beats ui-sdk's default tooltip-trigger look in the rail.
   const className = cn(
     "press flex h-8 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm whitespace-nowrap lg:h-7.5",
-    rail && "relative justify-center px-0",
+    // In the rail the link is a tooltip trigger: bg-transparent beats
+    // ui-sdk's default trigger look, and the current link's fill wins below.
+    rail && "relative justify-center bg-transparent px-0",
     current
       ? "bg-surface-2 text-ink ring-line ring-1 lg:ring-0"
-      : "text-ink-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink bg-transparent"
+      : "text-ink-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink"
   );
 
   const iconSpan = (
