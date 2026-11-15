@@ -22,7 +22,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = ROOT_METADATA;
 
 // The default theme's; ThemeProvider repoints it at the theme in use.
+// No maximumScale: it would block pinch-zoom on Android. Fields get 16px on
+// touch screens instead (globals.css), so iOS doesn't zoom into them.
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   colorScheme: DEFAULT_THEME,
   themeColor: themeColors(DEFAULT_THEME),
 };

@@ -678,3 +678,14 @@
     }
   }
 }
+
+/*
+ * iOS Safari zooms the page into any field set under 16px when it takes focus.
+ * Touch screens get 16px fields; unlayered, so it beats the field utilities.
+ * The badge-sized display field is already larger.
+ */
+@media (pointer: coarse) {
+  :where(input, textarea, select):not(.field-line-display) {
+    font-size: 1rem;
+  }
+}
