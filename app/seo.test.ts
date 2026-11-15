@@ -26,15 +26,17 @@ describe("security.txt", () => {
 });
 
 describe("crawling", () => {
-  it("lists only the sign-in page", () => {
+  it("lists only the public pages", () => {
     expect(sitemap().map(({ url }) => new URL(url).pathname)).toEqual([
       "/login",
+      "/terms",
+      "/privacy",
     ]);
   });
 
   it("keeps crawlers out of the staff screens but lets them see the card", () => {
     expect(robots().rules).toMatchObject({
-      allow: ["/login", "/opengraph-image"],
+      allow: ["/login", "/terms", "/privacy", "/opengraph-image"],
       disallow: "/",
     });
   });
@@ -80,6 +82,8 @@ describe("proxy", () => {
       "/icons/icon-512.png",
       "/.well-known/security.txt",
       "/login",
+      "/terms",
+      "/privacy",
     ]) {
       expect(pattern.test(path), path).toBe(false);
     }

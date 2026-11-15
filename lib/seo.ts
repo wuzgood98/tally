@@ -39,11 +39,17 @@ export const SITE_URL = resolveSiteUrl(process.env);
 export const absoluteUrl = (path: string): string =>
   new URL(path, SITE_URL).toString();
 
-/**
- * The one page search engines may index: everything else is behind the
- * sign-in, and a staff tool's screens have no business in search results.
- */
+/** The sign-in page: the front door, and what link previews point at. */
 export const PUBLIC_PATH = "/login";
+
+/**
+ * The pages search engines may index: sign-in, Terms and Privacy. Everything
+ * else is behind the sign-in, and a staff tool's screens have no business in
+ * search results.
+ */
+export const PUBLIC_PATHS = [PUBLIC_PATH, "/terms", "/privacy"] as const;
+
+export type PublicPath = (typeof PUBLIC_PATHS)[number];
 
 const SHARED_OPEN_GRAPH = { locale: "en_GH", siteName: SITE_NAME } as const;
 
@@ -64,8 +70,8 @@ export const ROOT_METADATA: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-/** The sign-in page: indexable, with its own canonical URL. */
-export const PUBLIC_PAGE_METADATA: Metadata = {
-  alternates: { canonical: PUBLIC_PATH },
+/** A public page: indexable, with its own canonical URL. */
+export const publicPageMetadata = (path: PublicPath): Metadata => ({
+  alternates: { canonical: path },
   robots: { follow: true, index: true },
-};
+});

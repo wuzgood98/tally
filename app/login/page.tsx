@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { DemoAccounts } from "@/components/auth/demo-accounts";
@@ -9,14 +10,15 @@ import { TallyMark } from "@/components/brand/tally-mark";
 import { JsonLd } from "@/components/seo/json-ld";
 import { BRANCHES } from "@/lib/db/seed-data";
 import { isDemo } from "@/lib/demo";
+import { PRIVACY_PATH, TERMS_PATH } from "@/lib/legal";
 import { getCompanyName } from "@/lib/queries/company";
 import { param } from "@/lib/search-params";
-import { PUBLIC_PAGE_METADATA } from "@/lib/seo";
+import { PUBLIC_PATH, publicPageMetadata } from "@/lib/seo";
 import { getViewer } from "@/lib/session";
 import { appJsonLd } from "@/lib/structured-data";
 
 export const metadata: Metadata = {
-  ...PUBLIC_PAGE_METADATA,
+  ...publicPageMetadata(PUBLIC_PATH),
   title: "Sign in",
 };
 
@@ -38,35 +40,52 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
     <main className="bg-canvas relative isolate grid min-h-svh place-items-center overflow-hidden px-4 py-12">
       <JsonLd data={appJsonLd()} />
       <StockBins names={demo ? DEMO_SITE_NAMES : []} />
-      {/* The drop shadow sits outside the clipped label, so the torn edge casts it too. */}
-      <div className="print-in drop-shadow-label relative w-full max-w-84">
-        <article className="label-paper label-tear px-5 pt-6 pb-5">
-          <div className="text-ink-2 text-2xs flex items-center justify-between gap-3 font-mono tracking-widest uppercase">
-            <span className="flex min-w-0 items-center gap-2">
-              <TallyMark className="text-ink size-4 shrink-0" />
-              <span className="truncate">Tally · {companyName}</span>
-            </span>
-            <span className="shrink-0">No. 0001</span>
-          </div>
-          <h1 className="mt-4 text-4xl leading-none font-bold tracking-tighter">
-            Staff
-            <br />
-            sign-in
-          </h1>
-          <div className="border-ink mt-3 border-t-2">
-            <div className="border-ink-2 flex items-center justify-between border-b border-dashed py-2 font-mono text-xs">
-              <span>
-                SKU <span className="font-semibold">STAFF-ACCESS</span>
+      <div className="relative grid w-full max-w-84 justify-items-center gap-5">
+        {/* The drop shadow sits outside the clipped label, so the torn edge casts it too. */}
+        <div className="print-in drop-shadow-label w-full">
+          <article className="label-paper label-tear px-5 pt-6 pb-5">
+            <div className="text-ink-2 text-2xs flex items-center justify-between gap-3 font-mono tracking-widest uppercase">
+              <span className="flex min-w-0 items-center gap-2">
+                <TallyMark className="text-ink size-4 shrink-0" />
+                <span className="truncate">Tally · {companyName}</span>
               </span>
-              <span>
-                Qty <span className="font-semibold">1 seat</span>
-              </span>
+              <span className="shrink-0">No. 0001</span>
             </div>
-          </div>
-          <SignInForm next={nextPath} />
-          {demo ? <DemoAccounts next={nextPath} /> : null}
-          <LabelBarcode />
-        </article>
+            <h1 className="mt-4 text-4xl leading-none font-bold tracking-tighter">
+              Staff
+              <br />
+              sign-in
+            </h1>
+            <div className="border-ink mt-3 border-t-2">
+              <div className="border-ink-2 flex items-center justify-between border-b border-dashed py-2 font-mono text-xs">
+                <span>
+                  SKU <span className="font-semibold">STAFF-ACCESS</span>
+                </span>
+                <span>
+                  Qty <span className="font-semibold">1 seat</span>
+                </span>
+              </div>
+            </div>
+            <SignInForm next={nextPath} />
+            {demo ? <DemoAccounts next={nextPath} /> : null}
+            <LabelBarcode />
+          </article>
+        </div>
+        <nav
+          aria-label="Terms and privacy"
+          className="text-ink-3 text-2xs flex gap-3 font-mono tracking-widest uppercase"
+        >
+          <Link className="hover:text-ink transition-colors" href={TERMS_PATH}>
+            Terms
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            className="hover:text-ink transition-colors"
+            href={PRIVACY_PATH}
+          >
+            Privacy
+          </Link>
+        </nav>
       </div>
     </main>
   );
