@@ -461,6 +461,24 @@
   }
 }
 
+/* Stock already coming: hatched, because it isn't on the shelf yet. */
+@utility gauge-incoming {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--accent) 65%, transparent) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+/* Below empty: the record sold stock the shelf didn't have. */
+@utility gauge-short {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--danger) 0 2px,
+    transparent 2px 4px
+  );
+}
+
 /* Native form controls styled once, so forms stay plain HTML. */
 @utility field {
   @apply border-input bg-surface text-ink placeholder:text-ink-3 h-9 w-full rounded-md border px-3 text-sm;

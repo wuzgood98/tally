@@ -93,6 +93,28 @@ export const countOpenRequests = async (
   return row?.count ?? 0;
 };
 
+/** By branch id: units of one product on its open requests to the warehouse. */
+export const getProductRequested = async (
+  productId: number
+): Promise<Map<string, number>> => {
+  const rows = await getDb()
+    .select({
+      branchId: stockRequest.branchId,
+      units: sql<number>`sum(${stockRequestLine.quantity})::int`,
+    })
+    .from(stockRequestLine)
+    .innerJoin(stockRequest, eq(stockRequest.id, stockRequestLine.requestId))
+    .where(
+      and(
+        eq(stockRequestLine.productId, productId),
+        eq(stockRequest.status, "requested")
+      )
+    )
+    .groupBy(stockRequest.branchId);
+
+  return new Map(rows.map((row) => [row.branchId, row.units]));
+};
+
 export const getStockRequest = async (id: number) => {
   const [header] = await getDb()
     .select({
