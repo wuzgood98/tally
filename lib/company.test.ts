@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  askTallyInput,
+  assertCanSwitchAskTally,
   companyInput,
   readCompanySettings,
   saveCompany,
@@ -140,5 +142,25 @@ describe("setAskTally", () => {
     const settings = await readCompanySettings(world.db, {});
 
     expect(settings.askTally.on).toBe(false);
+  });
+});
+
+describe("askTallyInput", () => {
+  it("takes only true or false, so a crafted request can't turn it on", () => {
+    expect(askTallyInput.safeParse(true).success).toBe(true);
+    expect(askTallyInput.safeParse(false).success).toBe(true);
+    expect(askTallyInput.safeParse("yes").success).toBe(false);
+    expect(askTallyInput.safeParse(1).success).toBe(false);
+  });
+});
+
+describe("assertCanSwitchAskTally", () => {
+  it("passes head office and stops everyone else", () => {
+    expect(() => {
+      assertCanSwitchAskTally(world.admin);
+    }).not.toThrow();
+    expect(() => {
+      assertCanSwitchAskTally(world.spintexManager);
+    }).toThrow("Only head office");
   });
 });

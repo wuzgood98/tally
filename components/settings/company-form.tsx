@@ -1,20 +1,17 @@
 "use client";
 
 import { toast } from "@ui-sdk/react/toast";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { saveCompanySettings } from "@/app/(app)/settings/actions";
-import type { SettingsFormState } from "@/app/(app)/settings/actions";
 import { ReceiptFooter } from "@/components/sales/receipt-footer";
+import { useSettingsForm } from "@/components/settings/use-settings-form";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Frame, FrameFooter, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
+import { NAME_MAX_LENGTH, RECEIPT_FOOTER_MAX } from "@/lib/limits";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
-
-const INITIAL: SettingsFormState = { error: null, saved: 0 };
-
-const FOOTER_MAX = 160;
 
 /** A made-up sale, so the preview reads like a real receipt. */
 const SAMPLE_LINES = [
@@ -27,20 +24,21 @@ interface CompanyFormProps {
   readonly companyName: string;
   readonly defaultReorderPoint: number;
   readonly receiptFooter: string | null;
-  /** "Efua Asante · 15 Nov 2026", or null if nobody has saved yet. */
+  /** "Efua Asante on 15 Nov 2026", or null if nobody has saved yet. */
   readonly lastSaved: string | null;
-  /** A store's name for the preview's heading. */
+  /** A store's name for the preview's heading, as the till prints it. */
   readonly storeName: string;
 }
 
-/** The receipt as the till prints it, updating as head office types. */
+/**
+ * The receipt as the till prints it (`TillCheckout`): the same heading, a
+ * made-up sale, and the footer updating as head office types.
+ */
 const ReceiptPreview = ({
-  companyName,
   storeName,
   footer,
   highlight,
 }: {
-  readonly companyName: string;
   readonly storeName: string;
   readonly footer: string;
   readonly highlight: boolean;
@@ -48,10 +46,8 @@ const ReceiptPreview = ({
   <figure className="drop-shadow-receipt mx-auto w-full max-w-79 motion-reduce:rotate-0 lg:mt-1.5 lg:rotate-[1.2deg]">
     <div className="label-paper label-tear figures grid gap-2.5 px-4.5 pt-6.5 pb-4.5 text-xs">
       <div className="text-ink-3 text-2xs flex justify-between gap-2.5 tracking-widest uppercase">
-        <span className="text-ink truncate font-semibold">
-          {companyName.trim() || "Company"}
-        </span>
-        <span className="shrink-0">{storeName}</span>
+        <span className="truncate">{storeName} · Till</span>
+        <span className="shrink-0">New sale</span>
       </div>
       <ul className="border-line-strong grid gap-0.75 border-y border-dashed py-2.5">
         {SAMPLE_LINES.map((line) => (
@@ -90,31 +86,25 @@ const ReceiptPreview = ({
   </figure>
 );
 
+const toastCompanySaved = () => {
+  toast.success("Company settings saved", {
+    description: "New receipts and new products use them now.",
+  });
+};
+
 /**
  * Company (head office): the name, where new products' reorder points start,
  * and the receipt footer, beside a receipt that prints what you type.
  */
 export const CompanyForm = (props: CompanyFormProps) => {
   // What's typed once they start; until then what's saved.
-  const [typedName, setTypedName] = useState<string | null>(null);
   const [typedFooter, setTypedFooter] = useState<string | null>(null);
   const [footerFocused, setFooterFocused] = useState(false);
-  const name = typedName ?? props.companyName;
   const footer = typedFooter ?? props.receiptFooter ?? "";
 
-  const [state, action, pending] = useActionState(
-    async (previous: SettingsFormState, form: FormData) => {
-      const next = await saveCompanySettings(previous, form);
-
-      if (next.error === null) {
-        toast.success("Company settings saved", {
-          description: "New receipts and new products use them now.",
-        });
-      }
-
-      return next;
-    },
-    INITIAL
+  const [state, action, pending] = useSettingsForm(
+    saveCompanySettings,
+    toastCompanySaved
   );
 
   const invalid = state.error === null ? undefined : true;
@@ -130,16 +120,13 @@ export const CompanyForm = (props: CompanyFormProps) => {
                 <Input
                   autoComplete="organization"
                   defaultValue={props.companyName}
-                  maxLength={80}
+                  maxLength={NAME_MAX_LENGTH}
                   name="companyName"
-                  onChange={(event) => {
-                    setTypedName(event.target.value);
-                  }}
                   required
                 />
                 <FieldDescription>
-                  In the sidebar, on the sign-in label, and on receipts and
-                  purchase orders.
+                  In the sidebar, on the sign-in label and on purchase orders.
+                  Receipts carry the store&apos;s name.
                 </FieldDescription>
               </Field>
               <Field>
@@ -166,12 +153,12 @@ export const CompanyForm = (props: CompanyFormProps) => {
                     aria-hidden="true"
                     className="figures text-ink-3 text-xs"
                   >
-                    {footer.length} / {FOOTER_MAX}
+                    {footer.length} / {RECEIPT_FOOTER_MAX}
                   </span>
                 </div>
                 <Textarea
                   defaultValue={props.receiptFooter ?? ""}
-                  maxLength={FOOTER_MAX}
+                  maxLength={RECEIPT_FOOTER_MAX}
                   name="receiptFooter"
                   onBlur={() => {
                     setFooterFocused(false);
@@ -185,8 +172,8 @@ export const CompanyForm = (props: CompanyFormProps) => {
                   rows={3}
                 />
                 <FieldDescription>
-                  Printed under the total on every receipt. Up to {FOOTER_MAX}{" "}
-                  characters; leave it empty for none.
+                  Printed under the total on every receipt. Up to{" "}
+                  {RECEIPT_FOOTER_MAX} characters; leave it empty for none.
                 </FieldDescription>
               </Field>
             </div>
@@ -196,7 +183,7 @@ export const CompanyForm = (props: CompanyFormProps) => {
               <p className="text-ink-3 text-xs">
                 {props.lastSaved === null
                   ? "Not saved yet. These are the defaults."
-                  : `Last saved by ${props.lastSaved}`}
+                  : `Last saved by ${props.lastSaved}.`}
               </p>
               <Button
                 data-pending={pending ? "" : undefined}
@@ -217,7 +204,6 @@ export const CompanyForm = (props: CompanyFormProps) => {
       </form>
 
       <ReceiptPreview
-        companyName={name}
         footer={footer}
         highlight={footerFocused}
         storeName={props.storeName}

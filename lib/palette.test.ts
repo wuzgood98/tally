@@ -68,6 +68,7 @@ describe("paletteCommands", () => {
     expect(values).not.toContain("go:/staff");
     expect(values).not.toContain("go:/tills");
     expect(values).not.toContain("new:product");
+    expect(values).toContain("go:/settings");
   });
 
   it("doesn't offer a warehouse manager a stock request: only stores ask", () => {
@@ -84,6 +85,7 @@ describe("paletteCommands", () => {
     expect(values).not.toContain("new:sale");
     expect(values).not.toContain("go:/reports");
     expect(values).not.toContain("new:purchase-order");
+    expect(values).toContain("go:/settings");
     expect(valuesIn(storekeeper, "Create")).toEqual([
       "new:receipt",
       "new:adjustment",

@@ -19,7 +19,7 @@ interface AskTallySwitchProps {
 }
 
 /** What the consent screen asks head office to know, in short. */
-const GOOD_TO_KNOW = (hourlyLimit: number) =>
+const goodToKnow = (hourlyLimit: number) =>
   [
     { figure: String(hourlyLimit), text: "questions per person, per hour." },
     {
@@ -159,8 +159,10 @@ export const AskTallySwitch = ({
             }}
             size="lg"
           />
-          <div aria-live="polite" className="col-start-2 col-end-4">
-            <Status state={state} turnedOn={turnedOn} />
+          <div className="col-start-2 col-end-4">
+            <div aria-live="polite">
+              <Status state={state} turnedOn={turnedOn} />
+            </div>
             {error === null ? null : (
               <p className="text-danger mt-1 text-xs" role="alert">
                 {error}
@@ -213,7 +215,7 @@ export const AskTallySwitch = ({
         <div className="mt-4">
           <p className="text-ink-3 mb-1.5 text-xs font-medium">Good to know</p>
           <ul className="border-line border-t border-dashed">
-            {GOOD_TO_KNOW(hourlyLimit).map((item) => (
+            {goodToKnow(hourlyLimit).map((item) => (
               <li
                 className="border-line text-ink-2 grid grid-cols-[3rem_1fr] gap-2.5 border-b border-dashed py-1.75 text-sm last:border-0 last:pb-0"
                 key={item.figure}

@@ -112,10 +112,7 @@ const SalePage = async ({ params }: PageProps<"/sales/[id]">) => {
         flush
         footer={
           company.receiptFooter === null ? undefined : (
-            <ReceiptFooter
-              className="border-0 pt-0"
-              text={company.receiptFooter}
-            />
+            <ReceiptFooter ruled={false} text={company.receiptFooter} />
           )
         }
         title={`${formatCount(found.lines.length)} ${found.lines.length === 1 ? "line" : "lines"} · ${formatCount(units)} ${units === 1 ? "item" : "items"}`}

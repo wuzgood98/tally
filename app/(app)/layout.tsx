@@ -206,8 +206,8 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const groups = [
     { items: today, label: "Today" },
     { items: stock, label: "Stock" },
-    // Reports, Staff and Tills are back office too, so a cashier has none.
-    ...(backOffice ? [{ items: office, label: "Office" }] : []),
+    // Each Office link checks its own permission; a cashier's only is Settings.
+    { items: office, label: "Office" },
   ];
 
   return (

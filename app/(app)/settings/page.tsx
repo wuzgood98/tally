@@ -18,10 +18,16 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { ASK_HOURLY_LIMIT, askTallyState } from "@/lib/ask/settings";
 import { badgeBarcode } from "@/lib/badge";
+import type { Stamp } from "@/lib/company";
 import { getDb } from "@/lib/db";
 import { isDemo } from "@/lib/demo";
 import { formatDate } from "@/lib/format";
-import { canManageCompany } from "@/lib/permissions";
+import {
+  canManageAskTally,
+  canManageCompany,
+  canManageStaff,
+  canManageTills,
+} from "@/lib/permissions";
 import { getCompanySettings } from "@/lib/queries/company";
 import { listTills } from "@/lib/queries/tills";
 import { listBranches } from "@/lib/scope";
@@ -36,24 +42,44 @@ const COMPANY: SettingsSection = { id: "company", label: "Company" };
 const ASK: SettingsSection = { id: "ask-tally", label: "Ask Tally" };
 const OFFICE: SettingsSection = { id: "staff-tills", label: "Staff & Tills" };
 
-/** Head office sees every section; everyone else only their own. */
-const EVERYONE: readonly SettingsSection[] = [YOU];
-const HEAD_OFFICE: readonly SettingsSection[] = [YOU, COMPANY, ASK, OFFICE];
+/** "Efua Asante on 15 Nov 2026", or null if nobody has. */
+const stampLabel = (stamp: Stamp | null): string | null =>
+  stamp === null ? null : `${stamp.by} on ${formatDate(stamp.at)}`;
 
 const SettingsPage = async () => {
-  const viewer = await requireViewer();
-
-  const [branches, company] = await Promise.all([
+  const [viewer, branches, company] = await Promise.all([
+    requireViewer(),
     listBranches(),
     getCompanySettings(),
   ]);
 
   const home = branches.find((item) => item.id === viewer.branchId);
   const role = ROLE_LABELS[viewer.role];
-  const headOffice = canManageCompany(viewer);
 
-  // Only head office sees the Staff & Tills cards, so only they pay for them.
-  const [people, tills] = headOffice
+  // Everyone has You; each other section is shown to whoever may change it.
+  const show = {
+    ask: canManageAskTally(viewer),
+    company: canManageCompany(viewer),
+    staff: canManageStaff(viewer),
+    tills: canManageTills(viewer),
+  };
+
+  // Its cards link to both pages, so it needs both.
+  const office = show.staff && show.tills;
+
+  const sections: readonly SettingsSection[] = [
+    YOU,
+    ...(show.company ? [COMPANY] : []),
+    ...(show.ask ? [ASK] : []),
+    ...(office ? [OFFICE] : []),
+  ];
+
+  /** Numbered in the order shown, so nobody sees a gap. */
+  const numberOf = (section: SettingsSection): number =>
+    sections.indexOf(section) + 1;
+
+  // Only those who see the Staff & Tills cards pay for them.
+  const [people, tills] = office
     ? await Promise.all([listStaff(getDb()), listTills()])
     : [[], []];
 
@@ -66,7 +92,7 @@ const SettingsPage = async () => {
   return (
     <>
       <PageHeader title="Settings" />
-      <SettingsNav sections={headOffice ? HEAD_OFFICE : EVERYONE} />
+      <SettingsNav sections={sections} />
 
       <section
         aria-labelledby="settings-you"
@@ -74,7 +100,7 @@ const SettingsPage = async () => {
         id="you"
       >
         <div className="lg:col-start-2 lg:row-start-1">
-          <SectionHeading id="settings-you" number={1} title="You">
+          <SectionHeading id="settings-you" number={numberOf(YOU)} title="You">
             Your badge is how Tally knows you. Write your name on it, or turn it
             over to change your password.
           </SectionHeading>
@@ -107,7 +133,7 @@ const SettingsPage = async () => {
         </Frame>
       </section>
 
-      {headOffice ? (
+      {show.company ? (
         <section
           aria-labelledby="settings-company"
           className="mt-14 scroll-mt-40"
@@ -116,7 +142,7 @@ const SettingsPage = async () => {
           <SectionHeading
             headOfficeOnly
             id="settings-company"
-            number={2}
+            number={numberOf(COMPANY)}
             title="Company"
           >
             What prints on every receipt, and where new products start.
@@ -124,18 +150,14 @@ const SettingsPage = async () => {
           <CompanyForm
             companyName={company.companyName}
             defaultReorderPoint={company.defaultReorderPoint}
-            lastSaved={
-              company.saved === null
-                ? null
-                : `${company.saved.by} · ${formatDate(company.saved.at)}`
-            }
+            lastSaved={stampLabel(company.saved)}
             receiptFooter={company.receiptFooter}
             storeName={previewStore}
           />
         </section>
       ) : null}
 
-      {headOffice ? (
+      {show.ask ? (
         <section
           aria-labelledby="settings-ask"
           className="mt-14 scroll-mt-40 lg:max-w-[calc(100%-22.25rem)]"
@@ -144,7 +166,7 @@ const SettingsPage = async () => {
           <SectionHeading
             headOfficeOnly
             id="settings-ask"
-            number={3}
+            number={numberOf(ASK)}
             title="Ask Tally"
           >
             Questions about stock in plain words, from the command palette.
@@ -152,16 +174,12 @@ const SettingsPage = async () => {
           <AskTallySwitch
             hourlyLimit={ASK_HOURLY_LIMIT}
             state={askTallyState(company.askTally.on)}
-            turnedOn={
-              company.askTally.turnedOn === null
-                ? null
-                : `${company.askTally.turnedOn.by} on ${formatDate(company.askTally.turnedOn.at)}`
-            }
+            turnedOn={stampLabel(company.askTally.turnedOn)}
           />
         </section>
       ) : null}
 
-      {headOffice ? (
+      {office ? (
         <section
           aria-labelledby="settings-office"
           className="mt-14 scroll-mt-40 lg:max-w-[calc(100%-22.25rem)]"
@@ -170,7 +188,7 @@ const SettingsPage = async () => {
           <SectionHeading
             headOfficeOnly
             id="settings-office"
-            number={4}
+            number={numberOf(OFFICE)}
             title="Staff & Tills"
           >
             Who has a badge, and which counters can sell. Each has its own page.

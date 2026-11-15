@@ -5,37 +5,10 @@ import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
 import { Radio, RadioGroup } from "@/components/ui/choice";
-import { isTheme } from "@/lib/theme";
+import { isTheme, THEME_PALETTES } from "@/lib/theme";
 import type { Theme } from "@/lib/theme";
 
-/*
- * Each choice is a small drawing of Tally itself, in that theme's real
- * colours (the Night shift tokens in `globals.css`): sidebar, header, a row
- * of stats and a table. The colours are fixed, not tokens, because each
- * drawing must look the same whichever theme is in use.
- */
-const PALETTES = {
-  dark: {
-    accent: "#8ab4ff",
-    canvas: "#0f1012",
-    faint: "#6b6c74",
-    ink: "#ededef",
-    line: "#222328",
-    page: "#08090a",
-    surface: "#141518",
-  },
-  light: {
-    accent: "#2f5bd8",
-    canvas: "#f6f7f9",
-    faint: "#868c98",
-    ink: "#0f1115",
-    line: "#e3e6eb",
-    page: "#e9ebef",
-    surface: "#ffffff",
-  },
-} as const;
-
-type Palette = (typeof PALETTES)[keyof typeof PALETTES];
+type Palette = (typeof THEME_PALETTES)[keyof typeof THEME_PALETTES];
 
 const NAV_WIDTHS = [20, 16, 22, 18, 21, 15];
 const STAT_XS = [46, 82, 118];
@@ -184,11 +157,13 @@ const ThemeCard = ({
   <label className="group/theme press border-line bg-surface has-data-checked:border-brand has-data-checked:ring-brand has-focus-visible:outline-brand [@media(hover:hover)_and_(pointer:fine)]:hover:not-has-data-checked:border-line-strong relative block cursor-pointer rounded-xl border p-1.25 pb-2 outline-offset-3 has-focus-visible:outline-2 has-data-checked:ring-2">
     <Radio bare value={option} />
     <span className="border-line relative block aspect-160/100 overflow-hidden rounded-md border">
-      <Drawing colors={option === "dark" ? PALETTES.dark : PALETTES.light} />
+      <Drawing
+        colors={option === "dark" ? THEME_PALETTES.dark : THEME_PALETTES.light}
+      />
       {option === "system" ? (
         // The dark half, cut on the diagonal.
         <span className="absolute inset-0 [clip-path:polygon(100%_0,100%_100%,0_100%)]">
-          <Drawing colors={PALETTES.dark} />
+          <Drawing colors={THEME_PALETTES.dark} />
         </span>
       ) : null}
     </span>

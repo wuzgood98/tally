@@ -23,6 +23,8 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import { DEFAULT_REORDER_POINT } from "../limits.ts";
+
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -177,7 +179,9 @@ export const product = pgTable(
     id: serial("id").primaryKey(),
     name: text("name").notNull(),
     /** Default low-stock threshold; a branch can override it. */
-    reorderPoint: integer("reorder_point").notNull().default(10),
+    reorderPoint: integer("reorder_point")
+      .notNull()
+      .default(DEFAULT_REORDER_POINT),
     /** Shelf price including VAT, in pesewas. */
     sellPrice: integer("sell_price").notNull(),
     sku: text("sku").notNull().unique(),
@@ -757,7 +761,9 @@ export const companySettings = pgTable(
     /** Null means `TALLY_COMPANY_NAME`, or the demo name. */
     companyName: text("company_name"),
     /** Pre-fills a new product's reorder point. */
-    defaultReorderPoint: integer("default_reorder_point").notNull().default(10),
+    defaultReorderPoint: integer("default_reorder_point")
+      .notNull()
+      .default(DEFAULT_REORDER_POINT),
     id: integer("id").primaryKey().default(1),
     /** Printed under the total on every receipt; null prints nothing. */
     receiptFooter: text("receipt_footer"),

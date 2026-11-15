@@ -2,21 +2,20 @@
 
 import { toast } from "@ui-sdk/react/toast";
 import { ArrowRight, LockKeyhole, RefreshCw } from "lucide-react";
-import { useActionState, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { changePassword, saveName } from "@/app/(app)/settings/actions";
-import type { SettingsFormState } from "@/app/(app)/settings/actions";
 import { TallyMark } from "@/components/brand/tally-mark";
+import { useSettingsForm } from "@/components/settings/use-settings-form";
 import { Checkbox } from "@/components/ui/choice";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { initialsOf } from "@/lib/badge";
 import { barRuns, ean13Modules } from "@/lib/barcode";
+import { NAME_MAX_LENGTH } from "@/lib/limits";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
-
-const INITIAL: SettingsFormState = { error: null, saved: 0 };
 
 type Side = "front" | "back";
 
@@ -26,7 +25,7 @@ interface StaffBadgeProps {
   readonly role: string;
   readonly branch: string;
   readonly company: string;
-  /** Printed under the bars, like "STF-0001 · HEAD OFFICE". */
+  /** Printed under the bars: home branch and role, like "AMS · CASHIER" or "HQ · HEAD OFFICE". */
   readonly staffCode: string;
   /** A valid EAN-13 for the bars, so they scan like the shelf label's. */
   readonly barcode: string;
@@ -57,7 +56,11 @@ const Barcode = ({ code }: { readonly code: string }) => {
   );
 };
 
-/** The ink button printed on the badge, like the sign-in label's. */
+/**
+ * The ink button printed on the badge, like the sign-in label's. A plain
+ * `<button>`: `<Button>` owns its size and type (the `no-restyle` lint), and
+ * none of its sizes is this badge's.
+ */
 const InkButton = ({
   children,
   pending,
@@ -78,6 +81,7 @@ const InkButton = ({
   </button>
 );
 
+/** The dashed "turn over" strip; plain for the same reason as `InkButton`. */
 const TurnButton = ({
   children,
   onClick,
@@ -98,34 +102,29 @@ const TurnButton = ({
   </button>
 );
 
+type BadgeFront = Omit<StaffBadgeProps, "demo">;
+
+const toastNameSaved = () => {
+  toast.success("Name saved", {
+    description: "It's on your badge and in the sidebar.",
+  });
+};
+
 const NameFace = ({
-  props,
+  badge,
   onTurn,
 }: {
-  readonly props: StaffBadgeProps;
+  readonly badge: BadgeFront;
   readonly onTurn: () => void;
 }) => {
   // What's typed, once they start typing; until then the saved name.
   const [typed, setTyped] = useState<string | null>(null);
-  const draft = typed ?? props.name;
+  const draft = typed ?? badge.name;
 
-  const [state, action, pending] = useActionState(
-    async (previous: SettingsFormState, form: FormData) => {
-      const next = await saveName(previous, form);
-
-      if (next.error === null) {
-        toast.success("Name saved", {
-          description: "It's on your badge and in the sidebar.",
-        });
-      }
-
-      return next;
-    },
-    INITIAL
-  );
+  const [state, action, pending] = useSettingsForm(saveName, toastNameSaved);
 
   const invalid = state.error === null ? undefined : true;
-  const unchanged = draft.trim() === props.name;
+  const unchanged = draft.trim() === badge.name;
 
   return (
     <form
@@ -136,7 +135,7 @@ const NameFace = ({
     >
       <div className="flex items-center gap-2 font-mono text-xs font-semibold tracking-widest uppercase">
         <TallyMark className="text-brand size-4.5 shrink-0" />
-        <span className="truncate">{props.company}</span>
+        <span className="truncate">{badge.company}</span>
         <span className="text-ink-3 ms-auto font-medium">Staff</span>
       </div>
 
@@ -151,7 +150,7 @@ const NameFace = ({
           <span className="text-ink-3 mb-1 block font-mono text-xs font-medium tracking-widest uppercase">
             Role
           </span>
-          {props.role}
+          {badge.role}
         </p>
       </div>
 
@@ -161,9 +160,9 @@ const NameFace = ({
           aria-describedby={invalid ? "badge-name-error" : undefined}
           autoComplete="name"
           look="display"
-          maxLength={80}
+          maxLength={NAME_MAX_LENGTH}
           name="name"
-          defaultValue={props.name}
+          defaultValue={badge.name}
           onChange={(event) => {
             setTyped(event.target.value);
           }}
@@ -171,16 +170,20 @@ const NameFace = ({
         />
       </Field>
       {state.error === null ? null : (
-        <p className="text-danger -mt-1 text-xs" id="badge-name-error">
+        <p
+          className="text-danger -mt-1 text-xs"
+          id="badge-name-error"
+          role="alert"
+        >
           {state.error}
         </p>
       )}
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-xs">
         <dt className="text-ink-3">Branch</dt>
-        <dd>{props.branch}</dd>
+        <dd>{badge.branch}</dd>
         <dt className="text-ink-3">Email</dt>
-        <dd className="break-all">{props.email}</dd>
+        <dd className="break-all">{badge.email}</dd>
       </dl>
 
       <InkButton disabled={unchanged} pending={pending}>
@@ -188,9 +191,9 @@ const NameFace = ({
       </InkButton>
 
       <div className="text-ink mt-auto">
-        <Barcode code={props.barcode} />
+        <Barcode code={badge.barcode} />
         <p className="text-ink-2 mt-1 text-center font-mono text-xs tracking-widest">
-          {props.staffCode}
+          {badge.staffCode}
         </p>
       </div>
 
@@ -210,27 +213,21 @@ const PasswordFace = ({
   readonly onTurn: () => void;
   readonly onChanged: () => void;
 }) => {
-  const [state, action, pending] = useActionState(
-    async (previous: SettingsFormState, form: FormData) => {
-      const next = await changePassword(previous, form);
-
-      if (next.error === null) {
-        toast.success("Password changed", {
-          description:
-            form.get("signOutOthers") === "on"
-              ? "Your other devices are signed out."
-              : "Use it next time you sign in.",
-        });
-        onChanged();
-      }
-
-      return next;
-    },
-    INITIAL
-  );
+  const [state, action, pending] = useSettingsForm(changePassword, (form) => {
+    toast.success("Password changed", {
+      description:
+        form.get("signOutOthers") === "on"
+          ? "Your other devices are signed out."
+          : "Use it next time you sign in.",
+    });
+    onChanged();
+  });
 
   const invalid = state.error === null ? undefined : true;
 
+  // No submitWithoutReset, unlike the other settings forms: after a failed
+  // try the password fields clear on purpose, so a wrong password isn't left
+  // sitting in them.
   return (
     <form action={action} className="flex grow flex-col gap-3" noValidate>
       <div aria-hidden="true" className="bg-ink -mx-5 mt-1 h-8" />
@@ -329,10 +326,10 @@ export const StaffBadge = (props: StaffBadgeProps) => {
           ref={frontRef}
         >
           <NameFace
+            badge={props}
             onTurn={() => {
               turn("back");
             }}
-            props={props}
           />
         </div>
         <div

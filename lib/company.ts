@@ -5,11 +5,17 @@
  */
 
 import { eq, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 import type { Db } from "@/lib/db/client";
 import { companySettings, user } from "@/lib/db/schema";
+import {
+  DEFAULT_REORDER_POINT,
+  NAME_MAX_LENGTH,
+  RECEIPT_FOOTER_MAX,
+} from "@/lib/limits";
 import { canManageAskTally, canManageCompany } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
@@ -18,11 +24,6 @@ import { StockError } from "@/lib/stock/errors";
 export const fallbackCompanyName = (
   env: Readonly<Record<string, string | undefined>> = process.env
 ): string => env.TALLY_COMPANY_NAME ?? "Akwaaba Mall";
-
-/** The product schema's own default (`product.reorder_point`). */
-export const DEFAULT_REORDER_POINT = 10;
-
-export const RECEIPT_FOOTER_MAX = 160;
 
 const MAX_REORDER_POINT = 100_000;
 
@@ -60,7 +61,7 @@ export const companyInput = z.object({
     .string()
     .trim()
     .min(2, "Enter the company's name.")
-    .max(80, "Keep the name under 80 characters."),
+    .max(NAME_MAX_LENGTH, `Keep the name under ${NAME_MAX_LENGTH} characters.`),
   defaultReorderPoint: z
     // NaN (`formInt` on anything but digits) is "not a number" too.
     .number({ error: "Enter a whole number of units." })
@@ -79,6 +80,9 @@ export const companyInput = z.object({
         )
     ),
 });
+
+/** Ask Tally's switch: on or off, and nothing that merely looks like it. */
+export const askTallyInput = z.boolean();
 
 const stamp = (at: Date | null, by: string | null): Stamp | null =>
   at === null || by === null ? null : { at, by };
@@ -135,6 +139,24 @@ export const readCompanySettings = async (
   };
 };
 
+type CompanyRow = Omit<typeof companySettings.$inferInsert, "id">;
+
+/** Some of the row's columns, each a value or SQL like `now()`. */
+type CompanyRowWrite = {
+  readonly [Key in keyof CompanyRow]?: CompanyRow[Key] | SQL;
+};
+
+/** The company's one row, created on the first write and updated after. */
+const writeCompanyRow = async (
+  db: Db,
+  values: CompanyRowWrite
+): Promise<void> => {
+  await db
+    .insert(companySettings)
+    .values({ id: 1, ...values })
+    .onConflictDoUpdate({ set: values, target: companySettings.id });
+};
+
 /** Head office saves the company section; one row, written in place. */
 export const saveCompany = async (
   db: Db,
@@ -157,19 +179,27 @@ export const saveCompany = async (
     );
   }
 
-  const values = {
+  await writeCompanyRow(db, {
     companyName: parsed.data.companyName,
     defaultReorderPoint: parsed.data.defaultReorderPoint,
     receiptFooter:
       parsed.data.receiptFooter === "" ? null : parsed.data.receiptFooter,
     updatedAt: sql`now()`,
     updatedById: actor.id,
-  };
+  });
+};
 
-  await db
-    .insert(companySettings)
-    .values({ id: 1, ...values })
-    .onConflictDoUpdate({ set: values, target: companySettings.id });
+/**
+ * Throws unless the actor may switch Ask Tally. The settings action calls it
+ * before anything else, so nobody else learns how the server is set up.
+ */
+export const assertCanSwitchAskTally = (actor: Actor): void => {
+  if (!canManageAskTally(actor)) {
+    throw new StockError(
+      "forbidden",
+      "Only head office can turn Ask Tally on or off."
+    );
+  }
 };
 
 /**
@@ -179,16 +209,17 @@ export const saveCompany = async (
 export const setAskTally = async (
   db: Db,
   actor: Actor,
-  on: boolean
+  raw: boolean
 ): Promise<void> => {
-  if (!canManageAskTally(actor)) {
-    throw new StockError(
-      "forbidden",
-      "Only head office can turn Ask Tally on or off."
-    );
+  assertCanSwitchAskTally(actor);
+
+  const parsed = askTallyInput.safeParse(raw);
+
+  if (!parsed.success) {
+    throw new StockError("invalid_input", "Choose on or off.");
   }
 
-  const values = on
+  const values = parsed.data
     ? {
         askTallyEnabled: true,
         askTallyEnabledAt: sql`now()`,
@@ -200,8 +231,5 @@ export const setAskTally = async (
         askTallyEnabled: false,
       };
 
-  await db
-    .insert(companySettings)
-    .values({ id: 1, ...values })
-    .onConflictDoUpdate({ set: values, target: companySettings.id });
+  await writeCompanyRow(db, values);
 };

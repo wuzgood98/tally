@@ -1,36 +1,51 @@
 "use server";
 
-import { APIError } from "better-auth/api";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { passwordInput, renameSelf } from "@/lib/account";
+import { nameInput, passwordInput, renameSelf } from "@/lib/account";
 import { askTallyConfigured } from "@/lib/ask/settings";
-import { getAuth } from "@/lib/auth";
-import { companyInput, saveCompany, setAskTally } from "@/lib/company";
+import {
+  askTallyInput,
+  assertCanSwitchAskTally,
+  companyInput,
+  saveCompany,
+  setAskTally,
+} from "@/lib/company";
 import { getDb } from "@/lib/db";
 import { isDemo } from "@/lib/demo";
 import { formInt, formSecret, formText } from "@/lib/form";
+import { changeOwnPassword } from "@/lib/password";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
 
 export interface SettingsFormState {
   readonly error: string | null;
-  /** Bumped on each success, so the form can toast once per save. */
-  readonly saved: number;
 }
 
+const firstIssue = (
+  issues: readonly { readonly message: string }[],
+  fallback: string
+): SettingsFormState => ({ error: issues[0]?.message ?? fallback });
+
 export const saveName = async (
-  previous: SettingsFormState,
+  _previous: SettingsFormState,
   form: FormData
 ): Promise<SettingsFormState> => {
   const viewer = await requireViewer();
 
+  const parsed = nameInput.safeParse({ name: formText(form, "name") });
+
+  if (!parsed.success) {
+    return firstIssue(parsed.error.issues, "Check your name.");
+  }
+
   try {
-    await renameSelf(getDb(), viewer, { name: formText(form, "name") });
+    // renameSelf parses the name again.
+    await renameSelf(getDb(), viewer, parsed.data);
   } catch (error) {
     if (error instanceof StockError) {
-      return { error: error.message, saved: previous.saved };
+      return { error: error.message };
     }
 
     throw error;
@@ -39,32 +54,18 @@ export const saveName = async (
   // The sidebar shows the name on every page.
   revalidatePath("/", "layout");
 
-  return { error: null, saved: previous.saved + 1 };
-};
-
-/** Better Auth's messages, in Tally's words. */
-const passwordError = (error: APIError): string => {
-  if (error.message.toLowerCase().includes("invalid password")) {
-    return "That isn't your current password.";
-  }
-
-  return error.message === ""
-    ? "Couldn't change your password. Try again."
-    : error.message;
+  return { error: null };
 };
 
 export const changePassword = async (
-  previous: SettingsFormState,
+  _previous: SettingsFormState,
   form: FormData
 ): Promise<SettingsFormState> => {
   await requireViewer();
 
   // Every demo account shares one password; changing it locks others out.
   if (isDemo()) {
-    return {
-      error: "Passwords can't be changed in the demo.",
-      saved: previous.saved,
-    };
+    return { error: "Passwords can't be changed in the demo." };
   }
 
   const parsed = passwordInput.safeParse({
@@ -74,34 +75,25 @@ export const changePassword = async (
   });
 
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues[0]?.message ?? "Check the passwords.",
-      saved: previous.saved,
-    };
+    return firstIssue(parsed.error.issues, "Check the passwords.");
   }
 
   try {
-    await getAuth().api.changePassword({
-      body: {
-        currentPassword: parsed.data.currentPassword,
-        newPassword: parsed.data.newPassword,
-        revokeOtherSessions: parsed.data.signOutOthers,
-      },
-      headers: await headers(),
-    });
+    // changeOwnPassword parses the passwords again.
+    await changeOwnPassword(await headers(), parsed.data);
   } catch (error) {
-    if (error instanceof APIError) {
-      return { error: passwordError(error), saved: previous.saved };
+    if (error instanceof StockError) {
+      return { error: error.message };
     }
 
     throw error;
   }
 
-  return { error: null, saved: previous.saved + 1 };
+  return { error: null };
 };
 
 export const saveCompanySettings = async (
-  previous: SettingsFormState,
+  _previous: SettingsFormState,
   form: FormData
 ): Promise<SettingsFormState> => {
   const viewer = await requireViewer();
@@ -113,10 +105,7 @@ export const saveCompanySettings = async (
   });
 
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues[0]?.message ?? "Check the company settings.",
-      saved: previous.saved,
-    };
+    return firstIssue(parsed.error.issues, "Check the company settings.");
   }
 
   try {
@@ -124,7 +113,7 @@ export const saveCompanySettings = async (
     await saveCompany(getDb(), viewer, parsed.data);
   } catch (error) {
     if (error instanceof StockError) {
-      return { error: error.message, saved: previous.saved };
+      return { error: error.message };
     }
 
     throw error;
@@ -133,7 +122,7 @@ export const saveCompanySettings = async (
   // The name is in the sidebar, on the sign-in label and on paperwork.
   revalidatePath("/", "layout");
 
-  return { error: null, saved: previous.saved + 1 };
+  return { error: null };
 };
 
 /**
@@ -142,19 +131,30 @@ export const saveCompanySettings = async (
  */
 export const switchAskTally = async (
   on: boolean
-): Promise<{ error: string | null }> => {
+): Promise<SettingsFormState> => {
   const viewer = await requireViewer();
 
-  // Don't let anyone opt in to something the server can't run.
-  if (on && !askTallyConfigured()) {
-    return {
-      error:
-        "The server has no OPENROUTER_API_KEY, so Ask Tally can't run yet.",
-    };
+  // Typed, but a Server Action's argument comes off the wire.
+  const parsed = askTallyInput.safeParse(on);
+
+  if (!parsed.success) {
+    return { error: "Choose on or off." };
   }
 
   try {
-    await setAskTally(getDb(), viewer, on);
+    // Who may switch it comes first, so nobody else learns about the key.
+    assertCanSwitchAskTally(viewer);
+
+    // Don't let anyone opt in to something the server can't run.
+    if (parsed.data && !askTallyConfigured()) {
+      return {
+        error:
+          "The server has no OPENROUTER_API_KEY, so Ask Tally can't run yet.",
+      };
+    }
+
+    // setAskTally checks the role and the value again.
+    await setAskTally(getDb(), viewer, parsed.data);
   } catch (error) {
     if (error instanceof StockError) {
       return { error: error.message };

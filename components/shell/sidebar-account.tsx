@@ -2,19 +2,13 @@ import { LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { signOut } from "@/app/login/actions";
+import { initialsOf } from "@/lib/badge";
 
 interface SidebarAccountProps {
   readonly name: string;
   /** "Branch manager · Spintex" */
   readonly detail: string;
 }
-
-const initialsOf = (name: string): string =>
-  name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part.charAt(0))
-    .join("");
 
 /**
  * The foot of the sidebar: who's signed in, as a link to their settings

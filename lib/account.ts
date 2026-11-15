@@ -9,16 +9,24 @@ import { z } from "zod";
 
 import type { Db } from "@/lib/db/client";
 import { user } from "@/lib/db/schema";
+import { MIN_PASSWORD_LENGTH, NAME_MAX_LENGTH } from "@/lib/limits";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
 
-/** The same rule head office uses when adding someone. */
-export const nameInput = z.object({
-  name: z.string().trim().min(2, "Enter your full name.").max(80),
-});
+/**
+ * A person's name, by one rule wherever it's written: here for your own, and
+ * on the Staff page (`lib/staff.ts`) for someone head office adds.
+ */
+export const personName = (missing: string) =>
+  z
+    .string()
+    .trim()
+    .min(2, missing)
+    .max(NAME_MAX_LENGTH, `Keep the name under ${NAME_MAX_LENGTH} characters.`);
 
-/** Better Auth's own minimum (`minPasswordLength` in `lib/auth.ts`). */
-export const MIN_PASSWORD_LENGTH = 10;
+export const nameInput = z.object({
+  name: personName("Enter your full name."),
+});
 
 const MAX_PASSWORD_LENGTH = 128;
 
