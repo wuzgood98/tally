@@ -115,6 +115,10 @@ pnpm db:migrate
 pnpm db:seed                 # optional demo data
 ```
 
+### Before going live: Terms and Privacy
+
+Tally ships a public [terms of use](app/terms/page.tsx) and [privacy notice](app/privacy/page.tsx), linked under the sign-in form. They name the company from Settings as the data controller and refer to Ghana's Data Protection Act, 2012 (Act 843). They are a starting point, **not legal advice**: have them reviewed for your company, and replace the placeholder contact address `PRIVACY_EMAIL` in `lib/legal.ts` (and `SECURITY_EMAIL` in `lib/seo.ts`) with real ones. When the text changes, move the page's date in `lib/legal.ts`.
+
 ## Scripts
 
 ```bash
