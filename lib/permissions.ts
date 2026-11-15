@@ -126,6 +126,15 @@ export const canManageTills = (actor: Actor): boolean => actor.role === "admin";
 export const canViewReports = (actor: Actor): boolean =>
   actor.role === "admin" || actor.role === "manager";
 
+/** Head office reports on any branch, or all of them; a manager doesn't. */
+export const canViewEveryBranchReport = (actor: Actor): boolean =>
+  actor.role === "admin";
+
+/** Whether this actor may see one branch's reports. */
+export const canViewBranchReport = (actor: Actor, branchId: string): boolean =>
+  canViewReports(actor) &&
+  (canViewEveryBranchReport(actor) || actor.branchId === branchId);
+
 const ownBranches = (actor: Actor, allBranchIds: readonly string[]): string[] =>
   actor.role === "admin"
     ? [...allBranchIds]
@@ -167,3 +176,10 @@ export const canSeeBranch = (actor: Actor, branchId: string): boolean =>
  */
 export const canBrowseBackOffice = (actor: Actor): boolean =>
   actor.role !== "cashier";
+
+/**
+ * Ask Tally answers questions about the back office, so it's for the same
+ * people; its report questions follow `canViewReports`.
+ */
+export const canAskTally = (actor: Actor): boolean =>
+  canBrowseBackOffice(actor);

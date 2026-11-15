@@ -3,7 +3,7 @@
  * imports so the report queries can be tested against a test database.
  */
 
-import { canViewReports } from "@/lib/permissions";
+import { canViewEveryBranchReport, canViewReports } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 
 /** The ranges a report offers, in days, today included. */
@@ -59,7 +59,7 @@ export const reportBranchIds = (
     return [];
   }
 
-  if (actor.role !== "admin") {
+  if (!canViewEveryBranchReport(actor)) {
     return allBranchIds.filter((id) => id === actor.branchId);
   }
 

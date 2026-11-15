@@ -35,6 +35,7 @@ import {
   SidebarToggle,
 } from "@/components/shell/sidebar";
 import { Toaster } from "@/components/ui/toaster";
+import { askPaletteSettings } from "@/lib/ask/suggestions";
 import { FLASH_COOKIE, parseFlash } from "@/lib/flash";
 import { paletteCommands } from "@/lib/palette";
 import {
@@ -99,6 +100,8 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       viewer,
       branches.flatMap((item) => (item.kind === "store" ? [item.id] : []))
     ).length > 0;
+
+  const ask = askPaletteSettings(viewer, scope, branches);
 
   const today = (
     <>
@@ -208,6 +211,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       defaultCollapsed={isSidebarCollapsed(jar.get(SIDEBAR_COOKIE))}
     >
       <CommandPaletteProvider
+        ask={ask}
         // No branch switching from the palette for someone fixed to theirs.
         branches={
           switchesBranch

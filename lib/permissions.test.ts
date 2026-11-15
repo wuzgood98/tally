@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   canAdjust,
   canApprovePurchaseOrder,
+  canAskTally,
+  canViewBranchReport,
+  canViewEveryBranchReport,
   canBrowseBackOffice,
   canSeeBranch,
   canApproveReturn,
@@ -137,5 +140,24 @@ describe("permissions", () => {
       expect(canSeeBranch(actor, "KSI")).toBe(true);
       expect(canBrowseBackOffice(actor)).toBe(true);
     }
+  });
+
+  it("offers Ask Tally to everyone in the back office, not cashiers", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+
+    expect(canAskTally(cashier)).toBe(false);
+
+    for (const actor of [admin, manager, storekeeper]) {
+      expect(canAskTally(actor)).toBe(true);
+    }
+  });
+
+  it("lets head office see any branch's reports, a manager only their own", () => {
+    expect(canViewEveryBranchReport(admin)).toBe(true);
+    expect(canViewEveryBranchReport(manager)).toBe(false);
+    expect(canViewBranchReport(admin, "KSI")).toBe(true);
+    expect(canViewBranchReport(manager, "SPX")).toBe(true);
+    expect(canViewBranchReport(manager, "KSI")).toBe(false);
+    expect(canViewBranchReport(storekeeper, "SPX")).toBe(false);
   });
 });
