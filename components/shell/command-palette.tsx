@@ -7,6 +7,8 @@ import {
   CommandGroup,
   CommandGroupLabel,
   CommandInput,
+  CommandItem,
+  CommandItemIcon,
   CommandList,
   CommandPage,
 } from "@ui-sdk/react/command";
@@ -42,6 +44,7 @@ import {
   ScrollText,
   Search,
   ShoppingCart,
+  Sparkles,
   TrendingUp,
   TriangleAlert,
   Truck,
@@ -60,8 +63,16 @@ import type {
   PaletteIcon,
   PaletteLink,
 } from "@/lib/palette";
+import {
+  ASK_KEY,
+  ASK_VALUE,
+  askRowLabel,
+  askScore,
+  opensAsk,
+} from "@/lib/palette-ask";
 import { BRANCH_PAGE, scopeOf } from "@/lib/palette-branches";
 import type { PaletteBranch } from "@/lib/palette-branches";
+import type { PaletteDocument } from "@/lib/palette-documents";
 import { paletteScore } from "@/lib/palette-filter";
 import {
   documentsFirst,
@@ -71,17 +82,25 @@ import {
   resultScore,
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
+import type { PaletteProduct } from "@/lib/palette-search";
 import { SIDEBAR_COMMAND } from "@/lib/palette-sidebar";
 import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
 import type { SidebarState } from "@/lib/sidebar";
 import type { Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
+import { AskPanel } from "./ask-tally";
 import { AppearanceGroup } from "./palette-appearance";
 import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
 import { ProductResults } from "./palette-products";
-import { PaletteRow, ShortcutPaletteRow } from "./palette-row";
+import {
+  paletteGroupLabelClass,
+  paletteIconClass,
+  paletteItemClass,
+  PaletteRow,
+  ShortcutPaletteRow,
+} from "./palette-row";
 import { ThemePage } from "./palette-theme";
 
 const SHORTCUT = "mod+k";
@@ -213,6 +232,39 @@ const CommandGroupOfRows = ({ group }: { readonly group: PaletteGroup }) => (
 
 const CommandGroupOf = memo(CommandGroupOfRows);
 
+/**
+ * "Ask Tally", or "Ask Tally: “…”" carrying what's typed over. It sits
+ * first while nothing is typed and last once something is.
+ */
+const AskRow = ({ query }: { readonly query: string }) => (
+  <CommandGroup className="pb-1">
+    <CommandGroupLabel className={paletteGroupLabelClass}>
+      Ask
+    </CommandGroupLabel>
+    <CommandItem
+      className={paletteItemClass}
+      keywords={["question", "assistant", "help"]}
+      label={askRowLabel(query)}
+      value={ASK_VALUE}
+    >
+      <CommandItemIcon className={paletteIconClass}>
+        <Sparkles aria-hidden="true" />
+      </CommandItemIcon>
+      <span className="grow truncate">{askRowLabel(query)}</span>
+      {query.trim() === "" ? (
+        <Kbd aria-hidden="true" className="pointer-coarse:hidden">
+          {ASK_KEY}
+        </Kbd>
+      ) : null}
+    </CommandItem>
+  </CommandGroup>
+);
+
+/** Ask Tally for this person: the questions an empty Ask offers. */
+export interface AskSettings {
+  readonly suggestions: readonly string[];
+}
+
 const placeholderFor = (subPage: string | undefined): string => {
   if (subPage === BRANCH_PAGE) {
     return "Find a branch… (Backspace to go back)";
@@ -239,7 +291,89 @@ export interface CommandPaletteProps {
   readonly onSetTheme: (theme: Theme) => void;
   /** The desktop sidebar, when there is one to collapse or expand. */
   readonly sidebar?: SidebarState;
+  /** Ask Tally, when it's on and this person may use it. */
+  readonly ask?: AskSettings | null;
 }
+
+interface PaletteListProps {
+  readonly groups: readonly PaletteGroup[];
+  readonly branches: readonly PaletteBranch[];
+  readonly scope: string;
+  readonly sidebar: SidebarState | undefined;
+  readonly theme: Theme;
+  readonly query: string;
+  readonly products: readonly PaletteProduct[];
+  readonly documents: readonly PaletteDocument[];
+  /** Offer Ask Tally: first while nothing is typed, last once something is. */
+  readonly showAsk: boolean;
+}
+
+/** The commands, branches, appearance, search results and their pages. */
+const PaletteList = ({
+  branches,
+  documents,
+  groups,
+  products,
+  query,
+  scope,
+  showAsk,
+  sidebar,
+  theme,
+}: PaletteListProps) => (
+  <ScrollArea className="flex min-h-0 flex-col rounded-none border-0">
+    <ScrollAreaViewport
+      aria-label="Commands"
+      // Scroll padding as tall as the fades keeps the highlight clear of them.
+      className="h-auto min-h-0 flex-1 scroll-py-8 overscroll-contain"
+    >
+      <ScrollAreaContent className="p-0">
+        <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
+          <CommandPage>
+            {showAsk && query.trim() === "" ? <AskRow query={query} /> : null}
+            {groups.map((group) =>
+              group.label === ACCOUNT_GROUP ? null : (
+                <CommandGroupOf group={group} key={group.label} />
+              )
+            )}
+            <BranchGroup branches={branches} query={query} scope={scope} />
+            <AppearanceGroup sidebar={sidebar} theme={theme} />
+            {groups.map((group) =>
+              group.label === ACCOUNT_GROUP ? (
+                <CommandGroupOf group={group} key={group.label} />
+              ) : null
+            )}
+            {documentsFirst(query) ? (
+              <>
+                <DocumentResults documents={documents} />
+                <ProductResults products={products} query={query} />
+              </>
+            ) : (
+              <>
+                <ProductResults products={products} query={query} />
+                <DocumentResults documents={documents} />
+              </>
+            )}
+            {showAsk && query.trim() !== "" ? <AskRow query={query} /> : null}
+          </CommandPage>
+          <BranchPage branches={branches} scope={scope} />
+          <ThemePage theme={theme} />
+        </CommandList>
+      </ScrollAreaContent>
+    </ScrollAreaViewport>
+    {/* Grow in as the list scrolls past each edge, up to 2rem. */}
+    <div
+      aria-hidden="true"
+      className="from-surface pointer-events-none absolute inset-x-0 top-0 h-[min(2rem,var(--scroll-area-overflow-y-start))] bg-linear-to-b to-transparent [--scroll-area-overflow-y-start:inherit]"
+    />
+    <div
+      aria-hidden="true"
+      className="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-[min(2rem,var(--scroll-area-overflow-y-end))] bg-linear-to-t to-transparent [--scroll-area-overflow-y-end:inherit]"
+    />
+    <ScrollAreaScrollbar className="w-2 p-0.5">
+      <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
+    </ScrollAreaScrollbar>
+  </ScrollArea>
+);
 
 /**
  * Cmd/Ctrl+K from anywhere: pages, things to create, sign out. The commands
@@ -259,12 +393,15 @@ export const CommandPalette = ({
   theme,
   onSetTheme,
   sidebar,
+  ask = null,
 }: CommandPaletteProps) => {
   // One controller for the life of the app; the triggers share it.
   const palette = useMemo(() => createPaletteController(), []);
   const [query, setQuery] = useState("");
   const [pages, setPages] = useState<string[]>([]);
   const subPage = pages.at(-1);
+  // Asking: the question to start with ("" for none). Null: the commands.
+  const [asking, setAsking] = useState<string | null>(null);
 
   const results = useAsyncOptions<PaletteHit>(
     async (text) => hitsOf(await search(text)),
@@ -286,6 +423,13 @@ export const CommandPalette = ({
   );
 
   const changeQuery = (text: string): void => {
+    if (ask !== null && subPage === undefined && opensAsk(query, text)) {
+      setAsking("");
+      setQuery("");
+
+      return;
+    }
+
     setQuery(text);
 
     // Too short to search: leave the last results be (`searching` hides
@@ -315,6 +459,13 @@ export const CommandPalette = ({
   );
 
   const run = async (value: string): Promise<void> => {
+    if (value === ASK_VALUE) {
+      setAsking(query.trim());
+      setQuery("");
+
+      return;
+    }
+
     const resultPage = resultHref(value, query, hits);
 
     if (resultPage !== null) {
@@ -394,6 +545,10 @@ export const CommandPalette = ({
           if (open && query !== "") {
             changeQuery("");
           }
+
+          if (open && asking !== null) {
+            setAsking(null);
+          }
         }}
         pendingAnnouncement="Working…"
         presentation="auto"
@@ -406,100 +561,77 @@ export const CommandPalette = ({
           className="border-line-strong bg-surface text-ink shadow-float z-50 flex w-full flex-col gap-0 overflow-hidden border p-0 font-sans [view-transition-name:palette] data-[presentation=dialog]:mx-auto data-[presentation=dialog]:mt-[12vh] data-[presentation=dialog]:mb-auto data-[presentation=dialog]:max-h-[min(32rem,76vh)] data-[presentation=dialog]:w-[calc(100%-2rem)] data-[presentation=dialog]:max-w-xl data-[presentation=dialog]:rounded-2xl data-[presentation=dialog]:transition data-[presentation=dialog]:duration-150 data-[presentation=dialog]:data-ending-style:scale-98 data-[presentation=dialog]:data-ending-style:opacity-0 data-[presentation=sheet]:max-h-[min(80svh,calc(var(--visual-viewport-height,100svh)-0.5rem))] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 motion-reduce:data-[presentation=dialog]:transition-none"
           keepMounted
         >
-          <DialogTitle className="sr-only">{TITLE}</DialogTitle>
-          <Command
-            className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
-            filter={(item, text) =>
-              resultScore(item.value, text, hits) ?? paletteScore(item, text)
-            }
-            onAction={run}
-            onPagesChange={setPages}
-            onQueryChange={changeQuery}
-            pages={pages}
-            pendingAnnouncement="Working…"
-            query={query}
-            status={searching ? results.status : "idle"}
-          >
-            <div className="border-line flex items-center gap-2.5 border-b px-4">
-              <Search
-                aria-hidden="true"
-                className="text-ink-3 size-4 shrink-0"
-              />
-              <CommandInput
-                aria-label={TITLE}
-                autoComplete="off"
-                className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
-                placeholder={placeholderFor(subPage)}
-              />
-            </div>
-            <CommandEmpty className="text-ink-3 text-center text-sm data-empty:px-4 data-empty:py-8">
-              {(state) => {
-                if (!state.empty) {
-                  return null;
-                }
+          <DialogTitle className="sr-only">
+            {asking === null ? TITLE : "Ask Tally"}
+          </DialogTitle>
+          {asking === null || ask === null ? (
+            <Command
+              className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
+              filter={(item, text) =>
+                item.value === ASK_VALUE
+                  ? askScore()
+                  : (resultScore(item.value, text, hits) ??
+                    paletteScore(item, text))
+              }
+              onAction={run}
+              onPagesChange={setPages}
+              onQueryChange={changeQuery}
+              pages={pages}
+              pendingAnnouncement="Working…"
+              query={query}
+              status={searching ? results.status : "idle"}
+            >
+              <div className="border-line flex items-center gap-2.5 border-b px-4">
+                <Search
+                  aria-hidden="true"
+                  className="text-ink-3 size-4 shrink-0"
+                />
+                <CommandInput
+                  aria-label={TITLE}
+                  autoComplete="off"
+                  // Back from Ask Tally, the commands mount again: focus here.
+                  // oxlint-disable-next-line jsx-a11y/no-autofocus
+                  autoFocus
+                  className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
+                  placeholder={placeholderFor(subPage)}
+                />
+              </div>
+              <CommandEmpty className="text-ink-3 text-center text-sm data-empty:px-4 data-empty:py-8">
+                {(state) => {
+                  if (!state.empty) {
+                    return null;
+                  }
 
-                return state.loading
-                  ? "Searching…"
-                  : `Nothing matches “${query.trim()}”.`;
+                  return state.loading
+                    ? "Searching…"
+                    : `Nothing matches “${query.trim()}”.`;
+                }}
+              </CommandEmpty>
+              <PaletteList
+                branches={branches}
+                documents={documents}
+                groups={groups}
+                products={products}
+                query={query}
+                scope={scope}
+                showAsk={ask !== null}
+                sidebar={sidebar}
+                theme={theme}
+              />
+              <PaletteFooter onSubPage={subPage !== undefined} />
+            </Command>
+          ) : (
+            <AskPanel
+              initialQuestion={asking}
+              onBack={() => {
+                setAsking(null);
               }}
-            </CommandEmpty>
-            <ScrollArea className="flex min-h-0 flex-col rounded-none border-0">
-              <ScrollAreaViewport
-                aria-label="Commands"
-                // Scroll padding as tall as the fades keeps the highlight clear of them.
-                className="h-auto min-h-0 flex-1 scroll-py-8 overscroll-contain"
-              >
-                <ScrollAreaContent className="p-0">
-                  <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
-                    <CommandPage>
-                      {groups.map((group) =>
-                        group.label === ACCOUNT_GROUP ? null : (
-                          <CommandGroupOf group={group} key={group.label} />
-                        )
-                      )}
-                      <BranchGroup
-                        branches={branches}
-                        query={query}
-                        scope={scope}
-                      />
-                      <AppearanceGroup sidebar={sidebar} theme={theme} />
-                      {groups.map((group) =>
-                        group.label === ACCOUNT_GROUP ? (
-                          <CommandGroupOf group={group} key={group.label} />
-                        ) : null
-                      )}
-                      {documentsFirst(query) ? (
-                        <>
-                          <DocumentResults documents={documents} />
-                          <ProductResults products={products} query={query} />
-                        </>
-                      ) : (
-                        <>
-                          <ProductResults products={products} query={query} />
-                          <DocumentResults documents={documents} />
-                        </>
-                      )}
-                    </CommandPage>
-                    <BranchPage branches={branches} scope={scope} />
-                    <ThemePage theme={theme} />
-                  </CommandList>
-                </ScrollAreaContent>
-              </ScrollAreaViewport>
-              {/* Grow in as the list scrolls past each edge, up to 2rem. */}
-              <div
-                aria-hidden="true"
-                className="from-surface pointer-events-none absolute inset-x-0 top-0 h-[min(2rem,var(--scroll-area-overflow-y-start))] bg-linear-to-b to-transparent [--scroll-area-overflow-y-start:inherit]"
-              />
-              <div
-                aria-hidden="true"
-                className="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-[min(2rem,var(--scroll-area-overflow-y-end))] bg-linear-to-t to-transparent [--scroll-area-overflow-y-end:inherit]"
-              />
-              <ScrollAreaScrollbar className="w-2 p-0.5">
-                <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
-              </ScrollAreaScrollbar>
-            </ScrollArea>
-            <PaletteFooter onSubPage={subPage !== undefined} />
-          </Command>
+              onFollowLink={() => {
+                palette.close();
+              }}
+              suggestions={ask.suggestions}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </PaletteContext>

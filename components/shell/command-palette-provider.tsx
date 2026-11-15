@@ -9,6 +9,7 @@ import { findPaletteResults } from "@/app/(app)/palette-action";
 import { setScope } from "@/app/(app)/scope-action";
 import { signOut } from "@/app/login/actions";
 import { CommandPalette } from "@/components/shell/command-palette";
+import type { AskSettings } from "@/components/shell/command-palette";
 import { useIsDesktop, useSidebar } from "@/components/shell/sidebar";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
@@ -19,6 +20,7 @@ interface CommandPaletteProviderProps {
   readonly children: ReactNode;
   readonly branches: readonly PaletteBranch[];
   readonly scope: string;
+  readonly ask: AskSettings | null;
 }
 
 /** The palette wired to the app: Next's router and the sign-out action. */
@@ -27,6 +29,7 @@ export const CommandPaletteProvider = ({
   children,
   branches,
   scope,
+  ask,
 }: CommandPaletteProviderProps) => {
   const router = useRouter();
   const sidebar = useSidebar();
@@ -36,6 +39,7 @@ export const CommandPaletteProvider = ({
 
   return (
     <CommandPalette
+      ask={ask}
       branches={branches}
       groups={groups}
       onNavigate={(href) => {
