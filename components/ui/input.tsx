@@ -24,6 +24,8 @@ const inputVariants = cva("", {
       box: "field",
       /** Written on a printed rule, for the sign-in label. */
       line: "field-line",
+      /** Written large on a printed rule, like the name on a staff badge. */
+      display: "field-line-display",
     },
     size: {
       md: "",
