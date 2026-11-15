@@ -282,14 +282,13 @@ describe("askSuggestions", () => {
 
 describe("askPaletteSettings", () => {
   const branches = [{ id: "SPX", kind: "store" as const, name: "Spintex" }];
-  const on = { OPENROUTER_API_KEY: "sk-or-x" };
 
   it("is null when Ask Tally is off or for a cashier", () => {
     const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
     const spintex = { branchId: "SPX", kind: "branch" as const };
 
-    expect(askPaletteSettings(manager, spintex, branches, {})).toBeNull();
-    expect(askPaletteSettings(cashier, spintex, branches, on)).toBeNull();
+    expect(askPaletteSettings(manager, spintex, branches, false)).toBeNull();
+    expect(askPaletteSettings(cashier, spintex, branches, true)).toBeNull();
   });
 
   it("words the suggestions for the branch on screen", () => {
@@ -298,11 +297,11 @@ describe("askPaletteSettings", () => {
         manager,
         { branchId: "SPX", kind: "branch" },
         branches,
-        on
+        true
       )?.suggestions[0]
     ).toBe("What's running low at Spintex?");
     expect(
-      askPaletteSettings(admin, { kind: "all" }, branches, on)?.suggestions[0]
+      askPaletteSettings(admin, { kind: "all" }, branches, true)?.suggestions[0]
     ).toBe("What's running low across the branches?");
   });
 });

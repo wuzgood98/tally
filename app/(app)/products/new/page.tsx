@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/catalogue/product-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { canManageCatalogue } from "@/lib/permissions";
+import { getCompanySettings } from "@/lib/queries/company";
 import { listCategories, listSuppliers } from "@/lib/queries/products";
 import { requireViewer } from "@/lib/session";
 
@@ -17,9 +18,10 @@ const NewProductPage = async () => {
     notFound();
   }
 
-  const [categories, suppliers] = await Promise.all([
+  const [categories, suppliers, company] = await Promise.all([
     listCategories(),
     listSuppliers(),
+    getCompanySettings(),
   ]);
 
   return (
@@ -46,7 +48,8 @@ const NewProductPage = async () => {
           categoryId: "",
           defaultSupplierId: "",
           name: "",
-          reorderPoint: "10",
+          // Head office's default, from the settings page.
+          reorderPoint: String(company.defaultReorderPoint),
           sellPrice: "",
           sku: "",
           unit: "each",

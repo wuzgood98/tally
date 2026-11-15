@@ -16,16 +16,13 @@ import { createAskAgent } from "@/lib/ask/agent";
 import { serverAskData } from "@/lib/ask/data-server";
 import { trimHistory } from "@/lib/ask/history";
 import { createRateLimiter } from "@/lib/ask/rate-limit";
-import {
-  ASK_HOURLY_LIMIT,
-  askModelIds,
-  askTallyEnabled,
-} from "@/lib/ask/settings";
+import { ASK_HOURLY_LIMIT, askModelIds } from "@/lib/ask/settings";
+import { askTallyOn } from "@/lib/ask/switch";
 import { formatDateTime } from "@/lib/format";
 import { canAskTally } from "@/lib/permissions";
+import { getCompanyName } from "@/lib/queries/company";
 import { getScope, listBranches } from "@/lib/scope";
 import { getViewer } from "@/lib/session";
-import { COMPANY_NAME } from "@/lib/site";
 
 /** Seconds: a few tool calls and a short answer, with room to spare. */
 export const maxDuration = 60;
@@ -75,7 +72,7 @@ const fromThisSite = (request: Request): boolean => {
 };
 
 export const POST = async (request: Request): Promise<Response> => {
-  if (!askTallyEnabled()) {
+  if (!(await askTallyOn())) {
     return failure(404, "not_found", "Ask Tally isn't turned on.");
   }
 
@@ -125,16 +122,17 @@ export const POST = async (request: Request): Promise<Response> => {
     );
   }
 
-  const [scope, branches] = await Promise.all([
+  const [scope, branches, companyName] = await Promise.all([
     getScope(viewer),
     listBranches(),
+    getCompanyName(),
   ]);
 
   // OpenRouter tries these in order when the first is busy or gone.
   const models = askModelIds();
 
   const agent = createAskAgent({
-    companyName: COMPANY_NAME,
+    companyName,
     context: { branches, now: new Date(), scope, viewer },
     data: serverAskData,
     model: openrouter(models[0], { models: [...models] }),

@@ -43,6 +43,13 @@
       "when": 1794535750095,
       "tag": "0005_movement_cost",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794767944857,
+      "tag": "0006_company_settings",
+      "breakpoints": true
     }
   ]
 }

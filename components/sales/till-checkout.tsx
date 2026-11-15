@@ -2,6 +2,7 @@
 
 import { useShortcutHint } from "@ui-sdk/react/shortcuts";
 
+import { ReceiptFooter } from "@/components/sales/receipt-footer";
 import type { BasketLine } from "@/components/sales/till-line-row";
 import { Button } from "@/components/ui/button";
 import { Radio, RadioGroup } from "@/components/ui/choice";
@@ -34,6 +35,8 @@ interface TillCheckoutProps {
   readonly onReceived: (received: string) => void;
   readonly pending: boolean;
   readonly error: string | null;
+  /** Head office's receipt footer; null prints none. */
+  readonly footer: string | null;
 }
 
 /** Change to hand back for cash, or what's still owed. */
@@ -138,6 +141,7 @@ export const TillCheckout = ({
   onReceived,
   pending,
   error,
+  footer,
 }: TillCheckoutProps) => {
   const charge = useShortcutHint(CHARGE_SHORTCUT);
   const change = paymentMethod === "cash" ? changeLine(tender) : null;
@@ -243,6 +247,8 @@ export const TillCheckout = ({
             {charge.text}
           </Kbd>
         </Button>
+
+        {footer === null ? null : <ReceiptFooter text={footer} />}
       </section>
     </div>
   );

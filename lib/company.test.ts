@@ -1,0 +1,166 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  askTallyInput,
+  assertCanSwitchAskTally,
+  companyInput,
+  readCompanySettings,
+  saveCompany,
+  setAskTally,
+} from "@/lib/company";
+import { createTestWorld, rejection } from "@/test/db";
+import type { TestWorld } from "@/test/db";
+
+let world: TestWorld;
+
+beforeAll(async () => {
+  world = await createTestWorld();
+});
+
+afterAll(async () => {
+  await world.connection.close();
+});
+
+describe("readCompanySettings", () => {
+  it("falls back to the deployment's name and the defaults", async () => {
+    const settings = await readCompanySettings(world.db, {
+      TALLY_COMPANY_NAME: "Kumasi Traders",
+    });
+
+    expect(settings).toMatchObject({
+      askTally: { on: false, turnedOff: null, turnedOn: null },
+      companyName: "Kumasi Traders",
+      defaultReorderPoint: 10,
+      receiptFooter: null,
+      saved: null,
+    });
+  });
+});
+
+describe("saveCompany", () => {
+  it("lets head office save, and records who", async () => {
+    await saveCompany(world.db, world.admin, {
+      companyName: "  Akwaaba Mall Ltd ",
+      defaultReorderPoint: 24,
+      receiptFooter: "Thank you!\r\n\r\n  Medaase  ",
+    });
+
+    const settings = await readCompanySettings(world.db, {});
+
+    expect(settings.companyName).toBe("Akwaaba Mall Ltd");
+    expect(settings.defaultReorderPoint).toBe(24);
+    expect(settings.receiptFooter).toBe("Thank you!\nMedaase");
+    expect(settings.saved?.by).toBeTypeOf("string");
+  });
+
+  it("writes the one row in place, and an empty footer prints nothing", async () => {
+    await saveCompany(world.db, world.admin, {
+      companyName: "Akwaaba Mall",
+      defaultReorderPoint: 0,
+      receiptFooter: "   ",
+    });
+
+    const settings = await readCompanySettings(world.db, {});
+
+    expect(settings.defaultReorderPoint).toBe(0);
+    expect(settings.receiptFooter).toBeNull();
+  });
+
+  it("refuses anyone but head office", async () => {
+    const errors = await Promise.all(
+      [
+        world.spintexManager,
+        world.spintexStorekeeper,
+        world.spintexCashier,
+      ].map(
+        async (actor) =>
+          await rejection(
+            saveCompany(world.db, actor, {
+              companyName: "Not Ours",
+              defaultReorderPoint: 5,
+              receiptFooter: "",
+            })
+          )
+      )
+    );
+
+    expect(errors.map((error) => error.code)).toEqual([
+      "forbidden",
+      "forbidden",
+      "forbidden",
+    ]);
+  });
+});
+
+describe("companyInput", () => {
+  it("caps the footer at 160 characters and wants whole units", () => {
+    const long = companyInput.safeParse({
+      companyName: "Akwaaba Mall",
+      defaultReorderPoint: 10,
+      receiptFooter: "x".repeat(161),
+    });
+
+    const fraction = companyInput.safeParse({
+      companyName: "Akwaaba Mall",
+      defaultReorderPoint: 2.5,
+      receiptFooter: "",
+    });
+
+    expect(long.error?.issues[0]?.message).toBe(
+      "Keep the footer to 160 characters."
+    );
+    expect(fraction.error?.issues[0]?.message).toBe(
+      "Use a whole number of units."
+    );
+  });
+});
+
+describe("setAskTally", () => {
+  it("records who turned it on, and who turned it off", async () => {
+    await setAskTally(world.db, world.admin, true);
+    const on = await readCompanySettings(world.db, {});
+
+    expect(on.askTally.on).toBe(true);
+    expect(on.askTally.turnedOn?.by).toBeTypeOf("string");
+    expect(on.askTally.turnedOff).toBeNull();
+
+    await setAskTally(world.db, world.admin, false);
+    const off = await readCompanySettings(world.db, {});
+
+    expect(off.askTally.on).toBe(false);
+    expect(off.askTally.turnedOff?.by).toBe(on.askTally.turnedOn?.by);
+    // Turning it off keeps the record of who turned it on.
+    expect(off.askTally.turnedOn).toEqual(on.askTally.turnedOn);
+  });
+
+  it("refuses a manager", async () => {
+    const error = await rejection(
+      setAskTally(world.db, world.spintexManager, true)
+    );
+
+    expect(error.code).toBe("forbidden");
+    const settings = await readCompanySettings(world.db, {});
+
+    expect(settings.askTally.on).toBe(false);
+  });
+});
+
+describe("askTallyInput", () => {
+  it("takes only true or false, so a crafted request can't turn it on", () => {
+    expect(askTallyInput.safeParse(true).success).toBe(true);
+    expect(askTallyInput.safeParse(false).success).toBe(true);
+    expect(askTallyInput.safeParse("yes").success).toBe(false);
+    expect(askTallyInput.safeParse(1).success).toBe(false);
+  });
+});
+
+describe("assertCanSwitchAskTally", () => {
+  it("passes head office and stops everyone else", () => {
+    expect(() => {
+      assertCanSwitchAskTally(world.admin);
+    }).not.toThrow();
+    expect(() => {
+      assertCanSwitchAskTally(world.spintexManager);
+    }).toThrow("Only head office");
+  });
+});

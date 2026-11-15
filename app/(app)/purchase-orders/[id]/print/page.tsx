@@ -6,9 +6,9 @@ import { PrintButton } from "@/components/purchasing/print-button";
 import { buttonVariants } from "@/components/ui/button";
 import { formatCount, formatDate } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
+import { getCompanyName } from "@/lib/queries/company";
 import { getPurchaseOrder } from "@/lib/queries/purchase-orders";
 import { requireBackOffice } from "@/lib/session";
-import { COMPANY_NAME } from "@/lib/site";
 
 const orderId = (raw: string): number | null => {
   const id = Number(raw);
@@ -38,7 +38,12 @@ const WARNINGS = {
 const PrintPurchaseOrderPage = async ({
   params,
 }: PageProps<"/purchase-orders/[id]/print">) => {
-  const [, route] = await Promise.all([requireBackOffice(), params]);
+  const [, route, companyName] = await Promise.all([
+    requireBackOffice(),
+    params,
+    getCompanyName(),
+  ]);
+
   const id = orderId(route.id);
   const order = id === null ? null : await getPurchaseOrder(id);
 
@@ -78,7 +83,7 @@ const PrintPurchaseOrderPage = async ({
 
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-lg font-semibold">{COMPANY_NAME}</p>
+            <p className="text-lg font-semibold">{companyName}</p>
             <p className="text-ink-2 text-sm">Purchase order</p>
           </div>
           <div className="text-right">
@@ -104,7 +109,7 @@ const PrintPurchaseOrderPage = async ({
               Deliver to
             </h2>
             <p className="font-medium">
-              {COMPANY_NAME}, {order.branchName}
+              {companyName}, {order.branchName}
             </p>
             <p>{order.branchAddress}</p>
             <p>{order.branchCity}</p>

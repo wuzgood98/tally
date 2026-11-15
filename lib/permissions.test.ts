@@ -13,7 +13,9 @@ import {
   canCancelTransfer,
   canDispatchTransfer,
   canDraftPurchaseOrder,
+  canManageAskTally,
   canManageCatalogue,
+  canManageCompany,
   canReceive,
   canReceiveTransfer,
   canRequestStock,
@@ -124,6 +126,18 @@ describe("permissions", () => {
     expect(canSetReorderPoint(storekeeper, "SPX")).toBe(false);
     expect(canManageCatalogue(manager)).toBe(false);
     expect(canManageCatalogue(admin)).toBe(true);
+  });
+
+  it("leaves company settings and Ask Tally's switch to head office", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+
+    expect(canManageCompany(admin)).toBe(true);
+    expect(canManageAskTally(admin)).toBe(true);
+
+    for (const actor of [manager, storekeeper, cashier]) {
+      expect(canManageCompany(actor)).toBe(false);
+      expect(canManageAskTally(actor)).toBe(false);
+    }
   });
 
   it("lets a cashier see only their own store and none of the back office", () => {

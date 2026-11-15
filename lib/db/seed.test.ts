@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { isValidGtin } from "@/lib/barcode";
+import { readCompanySettings } from "@/lib/company";
 import { connectPglite } from "@/lib/db/client";
 import type { Connection } from "@/lib/db/client";
 import {
@@ -188,6 +189,13 @@ describe("seed", () => {
     for (const { barcode } of rows) {
       expect(isValidGtin(barcode ?? "")).toBe(true);
     }
+  });
+
+  it("turns Ask Tally on, as head office, for the demo", async () => {
+    const settings = await readCompanySettings(connection.db, {});
+
+    expect(settings.askTally.on).toBe(true);
+    expect(settings.askTally.turnedOn?.by).toBe("Efua Asante");
   });
 
   it("refuses to seed twice", async () => {

@@ -23,6 +23,7 @@ import {
   account,
   branch,
   category,
+  companySettings,
   goodsReceipt,
   product,
   sale,
@@ -1187,6 +1188,15 @@ export const seed = async (db: Db, now = new Date()): Promise<SeedSummary> => {
   ]);
 
   const staff = await seedStaff(db);
+
+  // The demo shows Ask Tally working: head office has already given consent.
+  // (It still needs OPENROUTER_API_KEY on the server.)
+  await db.insert(companySettings).values({
+    askTallyEnabled: true,
+    askTallyEnabledAt: now,
+    askTallyEnabledById: staff.headOffice.id,
+    id: 1,
+  });
   await seedOpeningStock(
     db,
     random,

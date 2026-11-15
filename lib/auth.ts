@@ -6,6 +6,7 @@ import { admin } from "better-auth/plugins";
 
 import { getDb } from "@/lib/db";
 import { account, session, user, verification } from "@/lib/db/schema";
+import { MIN_PASSWORD_LENGTH } from "@/lib/limits";
 
 const EIGHT_HOURS = 60 * 60 * 8;
 const ONE_HOUR = 60 * 60;
@@ -25,7 +26,7 @@ const createAuth = () =>
     emailAndPassword: {
       disableSignUp: true,
       enabled: true,
-      minPasswordLength: 10,
+      minPasswordLength: MIN_PASSWORD_LENGTH,
     },
     plugins: [
       admin({

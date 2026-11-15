@@ -11,6 +11,7 @@ import { hashPassword } from "better-auth/crypto";
 import { and, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { personName } from "@/lib/account";
 import type { Db } from "@/lib/db/client";
 import { account, branch, roleEnum, session, user } from "@/lib/db/schema";
 import { canManageStaff } from "@/lib/permissions";
@@ -25,7 +26,7 @@ export const staffInput = z
       .trim()
       .toLowerCase()
       .pipe(z.email("Enter a valid email address.")),
-    name: z.string().trim().min(2, "Enter their full name.").max(80),
+    name: personName("Enter their full name."),
     role: z.enum(roleEnum.enumValues),
   })
   .refine((input) => input.role === "admin" || Boolean(input.branchId), {

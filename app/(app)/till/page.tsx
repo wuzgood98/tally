@@ -4,6 +4,7 @@ import Link from "next/link";
 import { TillForm } from "@/components/sales/till-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { sellableBranchIds } from "@/lib/permissions";
+import { getCompanySettings } from "@/lib/queries/company";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 
@@ -12,9 +13,10 @@ export const metadata: Metadata = { title: "Till" };
 const TillPage = async () => {
   const viewer = await requireViewer();
 
-  const [branches, scope] = await Promise.all([
+  const [branches, scope, company] = await Promise.all([
     listBranches(),
     getScope(viewer),
+    getCompanySettings(),
   ]);
 
   const allowed = new Set(
@@ -60,6 +62,7 @@ const TillPage = async () => {
       />
       <TillForm
         defaultStoreId={defaultStoreId}
+        receiptFooter={company.receiptFooter}
         stores={stores.map(({ id, name }) => ({ id, name }))}
       />
     </>
