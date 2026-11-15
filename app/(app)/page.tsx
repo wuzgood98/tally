@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { BestSellersPanel } from "@/components/sales/best-sellers-panel";
+import { BranchBoard } from "@/components/stock/branch-board";
 import { MovementTable } from "@/components/stock/movement-table";
 import { OnTheWayPanel } from "@/components/stock/on-the-way-panel";
 import { ReorderTable } from "@/components/stock/reorder-table";
@@ -9,7 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Sparkline } from "@/components/ui/sparkline";
 import { Stat, StatGroup } from "@/components/ui/stat";
-import { Table, Td, Th } from "@/components/ui/table";
+import { boardBins, boardRows } from "@/lib/branch-board";
 import { formatCount, formatLongDate } from "@/lib/format";
 import { formatCedis, formatCedisCompact } from "@/lib/money";
 import { canBrowseBackOffice, canViewReports } from "@/lib/permissions";
@@ -34,6 +35,7 @@ import { queryString } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 
 const REORDER_PREVIEW = 8;
+
 const RECENT_MOVEMENTS = 8;
 const ON_THE_WAY_PREVIEW = 5;
 const BEST_SELLER_DAYS = 7;
@@ -51,40 +53,6 @@ const SeeAll = ({
   <Link className="text-brand text-sm font-medium hover:underline" href={href}>
     {children}
   </Link>
-);
-
-/**
- * One bar per branch: healthy lines, then low, then out. Problems are drawn
- * eight times their share so a handful of them still shows.
- */
-const PROBLEM_WEIGHT = 8;
-
-const HealthTrack = ({
-  lines,
-  low,
-  out,
-}: {
-  readonly lines: number;
-  readonly low: number;
-  readonly out: number;
-}) => (
-  <span
-    aria-hidden="true"
-    className="bg-surface-2 mt-2 flex h-1 w-40 max-w-full gap-0.5 overflow-hidden rounded-full"
-  >
-    <span
-      className="bg-brand/55 grow-(--ok)"
-      style={{ "--ok": Math.max(lines - low - out, 0) }}
-    />
-    <span
-      className="bg-warn grow-(--low)"
-      style={{ "--low": low * PROBLEM_WEIGHT }}
-    />
-    <span
-      className="bg-danger grow-(--out)"
-      style={{ "--out": out * PROBLEM_WEIGHT }}
-    />
-  </span>
 );
 
 const OverviewPage = async () => {
@@ -109,6 +77,7 @@ const OverviewPage = async () => {
     reorder,
     movements,
     health,
+    boardLines,
     incoming,
     salesToday,
     bestSellers,
@@ -122,6 +91,7 @@ const OverviewPage = async () => {
     getReorderLines(scope, REORDER_PREVIEW),
     listMovements({ branchId }, RECENT_MOVEMENTS),
     allBranches ? getBranchHealth() : Promise.resolve([]),
+    allBranches ? getReorderLines(scope) : Promise.resolve([]),
     listTransfers(scope, { direction: "incoming", status: "in_transit" }, 1),
     getTodaySales(scope),
     getBestSellers(scope, BEST_SELLER_DAYS, BEST_SELLERS),
@@ -141,6 +111,7 @@ const OverviewPage = async () => {
   const today = formatLongDate(new Date());
   const reports = canViewReports(viewer);
   const needReorder = totals.lowLines + totals.outLines;
+  const bins = boardBins(health, boardLines);
 
   return (
     <>
@@ -159,7 +130,11 @@ const OverviewPage = async () => {
           value={formatCedisCompact(totals.costValue)}
         />
         <Stat
-          detail={`${formatCount(salesToday.count)} ${salesToday.count === 1 ? "sale" : "sales"}`}
+          detail={
+            salesToday.count === 0
+              ? "No sales yet today"
+              : `${formatCount(salesToday.count)} ${salesToday.count === 1 ? "sale" : "sales"}`
+          }
           href="/sales"
           label="Sales today"
           trend={<Sparkline values={salesTrend} variant="bars" />}
@@ -185,6 +160,10 @@ const OverviewPage = async () => {
         />
       </StatGroup>
 
+      {allBranches ? (
+        <BranchBoard bins={bins} className="mt-3.5" rows={boardRows(bins)} />
+      ) : null}
+
       <div className="mt-3.5 grid gap-3.5 xl:grid-cols-[3fr_2fr]">
         <Panel
           action={<SeeAll href="/low-stock">See all</SeeAll>}
@@ -201,58 +180,8 @@ const OverviewPage = async () => {
           )}
         </Panel>
 
-        {allBranches ? (
-          <Panel flush id="branches" title="Branches">
-            <Table>
-              <caption className="sr-only">Stock health by branch</caption>
-              <thead>
-                <tr>
-                  <Th>Branch</Th>
-                  <Th numeric>Value</Th>
-                  <Th numeric>Low</Th>
-                  <Th numeric>Out</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {health.map((row) => (
-                  <tr key={row.id}>
-                    <Td nowrap>
-                      <span className="font-medium">{row.name}</span>
-                      <span className="text-ink-3 block text-xs">
-                        {row.kind === "warehouse" ? "Warehouse" : "Store"} ·{" "}
-                        {formatCount(row.lines)} lines
-                      </span>
-                      <HealthTrack
-                        lines={row.lines}
-                        low={row.lowLines}
-                        out={row.outLines}
-                      />
-                    </Td>
-                    <Td numeric>{formatCedisCompact(row.costValue)}</Td>
-                    <Td
-                      numeric
-                      tone={row.lowLines > 0 ? "warn" : "faint"}
-                      weight={row.lowLines > 0 ? "medium" : "normal"}
-                    >
-                      {formatCount(row.lowLines)}
-                    </Td>
-                    <Td
-                      numeric
-                      tone={row.outLines > 0 ? "danger" : "faint"}
-                      weight={row.outLines > 0 ? "medium" : "normal"}
-                    >
-                      {formatCount(row.outLines)}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Panel>
-        ) : null}
-
-        {/* Beside "Running low" for one branch; full width under the branch table. */}
+        {/* Beside "Running low"; the branch board sits above both. */}
         <BestSellersPanel
-          className={allBranches ? "xl:col-span-2" : undefined}
           days={BEST_SELLER_DAYS}
           reportHref={
             reports ? `/reports/sellers?days=${BEST_SELLER_DAYS}` : undefined

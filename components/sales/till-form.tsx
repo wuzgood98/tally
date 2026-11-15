@@ -1,5 +1,6 @@
 "use client";
 
+import { useShortcut } from "@ui-sdk/react/shortcuts";
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
@@ -7,7 +8,10 @@ import type { SubmitEvent } from "react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import { tillSaleAction } from "@/app/(app)/till/actions";
-import { TillCheckout } from "@/components/sales/till-checkout";
+import {
+  CHARGE_SHORTCUT,
+  TillCheckout,
+} from "@/components/sales/till-checkout";
 import { TillLineRow } from "@/components/sales/till-line-row";
 import type { BasketLine } from "@/components/sales/till-line-row";
 import { ProductPicker } from "@/components/stock/product-picker";
@@ -18,6 +22,12 @@ import { namedOptions } from "@/components/ui/select-options";
 import type { PaymentMethod } from "@/lib/db/schema";
 import { formatCedis } from "@/lib/money";
 import { wholeNumber } from "@/lib/numbers";
+import {
+  NO_TENDER,
+  canCharge,
+  changeDue,
+  readTender,
+} from "@/lib/stock/quick-cash";
 import type { SaleResult } from "@/lib/stock/sales";
 
 interface Option {
@@ -49,17 +59,47 @@ const totals = (lines: readonly BasketLine[]) => {
   return { total, units };
 };
 
-const LastSale = ({ recorded }: { readonly recorded: SaleResult }) => (
-  <output className="bg-brand-soft text-good flex flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium">
-    <CircleCheck aria-hidden="true" className="size-4" />
-    {recorded.duplicate
-      ? `Already recorded as ${recorded.number}: nothing was charged twice.`
-      : `${recorded.number} recorded · ${formatCedis(recorded.total)}.`}
+/** The sale just rung up, and the cash it left to hand back. */
+interface RecordedSale {
+  readonly recorded: SaleResult;
+  /** Cash to hand back, in pesewas; null when none is due. */
+  readonly change: number | null;
+}
+
+/** Stays until the next sale, so the change due never times out. */
+const LastSale = ({
+  sale: { recorded, change },
+}: {
+  readonly sale: RecordedSale;
+}) => (
+  <output className="bg-brand-soft text-good flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg px-4 py-3 text-sm font-medium">
+    <span className="flex items-center gap-2">
+      <CircleCheck aria-hidden="true" className="size-4" />
+      {recorded.duplicate
+        ? `Already recorded as ${recorded.number}: nothing was charged twice.`
+        : `${recorded.number} recorded · ${formatCedis(recorded.total)}.`}
+    </span>
+    {change === null || recorded.duplicate ? null : (
+      <span className="text-ink">
+        Change{" "}
+        <span className="tabular text-lg font-semibold">
+          {formatCedis(change)}
+        </span>
+      </span>
+    )}
     <Link className="ml-auto underline" href={`/sales/${recorded.id}`}>
       Receipt
     </Link>
   </output>
 );
+
+/** How the customer pays, and the cash field as typed. */
+interface Payment {
+  readonly method: PaymentMethod;
+  readonly received: string;
+}
+
+const FRESH_PAYMENT: Payment = { method: "cash", received: "" };
 
 /**
  * The till. Scan to fill the basket, pick how the customer pays, charge.
@@ -69,14 +109,36 @@ const LastSale = ({ recorded }: { readonly recorded: SaleResult }) => (
 export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
   const [storeId, setStoreId] = useState(defaultStoreId);
   const [lines, setLines] = useState<readonly BasketLine[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [payment, setPayment] = useState<Payment>(FRESH_PAYMENT);
   const [error, setError] = useState<string | null>(null);
-  const [lastSale, setLastSale] = useState<SaleResult | null>(null);
+  const [lastSale, setLastSale] = useState<RecordedSale | null>(null);
   const [pending, startTransition] = useTransition();
   const [bump, setBump] = useState<Bump | null>(null);
   const clientRef = useRef<string | null>(null);
   const scanArea = useRef<HTMLDivElement>(null);
+  const form = useRef<HTMLFormElement>(null);
   const summary = totals(lines);
+
+  const tender =
+    payment.method === "cash"
+      ? readTender(payment.received, summary.total)
+      : NO_TENDER;
+
+  const storeName = stores.find((store) => store.id === storeId)?.name ?? "";
+
+  // Charge without leaving the scan box. It takes a modifier, so a barcode
+  // scanner (plain characters and Enter) can never set it off.
+  useShortcut(
+    CHARGE_SHORTCUT,
+    () => {
+      form.current?.requestSubmit();
+    },
+    {
+      allowInInput: true,
+      description: "Charge the sale",
+      when: () => canCharge(summary.total, pending),
+    }
+  );
 
   /** Scanning the same product again adds one more. */
   const addProduct = (product: PickedProduct) => {
@@ -136,6 +198,8 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
     const ref = clientRef.current ?? crypto.randomUUID();
     clientRef.current = ref;
 
+    const change = changeDue(tender);
+
     startTransition(async () => {
       const result = await tillSaleAction({
         branchId: storeId,
@@ -144,7 +208,7 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
           productId: line.product.id,
           quantity: wholeNumber(line.quantity) ?? 0,
         })),
-        paymentMethod,
+        paymentMethod: payment.method,
       });
 
       if (result.sale === null) {
@@ -154,20 +218,23 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
       }
 
       clientRef.current = null;
-      setLastSale(result.sale);
+      setLastSale({ change, recorded: result.sale });
       setLines([]);
-      setPaymentMethod("cash");
+      setPayment(FRESH_PAYMENT);
       setError(null);
-      // Ready for the next customer's first scan.
-      scanArea.current?.querySelector("input")?.focus();
+      // Ready for the next customer's first scan. Not the store picker's
+      // hidden input, which comes first for anyone with more than one store.
+      scanArea.current
+        ?.querySelector<HTMLInputElement>("input:not([aria-hidden])")
+        ?.focus();
     });
   };
 
   return (
-    <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit}>
-      {lastSale === null ? null : <LastSale recorded={lastSale} />}
+    <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit} ref={form}>
+      {lastSale === null ? null : <LastSale sale={lastSale} />}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
         <Frame>
           <FramePanel flush>
             <div className="border-line grid gap-4 border-b p-4" ref={scanArea}>
@@ -243,11 +310,18 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
 
         <TillCheckout
           error={error}
-          // A fresh checkout per sale, so the cash received doesn't carry over.
-          key={lastSale?.id ?? 0}
-          onPaymentMethod={setPaymentMethod}
-          paymentMethod={paymentMethod}
+          lines={lines}
+          onPaymentMethod={(method) => {
+            setPayment((current) => ({ ...current, method }));
+          }}
+          onReceived={(received) => {
+            setPayment((current) => ({ ...current, received }));
+          }}
+          paymentMethod={payment.method}
           pending={pending}
+          received={payment.received}
+          storeName={storeName}
+          tender={tender}
           total={summary.total}
           units={summary.units}
         />

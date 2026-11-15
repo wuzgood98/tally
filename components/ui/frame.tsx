@@ -67,6 +67,29 @@ export const FramePanelLink = ({
   />
 );
 
+/** A whole panel that is one button, such as a bin on the branch board. */
+export const FramePanelButton = ({
+  className,
+  pending = false,
+  ...props
+}: Omit<ComponentProps<"button">, "type"> & {
+  /** Its action is under way, such as a branch switch: pulses and is busy. */
+  readonly pending?: boolean;
+}) => (
+  <button
+    aria-busy={pending || undefined}
+    className={cn(
+      PANEL,
+      "press [@media(hover:hover)_and_(pointer:fine)]:hover:border-line-strong block p-3 text-left focus-visible:-outline-offset-2",
+      pending && "pending-pulse",
+      className
+    )}
+    data-slot="frame-panel"
+    type="button"
+    {...props}
+  />
+);
+
 export const FrameHeader = ({
   className,
   ...props

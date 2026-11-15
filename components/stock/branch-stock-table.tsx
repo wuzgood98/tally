@@ -1,7 +1,9 @@
+import { StockGauge } from "@/components/stock/stock-gauge";
 import { StockBadge } from "@/components/ui/stock-badge";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount } from "@/lib/format";
 import { stockStatus } from "@/lib/queries/stock-status";
+import { shelfStatus } from "@/lib/stock/coverage";
 
 interface BranchLevel {
   readonly branchId: string;
@@ -22,6 +24,8 @@ interface BranchStockTableProps {
   readonly inTransit: ReadonlyMap<string, number>;
   /** By branch id: units still due on approved purchase orders. */
   readonly onOrder: ReadonlyMap<string, number>;
+  /** By branch id: units on its open requests to the warehouse. */
+  readonly requested: ReadonlyMap<string, number>;
   /** By branch id: units sold in the last `salesDays`. */
   readonly sold: ReadonlyMap<string, number>;
   readonly salesDays: number;
@@ -34,13 +38,6 @@ interface BranchStockTableProps {
   readonly brief?: boolean;
 }
 
-/** Coming in: shown as "+12", or a dash when there's nothing. */
-const Incoming = ({ units }: { readonly units: number }) => (
-  <Td numeric tone={units > 0 ? "good" : "faint"}>
-    {units > 0 ? `+${formatCount(units)}` : "—"}
-  </Td>
-);
-
 /** One product's stock at every branch, with what's coming and what's selling. */
 export const BranchStockTable = ({
   productName,
@@ -48,6 +45,7 @@ export const BranchStockTable = ({
   reorderPoint,
   inTransit,
   onOrder,
+  requested,
   sold,
   salesDays,
   highlightBranchId,
@@ -59,13 +57,12 @@ export const BranchStockTable = ({
       <tr>
         <Th>Branch</Th>
         <Th>Location</Th>
-        <Th numeric>On hand</Th>
-        {brief ? null : (
+        {brief ? (
+          <Th numeric>On hand</Th>
+        ) : (
           <>
-            <Th numeric>On the way</Th>
-            <Th numeric>On order</Th>
+            <Th>On hand / reorder at</Th>
             <Th numeric>Sold, {salesDays} days</Th>
-            <Th numeric>Reorder at</Th>
           </>
         )}
         <Th>Status</Th>
@@ -74,6 +71,14 @@ export const BranchStockTable = ({
     <tbody>
       {levels.map((level) => {
         const threshold = level.reorderOverride ?? reorderPoint;
+
+        const line = {
+          inTransit: inTransit.get(level.branchId) ?? 0,
+          onHand: level.onHand,
+          onOrder: onOrder.get(level.branchId) ?? 0,
+          reorderPoint: threshold,
+          requested: requested.get(level.branchId) ?? 0,
+        };
 
         return (
           <tr
@@ -95,29 +100,42 @@ export const BranchStockTable = ({
                 {level.binLocation ?? "—"}
               </span>
             </Td>
-            <Td numeric weight="medium">
-              {formatCount(level.onHand)}
-            </Td>
-            {brief ? null : (
+            {brief ? (
+              <Td numeric weight="medium">
+                {formatCount(level.onHand)}
+              </Td>
+            ) : (
               <>
-                <Incoming units={inTransit.get(level.branchId) ?? 0} />
-                <Incoming units={onOrder.get(level.branchId) ?? 0} />
+                <Td className="w-2/5 min-w-40">
+                  {level.stocked ? (
+                    <StockGauge
+                      line={line}
+                      reorderNote={
+                        level.reorderOverride === null
+                          ? undefined
+                          : "set for this branch"
+                      }
+                    />
+                  ) : (
+                    <span className="text-ink-3">—</span>
+                  )}
+                </Td>
                 <Td numeric tone="muted">
                   {level.branchKind === "warehouse"
                     ? "—"
                     : formatCount(sold.get(level.branchId) ?? 0)}
                 </Td>
-                <Td numeric tone="muted">
-                  {formatCount(threshold)}
-                  {level.reorderOverride === null ? null : (
-                    <span className="sr-only"> (set for this branch)</span>
-                  )}
-                </Td>
               </>
             )}
             <Td>
               {level.stocked ? (
-                <StockBadge status={stockStatus(level.onHand, threshold)} />
+                <StockBadge
+                  status={
+                    brief
+                      ? stockStatus(level.onHand, threshold)
+                      : shelfStatus(line)
+                  }
+                />
               ) : (
                 <span className="text-ink-3 text-xs">Not stocked</span>
               )}

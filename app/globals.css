@@ -111,6 +111,8 @@
   --shadow-float: 0 24px 60px -24px rgb(0 0 0 / 0.5);
   /* The sign-in label lifting off the bins; a filter, so its torn edge casts it too. */
   --drop-shadow-label: 0 30px 40px rgb(0 0 0 / 0.45);
+  /* The till's receipt resting on the counter: lighter than the sign-in label's lift. */
+  --drop-shadow-receipt: 0 14px 22px rgb(0 0 0 / 0.22);
 
   /* Strong ease-out: movement starts at once, so the UI feels like it heard you. */
   --ease-out-quick: cubic-bezier(0.23, 1, 0.32, 1);
@@ -459,6 +461,24 @@
   from {
     scale: 1 0;
   }
+}
+
+/* Stock already coming: hatched, because it isn't on the shelf yet. */
+@utility gauge-incoming {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--accent) 65%, transparent) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+/* Below empty: the record sold stock the shelf didn't have. */
+@utility gauge-short {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--danger) 0 2px,
+    transparent 2px 4px
+  );
 }
 
 /* Native form controls styled once, so forms stay plain HTML. */

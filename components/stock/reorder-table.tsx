@@ -1,10 +1,10 @@
 import Link from "next/link";
 
+import { StockGauge } from "@/components/stock/stock-gauge";
 import { StockBadge } from "@/components/ui/stock-badge";
 import { Table, Td, Th } from "@/components/ui/table";
-import { formatCount } from "@/lib/format";
 import type { ReorderLine } from "@/lib/queries/overview";
-import { stockStatus } from "@/lib/queries/stock-status";
+import { shelfStatus } from "@/lib/stock/coverage";
 
 interface ReorderTableProps {
   readonly lines: readonly ReorderLine[];
@@ -24,19 +24,18 @@ export const ReorderTable = ({
     <thead>
       <tr>
         <Th>Product</Th>
-        {showBranch ? <Th>Branch</Th> : null}
-        {showSupplier ? <Th>Supplier</Th> : null}
-        <Th numeric>On hand</Th>
-        <Th numeric>Reorder at</Th>
-        <Th numeric>On the way</Th>
-        <Th numeric>On order</Th>
+        {showBranch ? <Th className="hidden sm:table-cell">Branch</Th> : null}
+        {showSupplier ? (
+          <Th className="hidden sm:table-cell">Supplier</Th>
+        ) : null}
+        <Th className="hidden sm:table-cell">On hand / reorder at</Th>
         <Th>Status</Th>
       </tr>
     </thead>
     <tbody>
       {lines.map((line) => (
         <tr key={`${line.branchId}-${line.productId}`}>
-          <Td className="min-w-56">
+          <Td className="w-full sm:w-auto sm:min-w-52">
             <Link
               className="hover:text-brand font-medium hover:underline"
               href={`/products/${line.productId}`}
@@ -45,28 +44,33 @@ export const ReorderTable = ({
             </Link>
             <span className="text-ink-3 block font-mono text-xs">
               {line.sku}
+              {showBranch ? (
+                <span className="font-sans sm:hidden">
+                  {" "}
+                  · {line.branchName}
+                </span>
+              ) : null}
             </span>
+            {/* On a phone the gauge sits under the name, so nothing scrolls. */}
+            <div className="mt-2 sm:hidden">
+              <StockGauge line={line} />
+            </div>
           </Td>
-          {showBranch ? <Td nowrap>{line.branchName}</Td> : null}
+          {showBranch ? (
+            <Td className="hidden sm:table-cell" nowrap>
+              {line.branchName}
+            </Td>
+          ) : null}
           {showSupplier ? (
-            <Td tone="muted" className="min-w-40">
+            <Td className="hidden min-w-40 sm:table-cell" tone="muted">
               {line.supplierName ?? "—"}
             </Td>
           ) : null}
-          <Td numeric weight="medium">
-            {formatCount(line.onHand)}
-          </Td>
-          <Td numeric tone="muted">
-            {formatCount(line.reorderPoint)}
-          </Td>
-          <Td numeric tone={line.inTransit > 0 ? "good" : "faint"}>
-            {line.inTransit > 0 ? `+${formatCount(line.inTransit)}` : "—"}
-          </Td>
-          <Td numeric tone={line.onOrder > 0 ? "good" : "faint"}>
-            {line.onOrder > 0 ? `+${formatCount(line.onOrder)}` : "—"}
+          <Td className="hidden w-2/5 min-w-40 sm:table-cell">
+            <StockGauge line={line} />
           </Td>
           <Td>
-            <StockBadge status={stockStatus(line.onHand, line.reorderPoint)} />
+            <StockBadge status={shelfStatus(line)} />
           </Td>
         </tr>
       ))}

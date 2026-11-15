@@ -4,11 +4,11 @@ Stock control for one multi-branch retailer (five stores and a warehouse, China 
 
 **Read `docs/CONTEXT.md` before planning, building or answering questions about Tally**: it holds the decisions, data model, invariants, gotchas and what's next. Never write stock levels outside `applyMovement` (`lib/stock/ledger.ts`), and never open `.data/pglite` from two processes at once.
 
-<!-- BEGIN:nextjs-agent-rules -->
-
 ## ui-sdk
 
 Before using ui-sdk (`@ui-sdk/react`, `@ui-sdk/core`), follow the ui-sdk skill if it's installed, and read `node_modules/@ui-sdk/react/docs/llms.txt`. To build a new component, also search `node_modules/@ui-sdk/react/docs/core.md` by heading, and read `rendering.md` next to it. The default styles are imported once in `app/layout.tsx`, before `globals.css`.
+
+<!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
 

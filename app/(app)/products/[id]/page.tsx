@@ -21,6 +21,7 @@ import {
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct, getProductLevels } from "@/lib/queries/products";
 import { getProductOnOrder } from "@/lib/queries/purchase-orders";
+import { getProductRequested } from "@/lib/queries/requests";
 import { getProductUnitsSold } from "@/lib/queries/sales";
 import { getProductInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
@@ -175,16 +176,16 @@ const ProductPage = async ({ params }: PageProps<"/products/[id]">) => {
     notFound();
   }
 
-  const [levels, inTransit, onOrder, sold, scope, branches] = await Promise.all(
-    [
+  const [levels, inTransit, onOrder, requested, sold, scope, branches] =
+    await Promise.all([
       getProductLevels(item.id),
       getProductInTransit(item.id),
       getProductOnOrder(item.id),
+      getProductRequested(item.id),
       getProductUnitsSold(item.id, SALES_DAYS),
       getScope(viewer),
       listBranches(),
-    ]
-  );
+    ]);
 
   const historyBranch = scope.kind === "branch" ? scope.branchId : undefined;
 
@@ -313,6 +314,7 @@ const ProductPage = async ({ params }: PageProps<"/products/[id]">) => {
             levels={levels}
             onOrder={onOrder}
             productName={item.name}
+            requested={requested}
             reorderPoint={item.reorderPoint}
             salesDays={SALES_DAYS}
             sold={sold}

@@ -3,7 +3,7 @@
  * except at the edges: parse on the way in, format on the way out.
  */
 
-const PESEWAS_PER_CEDI = 100;
+export const PESEWAS_PER_CEDI = 100;
 
 const cedis = new Intl.NumberFormat("en-GH", {
   currency: "GHS",
@@ -13,7 +13,8 @@ const cedis = new Intl.NumberFormat("en-GH", {
 const compactCedis = new Intl.NumberFormat("en-GH", {
   compactDisplay: "short",
   currency: "GHS",
-  maximumFractionDigits: 1,
+  // Three figures everywhere: "GH₵601K" beside "GH₵693K", never "GH₵601.2K".
+  maximumSignificantDigits: 3,
   notation: "compact",
   style: "currency",
 });
@@ -22,7 +23,7 @@ const compactCedis = new Intl.NumberFormat("en-GH", {
 export const formatCedis = (pesewas: number): string =>
   cedis.format(pesewas / PESEWAS_PER_CEDI);
 
-/** 123456789 → "GH₵1.2M", for dashboard totals. */
+/** 123456789 → "GH₵1.23M", for dashboard totals. */
 export const formatCedisCompact = (pesewas: number): string =>
   compactCedis.format(pesewas / PESEWAS_PER_CEDI);
 
@@ -50,3 +51,9 @@ export const parseCedis = (input: string): number | null => {
 /** For prefilling inputs: 1250 → "12.50" (no symbol, no grouping). */
 export const pesewasToInput = (pesewas: number): string =>
   (pesewas / PESEWAS_PER_CEDI).toFixed(2);
+
+/** For the till's cash field: 87000 → "870", 86550 → "865.50". */
+export const pesewasToCashInput = (pesewas: number): string =>
+  pesewas % PESEWAS_PER_CEDI === 0
+    ? String(pesewas / PESEWAS_PER_CEDI)
+    : pesewasToInput(pesewas);
