@@ -18,10 +18,12 @@
     "till:simulate": "tsx scripts/till-simulator.ts",
     "icons": "node scripts/generate-icons.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "eval:ask": "tsx --env-file-if-exists=.env.local scripts/eval-ask.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
+    "@openrouter/ai-sdk-provider": "^3.1.0",
     "@ui-sdk/core": "0.1.0-beta.1",
     "@ui-sdk/react": "0.1.0-beta.1",
     "ai": "^7.0.173",
