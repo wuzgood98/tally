@@ -167,3 +167,10 @@ export const canSeeBranch = (actor: Actor, branchId: string): boolean =>
  */
 export const canBrowseBackOffice = (actor: Actor): boolean =>
   actor.role !== "cashier";
+
+/**
+ * Ask Tally answers questions about the back office, so it's for the same
+ * people; its report questions follow `canViewReports`.
+ */
+export const canAskTally = (actor: Actor): boolean =>
+  canBrowseBackOffice(actor);

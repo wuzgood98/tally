@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canAdjust,
   canApprovePurchaseOrder,
+  canAskTally,
   canBrowseBackOffice,
   canSeeBranch,
   canApproveReturn,
@@ -136,6 +137,16 @@ describe("permissions", () => {
       expect(visibleBranchIds(actor, all)).toEqual(all);
       expect(canSeeBranch(actor, "KSI")).toBe(true);
       expect(canBrowseBackOffice(actor)).toBe(true);
+    }
+  });
+
+  it("offers Ask Tally to everyone in the back office, not cashiers", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+
+    expect(canAskTally(cashier)).toBe(false);
+
+    for (const actor of [admin, manager, storekeeper]) {
+      expect(canAskTally(actor)).toBe(true);
     }
   });
 });
