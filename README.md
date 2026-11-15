@@ -29,6 +29,28 @@ The demo data is for **Akwaaba Mall**, a fictional retailer. The branch location
 
   Anything that could hide a loss needs a manager. Deactivating someone signs them out everywhere at once.
 
+## Ask Tally
+
+A read-only assistant in the command palette (Ctrl+K, then **Ask Tally** or `?`). Ask it in plain words ("What's running low at Kumasi?", "Which transfers are still on the road?", "How much stock did we lose this month?") and it answers from Tally's own figures, with links to the products and documents it mentions.
+
+- **It never changes anything**, and it never writes SQL: the model calls tools that wrap Tally's existing queries (`lib/ask/`).
+- **It sees what you see.** The tools take your role and branch from your session, never from the model. Cashiers don't get it; the report questions (sellers, shrinkage, stock value) are for head office and managers, and a manager asking about another branch's report is told no.
+- **The tools do the sums.** Money comes formatted and totals added up, so the model only quotes them; answers link only to records a tool returned.
+- **Limits:** 20 questions per person per hour, at most 5 tool calls and a short answer each; the conversation is gone when the palette closes.
+
+It runs on [OpenRouter](https://openrouter.ai)'s free models and is off until a key is set:
+
+```bash
+OPENROUTER_API_KEY=sk-or-...                 # in .env.local; Ask Tally stays hidden without it
+ASK_TALLY_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free   # optional; one id, or a comma-separated fallback list
+```
+
+Things to know before turning it on:
+
+- **What leaves the server:** each question sends product names, stock figures, costs and branch names to OpenRouter and the model's host. Free models' hosts may log or train on prompts. Fine for the fictional demo; for real data, use a paid model whose terms you accept.
+- **Free models are rate limited:** about 50 requests a day per OpenRouter account, and a question takes 2 or 3, so a busy demo can run dry (people see "Ask Tally couldn't answer just now"). Answers take 15 to 20 seconds.
+- **Free models come and go.** `pnpm eval:ask` runs golden questions against any model (`pnpm eval:ask --cases rice,low,refuse some/model:free`) using fixture data, not your database; run it before switching models.
+
 ## Stack
 
 Next.js 16 (App Router, Server Actions) · React 19 · TypeScript · Tailwind CSS v4 · PostgreSQL with Drizzle ORM · Better Auth · zod · Vitest · Ultracite (Oxlint + Oxfmt)
@@ -68,6 +90,7 @@ pnpm db:seed                 # optional demo data
 pnpm dev          # start the dev server
 pnpm build        # production build
 pnpm test         # run the test suite (each file gets its own in-memory Postgres)
+pnpm eval:ask     # Ask Tally's golden questions against real models (spends free-tier requests)
 pnpm db:generate  # create a migration after changing lib/db/schema.ts
 pnpm db:migrate   # apply migrations to DATABASE_URL (or the local PGlite)
 pnpm db:seed      # load the demo data into an empty database
