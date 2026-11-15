@@ -117,13 +117,14 @@ export interface ReorderLine {
 
 /**
  * Lines at or below their reorder point, emptiest first (relative to the
- * threshold), so a shelf with 0 of 40 comes before one with 9 of 10.
+ * threshold), so a shelf with 0 of 40 comes before one with 9 of 10. Without
+ * a limit it returns every one, as the branch board needs.
  */
 export const getReorderLines = async (
   scope: Scope,
-  limit: number
-): Promise<ReorderLine[]> =>
-  await getDb()
+  limit?: number
+): Promise<ReorderLine[]> => {
+  const query = getDb()
     .select({
       branchId: stockLevel.branchId,
       branchName: branch.name,
@@ -177,7 +178,10 @@ export const getReorderLines = async (
       sql`${stockLevel.onHand}::float8 / greatest(${effectiveReorderPoint}, 1)`,
       product.name
     )
-    .limit(limit);
+    .$dynamic();
+
+  return limit === undefined ? await query : await query.limit(limit);
+};
 
 export interface WeekReceipts {
   readonly count: number;

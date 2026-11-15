@@ -13,7 +13,8 @@ const cedis = new Intl.NumberFormat("en-GH", {
 const compactCedis = new Intl.NumberFormat("en-GH", {
   compactDisplay: "short",
   currency: "GHS",
-  maximumFractionDigits: 1,
+  // Three figures everywhere: "GH₵601K" beside "GH₵693K", never "GH₵601.2K".
+  maximumSignificantDigits: 3,
   notation: "compact",
   style: "currency",
 });
@@ -22,7 +23,7 @@ const compactCedis = new Intl.NumberFormat("en-GH", {
 export const formatCedis = (pesewas: number): string =>
   cedis.format(pesewas / PESEWAS_PER_CEDI);
 
-/** 123456789 → "GH₵1.2M", for dashboard totals. */
+/** 123456789 → "GH₵1.23M", for dashboard totals. */
 export const formatCedisCompact = (pesewas: number): string =>
   compactCedis.format(pesewas / PESEWAS_PER_CEDI);
 
