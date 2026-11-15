@@ -18,7 +18,12 @@ export const ASK_DEFAULT_MODELS = [
 /** Model calls per answer, tool calls included. */
 export const ASK_MAX_STEPS = 5;
 
-/** Answers are meant to be short; this caps a runaway one. */
+/**
+ * Output tokens per model call. Answers are meant to be short; this caps a
+ * runaway one. It's per call, not per answer, because free models count
+ * their reasoning as output, and a tool step that ran out would leave the
+ * answer with nothing to go on.
+ */
 export const ASK_MAX_OUTPUT_TOKENS = 1200;
 
 /** Questions per person per hour. */
@@ -45,11 +50,13 @@ export const askTallyEnabled = (env: Env = process.env): boolean =>
  * id, or several separated by commas), or the defaults. Free models come
  * and go, so this swaps them without a release.
  */
-export const askModelIds = (env: Env = process.env): string[] => {
-  const chosen = (env.ASK_TALLY_MODEL ?? "")
+export const askModelIds = (
+  env: Env = process.env
+): readonly [string, ...string[]] => {
+  const [first, ...rest] = (env.ASK_TALLY_MODEL ?? "")
     .split(",")
     .map((id) => id.trim())
     .filter((id) => id !== "");
 
-  return chosen.length > 0 ? chosen : [...ASK_DEFAULT_MODELS];
+  return first === undefined ? ASK_DEFAULT_MODELS : [first, ...rest];
 };

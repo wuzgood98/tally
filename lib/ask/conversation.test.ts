@@ -5,6 +5,7 @@ import {
   ASK_FAILED,
   askFailure,
   askStatusLine,
+  isEmptyAnswer,
   linkRecords,
   toolLinks,
 } from "@/lib/ask/conversation";
@@ -19,7 +20,7 @@ const admin: Actor = { branchId: null, id: "a", role: "admin" };
 type ToolInput = Readonly<Record<string, string>>;
 
 interface ToolOutput {
-  readonly lines: readonly { readonly link: string }[];
+  readonly lines: readonly Readonly<Record<string, string>>[];
 }
 
 const toolPart = (
@@ -67,10 +68,58 @@ describe("toolLinks", () => {
       ]),
     ];
 
-    expect([...toolLinks(messages)]).toEqual([
+    const links = toolLinks(messages);
+
+    expect([...links.labels]).toEqual([
       ["Milo 400g", "/products/7"],
       ["PO-SPX-000012", "/purchase-orders/12"],
     ]);
+    expect([...links.hrefs]).toEqual(["/products/7", "/purchase-orders/12"]);
+  });
+
+  it("reads only link fields, to Tally's own record pages", () => {
+    const messages = [
+      assistant([
+        toolPart(
+          "lowStock",
+          "output-available",
+          {},
+          {
+            lines: [
+              // A name can't bring a link in, whatever it holds.
+              { link: "[Rice](/products/1)", name: "[Rice](//evil.example)" },
+              { link: "[Away](//evil.example/products/2)" },
+              { link: "[Staff](/staff/3)" },
+            ],
+          }
+        ),
+      ]),
+    ];
+
+    expect([...toolLinks(messages).hrefs]).toEqual(["/products/1"]);
+  });
+
+  it("keeps a shared label's links but won't guess which one is meant", () => {
+    const messages = [
+      assistant([
+        toolPart(
+          "lowStock",
+          "output-available",
+          {},
+          {
+            lines: [
+              { link: "[Milo 400g](/products/7)" },
+              { link: "[Milo 400g](/products/8)" },
+            ],
+          }
+        ),
+      ]),
+    ];
+
+    const links = toolLinks(messages);
+
+    expect([...links.hrefs]).toEqual(["/products/7", "/products/8"]);
+    expect(links.labels.has("Milo 400g")).toBe(false);
   });
 });
 
@@ -79,6 +128,7 @@ describe("linkRecords", () => {
     ["TRF-TMA-000017", "/transfers/17"],
     ["Milo 400g", "/products/7"],
     ["Milo", "/products/99"],
+    ["Rice", "/products/5"],
   ]);
 
   it("links records the answer names but didn't link", () => {
@@ -93,8 +143,31 @@ describe("linkRecords", () => {
     );
   });
 
+  it("matches whole words only, and never inside a link", () => {
+    expect(linkRecords("The Price of Rice", links)).toBe(
+      "The Price of [Rice](/products/5)"
+    );
+    expect(linkRecords("[Brown Rice](/products/6)", links)).toBe(
+      "[Brown Rice](/products/6)"
+    );
+  });
+
   it("changes nothing without links", () => {
     expect(linkRecords("Nothing here.", new Map())).toBe("Nothing here.");
+  });
+});
+
+describe("isEmptyAnswer", () => {
+  it("is true for an answer with tools and no words", () => {
+    expect(
+      isEmptyAnswer(
+        assistant([toolPart("lowStock", "output-available", {}, { lines: [] })])
+      )
+    ).toBe(true);
+    expect(isEmptyAnswer(assistant([{ text: "Two.", type: "text" }]))).toBe(
+      false
+    );
+    expect(isEmptyAnswer(undefined)).toBe(false);
   });
 });
 
@@ -151,7 +224,7 @@ describe("askFailure", () => {
           })
         )
       )
-    ).toEqual({ message: "Sign in to ask Tally.", retry: true });
+    ).toEqual({ message: "Sign in to ask Tally.", retry: false });
   });
 
   it("says something plain for anything else", () => {
@@ -164,18 +237,32 @@ describe("askFailure", () => {
 
 describe("askSuggestions", () => {
   it("words them for the branch on screen and the person's reports", () => {
-    expect(askSuggestions(manager, { kind: "store", name: "Spintex" })).toEqual(
-      [
-        "What's running low at Spintex?",
-        "What's on the way to Spintex?",
-        "What sold best at Spintex this week?",
-        "How much stock did Spintex lose this month?",
-      ]
+    expect(
+      askSuggestions(manager, { id: "SPX", kind: "store", name: "Spintex" })
+    ).toEqual([
+      "What's running low at Spintex?",
+      "What's on the way to Spintex?",
+      "What sold best at Spintex this week?",
+      "How much stock did Spintex lose this month?",
+    ]);
+  });
+
+  it("offers a manager no report on a branch that isn't theirs", () => {
+    const elsewhere = askSuggestions(manager, {
+      id: "KSI",
+      kind: "store",
+      name: "Kumasi",
+    });
+
+    expect(elsewhere.join(" ")).not.toMatch(/lose|shrinkage/u);
+    expect(askSuggestions(manager, null).join(" ")).not.toMatch(
+      /lose|shrinkage/u
     );
   });
 
   it("asks a warehouse about requests, and offers no reports to a storekeeper", () => {
     const questions = askSuggestions(storekeeper, {
+      id: "TMA",
       kind: "warehouse",
       name: "Tema Distribution Centre",
     });

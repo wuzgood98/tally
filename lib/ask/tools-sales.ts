@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { isRefusal, resolveCoverage } from "@/lib/ask/context";
+import { withCoverage } from "@/lib/ask/context";
 import {
   branchArgument,
   daysArgument,
@@ -19,53 +19,42 @@ const todaysSales = ({ context, data }: ToolDeps) =>
     description:
       "Today's sales so far: how many and the takings, VAT included. Returns aren't netted.",
     inputSchema: z.object({ branch: branchArgument }),
-    run: async ({ branch }) => {
-      const coverage = resolveCoverage(context, branch);
+    run: async ({ branch }) =>
+      await withCoverage(context, branch, async (coverage) => {
+        const totals = await data.todaySales(coverage.scope);
 
-      if (isRefusal(coverage)) {
-        return coverage;
-      }
-
-      const totals = await data.todaySales(coverage.scope);
-
-      return {
-        covers: coverage.label,
-        sales: totals.count,
-        takings: formatCedis(totals.total),
-      };
-    },
+        return {
+          covers: coverage.label,
+          sales: totals.count,
+          takings: formatCedis(totals.total),
+        };
+      }),
   });
 
 const bestSellers = ({ context, data }: ToolDeps) =>
   defineTool({
-    description:
-      "The products that sold the most units over the last 7, 30 or 90 days, with their takings.",
+    description: `The ${LIST_LIMIT} products that sold the most units over the last 7, 30 or 90 days, with their takings. A top ${LIST_LIMIT}, not every product that sold.`,
     inputSchema: z.object({ branch: branchArgument, days: daysArgument }),
-    run: async ({ branch, days }) => {
-      const coverage = resolveCoverage(context, branch);
+    run: async ({ branch, days }) =>
+      await withCoverage(context, branch, async (coverage) => {
+        const rows = await data.bestSellers(
+          coverage.scope,
+          Number(days),
+          LIST_LIMIT
+        );
 
-      if (isRefusal(coverage)) {
-        return coverage;
-      }
-
-      const rows = await data.bestSellers(
-        coverage.scope,
-        Number(days),
-        LIST_LIMIT
-      );
-
-      return {
-        covers: coverage.label,
-        days: Number(days),
-        products: rows.map((row) => ({
-          link: markdownLink(row.name, productHref(row.productId)),
-          name: row.name,
-          sku: row.sku,
-          takings: formatCedis(row.revenue),
-          units: row.units,
-        })),
-      };
-    },
+        return {
+          covers: coverage.label,
+          days: Number(days),
+          products: rows.map((row) => ({
+            link: markdownLink(row.name, productHref(row.productId)),
+            name: row.name,
+            sku: row.sku,
+            takings: formatCedis(row.revenue),
+            units: row.units,
+          })),
+        };
+      }),
   });
 
 export const salesTools = (deps: ToolDeps) => ({

@@ -34,14 +34,17 @@ interface ToolDefinition<Schema extends z.ZodType, Result> {
 export const defineTool = <Schema extends z.ZodType, Result>(
   definition: ToolDefinition<Schema, Result>
 ): AskTool<Schema, Result> => {
+  // Whoever calls it, the input is parsed here: the model's arguments are
+  // untrusted, and the schema fills in the defaults.
   const run = async (input: z.input<Schema>): Promise<Result> =>
     await definition.run(definition.inputSchema.parse(input));
 
   return {
     description: definition.description,
     run,
-    // Dynamic: the SDK can't infer a generic schema's type, and the input
-    // is parsed here anyway.
+    // Dynamic: the SDK can't infer a generic schema's type. Its `execute`
+    // takes the model's input as `unknown`, which `run`'s typed parameter
+    // can't accept (and lint forbids an `unknown` one), so it parses too.
     sdk: dynamicTool({
       description: definition.description,
       execute: async (input) =>
@@ -80,18 +83,44 @@ export const purchaseOrderHref = (id: number): string =>
 export const requestHref = (id: number): string => `/requests/${id}`;
 export const receiptHref = (id: number): string => `/receipts/${id}`;
 
+/** Brackets and quotes would break a link's label; line breaks, its line. */
+const LABEL_BREAKERS = /["[\]]/gu;
+const LINE_BREAKS = /\s+/gu;
+
 /**
  * A record's link as ready-made markdown, so the model copies it rather
- * than building a URL. Brackets in the label would break the link.
+ * than building a URL. The panel only links what these produce.
  */
 export const markdownLink = (label: string, href: string): string =>
-  `[${label.replaceAll(/[[\]]/gu, "")}](${href})`;
+  `[${label.replaceAll(LABEL_BREAKERS, "").replaceAll(LINE_BREAKS, " ").trim()}](${href})`;
 
 /** "Showing 10 of 23." when a list was cut short; null when it wasn't. */
 export const showingNote = (total: number): string | null =>
   total > LIST_LIMIT
     ? `Showing ${LIST_LIMIT} of ${total}. Say there are ${total} in all.`
     : null;
+
+/**
+ * A figure added up over every row, or null when the rows are only the
+ * first page of more: a total of some of them would mislead.
+ */
+export const sumOfAll = <Row>(
+  rows: readonly Row[],
+  total: number,
+  figure: (row: Row) => number
+): number | null => {
+  if (rows.length < total) {
+    return null;
+  }
+
+  let sum = 0;
+
+  for (const row of rows) {
+    sum += figure(row);
+  }
+
+  return sum;
+};
 
 /** "in_transit" → "in transit". */
 export const statusWords = (status: string): string =>

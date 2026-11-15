@@ -81,6 +81,20 @@ describe("createRateLimiter", () => {
     });
   });
 
+  it("forgets people whose questions have all expired", () => {
+    const limiter = createRateLimiter({ limit: 2, windowMs: 1000 });
+
+    limiter.take("a", 0);
+    limiter.take("b", 500);
+
+    expect(limiter.size()).toBe(2);
+
+    limiter.take("c", 1200);
+
+    // "a" expired at 1000; "b" is still counted until 1500.
+    expect(limiter.size()).toBe(2);
+  });
+
   it("counts each person separately and forgets old questions", () => {
     const limiter = createRateLimiter({ limit: 1, windowMs: HOUR_MS });
     const start = Date.UTC(2026, 10, 15, 9);
@@ -136,8 +150,11 @@ describe("trimHistory", () => {
     );
 
     const result = trimHistory([...many, say("q", "user", "Now?")]);
+    const kept = result.ok ? result.messages : [];
 
-    expect(result.ok && result.messages.length).toBe(ASK_HISTORY_LIMIT);
+    // The last 12 start on an answer, which is dropped: a question leads.
+    expect(kept).toHaveLength(ASK_HISTORY_LIMIT - 1);
+    expect(kept[0]?.role).toBe("user");
   });
 
   it("needs a question last, and not too long a one", () => {
@@ -172,6 +189,18 @@ describe("askInstructions", () => {
       "- Tema Distribution Centre (TMA), Tema: the warehouse"
     );
     expect(text).toContain("This person can see the reports");
+  });
+
+  it("tells the model a manager's reports cover their own branch", () => {
+    const text = askInstructions(
+      contextFor({ branchId: "SPX", id: "m", role: "manager" }),
+      options
+    );
+
+    expect(text).toContain("for Spintex only");
+    expect(text).toContain(
+      "A report question that names no branch is about Spintex"
+    );
   });
 
   it("tells the model a storekeeper can't see reports", () => {

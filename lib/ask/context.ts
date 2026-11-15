@@ -3,14 +3,17 @@
  * server, never from anything the model says: the tools only ever narrow it.
  */
 
-import { canSeeBranch, canViewReports } from "@/lib/permissions";
+import {
+  canSeeBranch,
+  canViewEveryBranchReport,
+  canViewReports,
+} from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { reportBranchIds } from "@/lib/reports/period";
+import type { Scope } from "@/lib/scope";
 
-/** The branch switcher's choice; the same shape as `Scope` in lib/scope. */
-export type AskScope =
-  | { readonly kind: "all" }
-  | { readonly kind: "branch"; readonly branchId: string };
+/** The branch switcher's choice: lib/scope's own type. */
+export type AskScope = Scope;
 
 export interface AskBranch {
   readonly id: string;
@@ -47,7 +50,10 @@ export const ALL_WORDS: ReadonlySet<string> = new Set([
   "everywhere",
 ]);
 
-export const isRefusal = (value: Coverage | AskRefusal): value is AskRefusal =>
+/** What the coverage checks return: something to go on, or a refusal. */
+type Resolved = AskBranch | Coverage | ReportCoverage | AskRefusal;
+
+export const isRefusal = (value: Resolved): value is AskRefusal =>
   "error" in value;
 
 export const scopeName = (
@@ -124,7 +130,7 @@ export const resolveCoverage = (
 
   const found = matchBranch(text, branches);
 
-  if ("error" in found) {
+  if (isRefusal(found)) {
     return found;
   }
 
@@ -172,7 +178,7 @@ export const resolveReportCoverage = (
   const own = branches.find((item) => item.id === viewer.branchId);
 
   const elsewhere =
-    viewer.role !== "admin" &&
+    !canViewEveryBranchReport(viewer) &&
     named &&
     (coverage.scope.kind === "all" ||
       coverage.scope.branchId !== viewer.branchId);
@@ -192,4 +198,26 @@ export const resolveReportCoverage = (
         ? scopeName({ branchId: onlyId, kind: "branch" }, branches)
         : "All branches",
   };
+};
+
+/** Runs a tool for the branch a question covers, or passes on the refusal. */
+export const withCoverage = async <Result>(
+  context: AskContext,
+  branch: string | undefined,
+  run: (coverage: Coverage) => Promise<Result>
+): Promise<Result | AskRefusal> => {
+  const coverage = resolveCoverage(context, branch);
+
+  return isRefusal(coverage) ? coverage : await run(coverage);
+};
+
+/** Runs a report tool for the branches it covers, or passes on the refusal. */
+export const withReportCoverage = async <Result>(
+  context: AskContext,
+  branch: string | undefined,
+  run: (coverage: ReportCoverage) => Promise<Result>
+): Promise<Result | AskRefusal> => {
+  const coverage = resolveReportCoverage(context, branch);
+
+  return isRefusal(coverage) ? coverage : await run(coverage);
 };

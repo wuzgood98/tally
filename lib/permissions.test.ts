@@ -4,6 +4,8 @@ import {
   canAdjust,
   canApprovePurchaseOrder,
   canAskTally,
+  canViewBranchReport,
+  canViewEveryBranchReport,
   canBrowseBackOffice,
   canSeeBranch,
   canApproveReturn,
@@ -148,5 +150,14 @@ describe("permissions", () => {
     for (const actor of [admin, manager, storekeeper]) {
       expect(canAskTally(actor)).toBe(true);
     }
+  });
+
+  it("lets head office see any branch's reports, a manager only their own", () => {
+    expect(canViewEveryBranchReport(admin)).toBe(true);
+    expect(canViewEveryBranchReport(manager)).toBe(false);
+    expect(canViewBranchReport(admin, "KSI")).toBe(true);
+    expect(canViewBranchReport(manager, "SPX")).toBe(true);
+    expect(canViewBranchReport(manager, "KSI")).toBe(false);
+    expect(canViewBranchReport(storekeeper, "SPX")).toBe(false);
   });
 });

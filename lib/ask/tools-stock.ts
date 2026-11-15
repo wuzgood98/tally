@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { isRefusal, resolveCoverage } from "@/lib/ask/context";
+import { withCoverage } from "@/lib/ask/context";
 import type { AskRefusal } from "@/lib/ask/context";
 import {
   branchArgument,
@@ -89,7 +89,7 @@ const productStock = ({ context, data }: ToolDeps) =>
           onTheWay: inTransit.get(item.id) ?? 0,
           out: onHand <= 0,
           requested: requested.get(item.id) ?? 0,
-          soldLast30Days: sold.get(item.id) ?? 0,
+          unitsSold: sold.get(item.id) ?? 0,
           stocked: level?.stocked ?? false,
         };
       });
@@ -111,6 +111,7 @@ const productStock = ({ context, data }: ToolDeps) =>
         supplier: info.supplierName,
         totalOnHand: total,
         unit: info.unit,
+        unitsSoldOverDays: SOLD_DAYS,
       };
     },
   });
@@ -120,33 +121,28 @@ const lowStock = ({ context, data }: ToolDeps) =>
     description:
       'Products at or below their reorder point, emptiest first, with what\'s already on the way, on order or requested, and the usual supplier. Answers "what\'s low" and "what should we reorder".',
     inputSchema: z.object({ branch: branchArgument }),
-    run: async ({ branch }) => {
-      const coverage = resolveCoverage(context, branch);
+    run: async ({ branch }) =>
+      await withCoverage(context, branch, async (coverage) => {
+        const lines = await data.reorderLines(coverage.scope);
 
-      if (isRefusal(coverage)) {
-        return coverage;
-      }
-
-      const lines = await data.reorderLines(coverage.scope);
-
-      return {
-        covers: coverage.label,
-        showing: showingNote(lines.length),
-        lines: lines.slice(0, LIST_LIMIT).map((line) => ({
-          branch: line.branchName,
-          link: markdownLink(line.name, productHref(line.productId)),
-          name: line.name,
-          onHand: shelf(line.onHand),
-          onOrder: line.onOrder,
-          onTheWay: line.inTransit,
-          reorderPoint: line.reorderPoint,
-          requested: line.requested,
-          sku: line.sku,
-          supplier: line.supplierName,
-        })),
-        total: lines.length,
-      };
-    },
+        return {
+          covers: coverage.label,
+          showing: showingNote(lines.length),
+          lines: lines.slice(0, LIST_LIMIT).map((line) => ({
+            branch: line.branchName,
+            link: markdownLink(line.name, productHref(line.productId)),
+            name: line.name,
+            onHand: shelf(line.onHand),
+            onOrder: line.onOrder,
+            onTheWay: line.inTransit,
+            reorderPoint: line.reorderPoint,
+            requested: line.requested,
+            sku: line.sku,
+            supplier: line.supplierName,
+          })),
+          total: lines.length,
+        };
+      }),
   });
 
 const stockSummary = ({ context, data }: ToolDeps) =>
@@ -154,25 +150,20 @@ const stockSummary = ({ context, data }: ToolDeps) =>
     description:
       "Totals for the stock on the shelves: units, value at cost and at shelf price, lines in stock, low and out.",
     inputSchema: z.object({ branch: branchArgument }),
-    run: async ({ branch }) => {
-      const coverage = resolveCoverage(context, branch);
+    run: async ({ branch }) =>
+      await withCoverage(context, branch, async (coverage) => {
+        const totals = await data.stockTotals(coverage.scope);
 
-      if (isRefusal(coverage)) {
-        return coverage;
-      }
-
-      const totals = await data.stockTotals(coverage.scope);
-
-      return {
-        covers: coverage.label,
-        linesInStock: totals.linesInStock,
-        linesLow: totals.lowLines,
-        linesOut: totals.outLines,
-        units: totals.units,
-        valueAtCost: formatCedis(totals.costValue),
-        valueAtShelfPrice: formatCedis(totals.retailValue),
-      };
-    },
+        return {
+          covers: coverage.label,
+          linesInStock: totals.linesInStock,
+          linesLow: totals.lowLines,
+          linesOut: totals.outLines,
+          units: totals.units,
+          valueAtCost: formatCedis(totals.costValue),
+          valueAtShelfPrice: formatCedis(totals.retailValue),
+        };
+      }),
   });
 
 export const stockTools = (deps: ToolDeps) => ({

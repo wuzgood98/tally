@@ -97,8 +97,10 @@ const offered = (model: MockLanguageModelV4): string[] =>
   model.doGenerateCalls[0]?.tools?.map((item) => item.name) ?? [];
 
 describe("createAskAgent", () => {
-  it("has no agent for a cashier", () => {
-    expect(agentFor(cashier, scriptedModel([answer("Hi")]))).toBeNull();
+  it("refuses to build an agent for a cashier", () => {
+    expect(() => agentFor(cashier, scriptedModel([answer("Hi")]))).toThrow(
+      "check canAskTally first"
+    );
   });
 
   it("runs a tool from the session's scope and answers from its result", async () => {
@@ -119,11 +121,11 @@ describe("createAskAgent", () => {
       answer("At Spintex: GH₵12,345.00 at cost."),
     ]);
 
-    const result = await agentFor(manager, model, data)?.generate({
+    const result = await agentFor(manager, model, data).generate({
       prompt: "What's our stock worth?",
     });
 
-    expect(result?.text).toBe("At Spintex: GH₵12,345.00 at cost.");
+    expect(result.text).toBe("At Spintex: GH₵12,345.00 at cost.");
     expect(calls).toEqual([
       { args: [{ branchId: "SPX", kind: "branch" }], name: "stockTotals" },
     ]);
@@ -136,23 +138,29 @@ describe("createAskAgent", () => {
     const managerModel = scriptedModel([answer("Hi")]);
     const storekeeperModel = scriptedModel([answer("Hi")]);
 
-    await agentFor(manager, managerModel)?.generate({ prompt: "Hi" });
-    await agentFor(storekeeper, storekeeperModel)?.generate({ prompt: "Hi" });
+    await agentFor(manager, managerModel).generate({ prompt: "Hi" });
+    await agentFor(storekeeper, storekeeperModel).generate({ prompt: "Hi" });
 
     expect(offered(managerModel)).toContain("shrinkageReport");
     expect(offered(storekeeperModel)).toContain("lowStock");
     expect(offered(storekeeperModel)).not.toContain("shrinkageReport");
   });
 
-  it("stops after the step cap and caps the answer's length", async () => {
-    const model = scriptedModel([callTool("lowStock", {})]);
+  it("stops at the step cap, with a last step that can only answer", async () => {
+    const toolSteps = Array.from({ length: ASK_MAX_STEPS - 1 }, (_, index) =>
+      callTool("lowStock", {}, `call-${index}`)
+    );
 
-    const result = await agentFor(storekeeper, model)?.generate({
+    const model = scriptedModel([...toolSteps, answer("Three lines are low.")]);
+
+    const result = await agentFor(storekeeper, model).generate({
       prompt: "Keep going",
     });
 
-    expect(result?.steps).toHaveLength(ASK_MAX_STEPS);
-    expect(model.doGenerateCalls).toHaveLength(ASK_MAX_STEPS);
+    expect(result.steps).toHaveLength(ASK_MAX_STEPS);
+    expect(result.text).toBe("Three lines are low.");
+    expect(model.doGenerateCalls[0]?.tools?.length).toBeGreaterThan(0);
+    expect(model.doGenerateCalls.at(-1)?.tools ?? []).toEqual([]);
     expect(model.doGenerateCalls[0]?.maxOutputTokens).toBe(
       ASK_MAX_OUTPUT_TOKENS
     );
@@ -166,7 +174,7 @@ describe("createAskAgent", () => {
       answer("You can only see Spintex's reports."),
     ]);
 
-    await agentFor(manager, model, data)?.generate({
+    await agentFor(manager, model, data).generate({
       prompt: "How did Kumasi sell?",
     });
 

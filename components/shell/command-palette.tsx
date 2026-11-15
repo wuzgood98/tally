@@ -589,8 +589,7 @@ export const CommandPalette = ({
                 <CommandInput
                   aria-label={TITLE}
                   autoComplete="off"
-                  // Back from Ask Tally, the commands mount again: focus here.
-                  // oxlint-disable-next-line jsx-a11y/no-autofocus
+                  // oxlint-disable-next-line jsx-a11y/no-autofocus -- back from Ask Tally, the commands mount again: focus here
                   autoFocus
                   className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
                   placeholder={placeholderFor(subPage)}

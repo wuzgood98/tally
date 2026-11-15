@@ -7,7 +7,7 @@
 import { scopeName } from "@/lib/ask/context";
 import type { AskContext } from "@/lib/ask/context";
 import { formatLongDate } from "@/lib/format";
-import { canViewReports } from "@/lib/permissions";
+import { canViewEveryBranchReport, canViewReports } from "@/lib/permissions";
 import { ROLE_LABELS } from "@/lib/site";
 
 interface InstructionOptions {
@@ -17,7 +17,7 @@ interface InstructionOptions {
 
 const RULES = [
   "Answer only from what the tools return in this conversation. Never guess, estimate or remember a figure. If no tool covers the question, say you can't see that, and say briefly what you can answer.",
-  "Never do arithmetic: no sums, totals, differences or conversions of your own, not even adding up units. Quote figures and totals exactly as the tools give them; if a tool gives no total, don't give one.",
+  "Never do arithmetic: no sums, totals, differences or conversions of your own, not even adding up units. Quote figures and totals exactly as the tools give them; if a tool gives no total, or gives it as null, don't give one.",
   "Say which branch the answer covers (the tools return it as `covers`), or that it covers all branches.",
   "Name each product or document with its `link` exactly as the tool gave it, such as [Rice 5kg](/products/7). Never write any other link.",
   "When a result has a `showing` note, the list was cut short: say how many there are in all.",
@@ -27,6 +27,20 @@ const RULES = [
   "Dates: you can answer about today, or the last 7, 30 or 90 days, and nothing else.",
   "Write in plain British English. No headings, no emoji.",
 ] as const;
+
+const reportLine = (viewer: AskContext["viewer"], home: string | undefined) => {
+  if (!canViewReports(viewer)) {
+    return "This person can't see the reports (sales by product, margins, shrinkage, stock value); if they ask, say those are for head office and branch managers.";
+  }
+
+  if (canViewEveryBranchReport(viewer) || home === undefined) {
+    return "This person can see the reports (sellers, shrinkage, stock value).";
+  }
+
+  // A manager's reports follow their own branch, not the switcher: say so,
+  // or the model names the branch on screen and the tool refuses it.
+  return `This person can see the reports (sellers, shrinkage, stock value) for ${home} only. A report question that names no branch is about ${home}, whatever they're looking at; leave the branch out of report tools.`;
+};
 
 export const askInstructions = (
   context: AskContext,
@@ -43,9 +57,7 @@ export const askInstructions = (
 
   const who = `${viewerName}, ${ROLE_LABELS[viewer.role].toLowerCase()}${home === undefined ? "" : ` at ${home.name}`}`;
 
-  const reports = canViewReports(viewer)
-    ? "This person can see the reports (sellers, shrinkage, stock value)."
-    : "This person can't see the reports (sales by product, margins, shrinkage, stock value); if they ask, say those are for head office and branch managers.";
+  const reports = reportLine(viewer, home?.name);
 
   return [
     `You are Ask Tally, the assistant inside Tally, the stock control system for ${companyName}, a retailer in Ghana. Prices are in Ghana cedis (GH₵).`,

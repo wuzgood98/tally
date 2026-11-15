@@ -15,16 +15,13 @@ import { transferStatusEnum } from "@/lib/db/schema";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { operableBranchIds } from "@/lib/permissions";
-import {
-  listTransfers,
-  TRANSFER_DIRECTIONS,
-  TRANSFERS_PAGE_SIZE,
-} from "@/lib/queries/transfers";
-import type { TransferDirection } from "@/lib/queries/transfers";
+import { listTransfers, TRANSFERS_PAGE_SIZE } from "@/lib/queries/transfers";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import { enumParam, intParam, queryString } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import { TRANSFER_STATUS_LABELS } from "@/lib/stock/transfer-status";
+import { TRANSFER_DIRECTIONS } from "@/lib/transfer-direction";
+import type { TransferDirection } from "@/lib/transfer-direction";
 
 export const metadata: Metadata = { title: "Transfers" };
 

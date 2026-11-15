@@ -56,11 +56,22 @@ const readJson = async (request: Request) => {
   }
 };
 
-/** Browsers say where a request came from; only this site may ask. */
+/**
+ * Only this site may ask. Browsers say where a request came from in
+ * `Sec-Fetch-Site`; an older one that doesn't still sends `Origin` with a
+ * POST, which must be this site's. A request with neither isn't from a
+ * browser, so it can't be a forged one, and the session still decides.
+ */
 const fromThisSite = (request: Request): boolean => {
   const site = request.headers.get("sec-fetch-site");
 
-  return site === null || site === "same-origin";
+  if (site !== null) {
+    return site === "same-origin";
+  }
+
+  const origin = request.headers.get("origin");
+
+  return origin === null || origin === new URL(request.url).origin;
 };
 
 export const POST = async (request: Request): Promise<Response> => {
@@ -120,19 +131,15 @@ export const POST = async (request: Request): Promise<Response> => {
   ]);
 
   // OpenRouter tries these in order when the first is busy or gone.
-  const [firstModel = "", ...fallbackModels] = askModelIds();
+  const models = askModelIds();
 
   const agent = createAskAgent({
     companyName: COMPANY_NAME,
     context: { branches, now: new Date(), scope, viewer },
     data: serverAskData,
-    model: openrouter(firstModel, { models: [firstModel, ...fallbackModels] }),
+    model: openrouter(models[0], { models: [...models] }),
     viewerName: viewer.name,
   });
-
-  if (agent === null) {
-    return failure(404, "not_found", "Ask Tally isn't turned on.");
-  }
 
   return await createAgentUIStreamResponse({
     abortSignal: request.signal,

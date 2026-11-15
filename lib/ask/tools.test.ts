@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { resolveCoverage, resolveReportCoverage } from "@/lib/ask/context";
 import type { AskBranch, AskContext, AskScope } from "@/lib/ask/context";
-import type { AskData, PurchaseOrderRow } from "@/lib/ask/data";
+import type { AskData, PurchaseOrderRow, TransferRow } from "@/lib/ask/data";
 import { askTools } from "@/lib/ask/tools";
 import type { Actor } from "@/lib/permissions";
 import type { ReorderLine } from "@/lib/queries/overview";
+import type { SellerRow } from "@/lib/reports/sellers";
 import { fakeData } from "@/test/ask-data";
 
 const BRANCHES: readonly AskBranch[] = [
@@ -65,6 +66,33 @@ const order = (id: number, day: number): PurchaseOrderRow => ({
   status: "approved",
   supplierName: "Accra Foods",
   totalCost: 50_000,
+});
+
+const transfer = (id: number): TransferRow => ({
+  createdAt: new Date(Date.UTC(2026, 10, id)),
+  fromName: "Tema Distribution Centre",
+  id,
+  number: `TRF-TMA-00000${id}`,
+  status: "in_transit",
+  toName: "Spintex",
+  totalCost: 25_000,
+  unitsSent: 12,
+});
+
+const seller = (productId: number): SellerRow => ({
+  active: true,
+  category: "Rice & grains",
+  cost: 1000,
+  daysOfCover: 5,
+  margin: 500,
+  name: `Product ${productId}`,
+  onHand: 4,
+  productId,
+  returnedUnits: 0,
+  sales: 1500,
+  sku: `P-${productId}`,
+  stockValue: 400,
+  units: 3,
 });
 
 const toolsFor = (
@@ -205,6 +233,16 @@ describe("report coverage", () => {
     expect(calls).toEqual([]);
   });
 
+  it("labels a manager's shrinkage total with their own branch", async () => {
+    const { tools } = toolsFor(manager, KUMASI);
+    const result = await tools.shrinkageReport?.run({ days: "30" });
+
+    expect(result).toMatchObject({
+      covers: "Spintex",
+      total: { branch: "Spintex" },
+    });
+  });
+
   it("lets head office report on any branch or all of them", () => {
     expect(resolveReportCoverage(contextFor(admin, ALL), undefined)).toEqual({
       branchIds: ALL_IDS,
@@ -279,7 +317,7 @@ describe("what the tools hand the model", () => {
         branch: "Spintex",
         onHand: 12,
         out: false,
-        soldLast30Days: 30,
+        unitsSold: 30,
       }),
       expect.objectContaining({
         branch: "Tema Distribution Centre",
@@ -313,6 +351,46 @@ describe("what the tools hand the model", () => {
     });
     expect(result).toHaveProperty("lines.length", 10);
     expect(result).toHaveProperty("lines.0.onHand", 0);
+  });
+
+  it("says when the sellers report's lists were cut short", async () => {
+    const rows = Array.from({ length: 13 }, (_, index) => seller(index + 1));
+
+    const { tools } = toolsFor(admin, ALL, {
+      sellers: async () => await Promise.resolve(rows),
+    });
+
+    const result = await tools.sellersReport?.run({});
+
+    expect(result).toMatchObject({
+      fast: {
+        showing: "Showing 10 of 13. Say there are 13 in all.",
+        total: 13,
+      },
+      unsold: { showing: null, total: 0 },
+    });
+    expect(result).toHaveProperty("fast.products.length", 10);
+  });
+
+  it("adds up a list's units and value only when it read every row", async () => {
+    const whole = toolsFor(manager, SPINTEX, {
+      transfers: async () =>
+        await Promise.resolve({ rows: [transfer(1), transfer(2)], total: 2 }),
+    });
+
+    const part = toolsFor(manager, SPINTEX, {
+      transfers: async () =>
+        await Promise.resolve({ rows: [transfer(1)], total: 31 }),
+    });
+
+    expect(await whole.tools.transfers.run({})).toMatchObject({
+      totalUnits: 24,
+      totalValueAtCost: "GH₵500.00",
+    });
+    expect(await part.tools.transfers.run({})).toMatchObject({
+      totalUnits: null,
+      totalValueAtCost: null,
+    });
   });
 
   it("reads open purchase orders as approved and part received, newest first", async () => {

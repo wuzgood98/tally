@@ -11,6 +11,8 @@ export type RateDecision =
 export interface RateLimiter {
   /** Counts a question for `key` if there's room, and says so. */
   readonly take: (key: string, now?: number) => RateDecision;
+  /** How many people it's counting for: idle ones are forgotten. */
+  readonly size: () => number;
 }
 
 interface RateLimitOptions {
@@ -23,8 +25,26 @@ export const createRateLimiter = ({
   windowMs,
 }: RateLimitOptions): RateLimiter => {
   const hits = new Map<string, number[]>();
+  let sweptAt = Number.NEGATIVE_INFINITY;
+
+  /** Once a window, forget everyone whose questions have all expired. */
+  const sweep = (now: number): void => {
+    if (now - sweptAt < windowMs) {
+      return;
+    }
+
+    sweptAt = now;
+
+    for (const [key, times] of hits) {
+      if (times.every((time) => time <= now - windowMs)) {
+        hits.delete(key);
+      }
+    }
+  };
 
   const take = (key: string, now = Date.now()): RateDecision => {
+    sweep(now);
+
     const recent = (hits.get(key) ?? []).filter(
       (time) => time > now - windowMs
     );
@@ -43,5 +63,5 @@ export const createRateLimiter = ({
     return { allowed: true, remaining: limit - recent.length };
   };
 
-  return { take };
+  return { size: () => hits.size, take };
 };

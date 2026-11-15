@@ -16,11 +16,11 @@ import type {
   Unit,
 } from "@/lib/db/schema";
 import type { ReorderLine } from "@/lib/queries/overview";
-import type { TransferDirection } from "@/lib/queries/transfers";
 import type { ReportPeriod } from "@/lib/reports/period";
 import type { SellerRow } from "@/lib/reports/sellers";
 import type { ShrinkageReport } from "@/lib/reports/shrinkage";
 import type { StockValueDay } from "@/lib/reports/stock-value";
+import type { TransferDirection } from "@/lib/transfer-direction";
 
 export interface ProductMatch {
   readonly id: number;

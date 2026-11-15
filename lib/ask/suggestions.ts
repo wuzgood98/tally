@@ -6,11 +6,16 @@
 
 import type { AskScope } from "@/lib/ask/context";
 import { askTallyEnabled } from "@/lib/ask/settings";
-import { canAskTally, canViewReports } from "@/lib/permissions";
+import {
+  canAskTally,
+  canViewBranchReport,
+  canViewEveryBranchReport,
+} from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 
 /** The branch on screen, or null for all branches. */
 export interface SuggestionPlace {
+  readonly id: string;
   readonly name: string;
   readonly kind: "store" | "warehouse";
 }
@@ -21,14 +26,13 @@ export const askSuggestions = (
   actor: Actor,
   here: SuggestionPlace | null
 ): string[] => {
-  const reports = canViewReports(actor);
-
   if (here === null) {
     return [
       "What's running low across the branches?",
       "Which transfers are still on the road?",
       "What sold best this week?",
-      reports
+      // A manager's reports cover their own branch only.
+      canViewEveryBranchReport(actor)
         ? "Which branch lost the most to shrinkage this month?"
         : "Which purchase orders are still due?",
     ];
@@ -49,16 +53,12 @@ export const askSuggestions = (
           `What sold best ${atHere} this week?`,
         ];
 
-  const last = reports
+  const last = canViewBranchReport(actor, here.id)
     ? `How much stock did ${here.name} lose this month?`
     : "Which deliveries came in most recently?";
 
   return [...questions, last].slice(0, MAX_SUGGESTIONS);
 };
-
-interface PlaceBranch extends SuggestionPlace {
-  readonly id: string;
-}
 
 /**
  * What the palette needs for Ask Tally: its suggestions, or null when Ask
@@ -67,7 +67,7 @@ interface PlaceBranch extends SuggestionPlace {
 export const askPaletteSettings = (
   actor: Actor,
   scope: AskScope,
-  branches: readonly PlaceBranch[],
+  branches: readonly SuggestionPlace[],
   env: Readonly<Record<string, string | undefined>> = process.env
 ): { readonly suggestions: readonly string[] } | null => {
   if (!askTallyEnabled(env) || !canAskTally(actor)) {

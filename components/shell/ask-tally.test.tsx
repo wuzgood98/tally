@@ -5,7 +5,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
+import { ASK_QUESTION_MAX_LENGTH } from "@/lib/ask/settings";
 import type { PaletteGroup } from "@/lib/palette";
+import { askRowLabel } from "@/lib/palette-ask";
 
 import { CommandPalette, PaletteFieldTrigger } from "./command-palette";
 
@@ -185,6 +187,48 @@ describe("Ask Tally in the palette", () => {
       )
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
+
+  it("says an answer with no words failed, and offers Retry", async () => {
+    // Tools ran, then the answer ended without any text.
+    const blank = ANSWER.filter(
+      (chunk) => !("id" in chunk) || chunk.id !== "t1"
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => await Promise.resolve(streamOf(blank)))
+    );
+    renderPalette({ suggestions: SUGGESTIONS });
+    const user = await open();
+
+    await user.type(await screen.findByRole("combobox"), "?");
+    await user.click(screen.getByRole("button", { name: SUGGESTIONS[0] }));
+
+    expect(
+      await screen.findByText("Ask Tally couldn't answer just now. Try again.")
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+
+  it("puts a question too long to ask in the box instead of sending it", async () => {
+    const fetchMock = vi.fn();
+
+    vi.stubGlobal("fetch", fetchMock);
+    renderPalette({ suggestions: SUGGESTIONS });
+    const user = await open();
+    const long = "x".repeat(ASK_QUESTION_MAX_LENGTH + 20);
+
+    await user.click(await screen.findByRole("combobox"));
+    await user.paste(long);
+    await user.click(screen.getByRole("option", { name: askRowLabel(long) }));
+
+    const box = await screen.findByRole("textbox", {
+      name: "Ask Tally a question",
+    });
+
+    expect(box).toHaveProperty("value", long.slice(0, ASK_QUESTION_MAX_LENGTH));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("goes back to the commands with Backspace before anything is asked", async () => {

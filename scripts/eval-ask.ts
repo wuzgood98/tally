@@ -269,8 +269,7 @@ const main = async (): Promise<void> => {
 
   for (const modelId of models) {
     for (const item of cases) {
-      // One at a time: free models are rate limited.
-      // oxlint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop -- one at a time: free models are rate limited
       const outcome = await runCase(modelId, item);
       const mark = outcome.passed ? "PASS" : "FAIL";
 

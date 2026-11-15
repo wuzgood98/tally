@@ -91,6 +91,7 @@ interface AskAnswerProps extends AnswerLinks {
  * tools returned become links: a made-up URL stays plain text.
  */
 export const AskAnswer = ({ hrefs, onFollow, text }: AskAnswerProps) => {
+  // `hrefs` holds still while text streams (AskPanel keys it on its links).
   const links = useMemo(() => ({ hrefs, onFollow }), [hrefs, onFollow]);
 
   return (

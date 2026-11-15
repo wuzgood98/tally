@@ -13,12 +13,9 @@ import {
 } from "@/lib/db/schema";
 import type { TransferStatus } from "@/lib/db/schema";
 import type { Scope } from "@/lib/scope";
+import type { TransferDirection } from "@/lib/transfer-direction";
 
 export const TRANSFERS_PAGE_SIZE = 30;
-
-export const TRANSFER_DIRECTIONS = ["both", "incoming", "outgoing"] as const;
-
-export type TransferDirection = (typeof TRANSFER_DIRECTIONS)[number];
 
 export interface TransferFilters {
   readonly status: TransferStatus | null;

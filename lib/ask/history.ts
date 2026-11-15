@@ -7,6 +7,7 @@
 
 import type { UIMessage } from "ai";
 
+import { messageText } from "@/lib/ask/conversation";
 import { ASK_HISTORY_LIMIT, ASK_QUESTION_MAX_LENGTH } from "@/lib/ask/settings";
 
 /** An earlier answer is kept to this length, enough for a follow-up. */
@@ -16,23 +17,11 @@ export type AskHistory =
   | { readonly ok: true; readonly messages: UIMessage[] }
   | { readonly ok: false; readonly error: string };
 
-const textOf = (message: UIMessage): string => {
-  const texts: string[] = [];
-
-  for (const part of message.parts) {
-    if (part.type === "text") {
-      texts.push(part.text);
-    }
-  }
-
-  return texts.join("\n").trim();
-};
-
 export const trimHistory = (messages: readonly UIMessage[]): AskHistory => {
   const kept: UIMessage[] = [];
 
   for (const message of messages.slice(-ASK_HISTORY_LIMIT)) {
-    const text = textOf(message);
+    const text = messageText(message);
     const spoken = message.role === "user" || message.role === "assistant";
 
     if (spoken && text !== "") {
@@ -45,7 +34,7 @@ export const trimHistory = (messages: readonly UIMessage[]): AskHistory => {
   }
 
   const last = messages.at(-1);
-  const question = last === undefined ? "" : textOf(last);
+  const question = last === undefined ? "" : messageText(last);
 
   if (last?.role !== "user" || question === "") {
     return { error: "Ask a question.", ok: false };
@@ -58,5 +47,9 @@ export const trimHistory = (messages: readonly UIMessage[]): AskHistory => {
     };
   }
 
-  return { messages: kept, ok: true };
+  // The model reads a conversation that starts with a question, so a cut
+  // that begins on an answer drops it.
+  const firstQuestion = kept.findIndex((message) => message.role === "user");
+
+  return { messages: kept.slice(Math.max(firstQuestion, 0)), ok: true };
 };

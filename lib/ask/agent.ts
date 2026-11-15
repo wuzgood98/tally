@@ -25,7 +25,10 @@ interface AskAgentOptions {
   readonly maxRetries?: number;
 }
 
-/** Null for someone who may not ask (a cashier). */
+/**
+ * The agent for someone `canAskTally` allows. The route checks that first;
+ * asking for a cashier's agent is a bug, so it throws.
+ */
 export const createAskAgent = ({
   companyName,
   context,
@@ -37,7 +40,9 @@ export const createAskAgent = ({
   const tools = askTools({ context, data });
 
   if (tools === null) {
-    return null;
+    throw new Error(
+      "Ask Tally isn't for this person: check canAskTally first."
+    );
   }
 
   const sdkTools: ToolSet = {};
@@ -53,6 +58,10 @@ export const createAskAgent = ({
     maxOutputTokens: ASK_MAX_OUTPUT_TOKENS,
     maxRetries,
     model,
+    // The last step is offered no tools, so it can only write: an answer
+    // that ran out of steps on tools would otherwise end with nothing to say.
+    prepareStep: ({ stepNumber }) =>
+      stepNumber >= ASK_MAX_STEPS - 1 ? { activeTools: [] } : undefined,
     stopWhen: isStepCount(ASK_MAX_STEPS),
     tools: sdkTools,
   });

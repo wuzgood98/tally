@@ -2,36 +2,27 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { UIMessage } from "ai";
 import { ArrowUp, ChevronLeft, RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 import { shellIconButton } from "@/components/shell/icon-button";
 import { Button } from "@/components/ui/button";
 import {
+  ASK_FAILED,
   askFailure,
   askStatusLine,
+  isEmptyAnswer,
   linkRecords,
+  messageText,
   toolLinks,
 } from "@/lib/ask/conversation";
+import type { AskFailure } from "@/lib/ask/conversation";
 import { ASK_QUESTION_MAX_LENGTH } from "@/lib/ask/settings";
 
 import { AskAnswer } from "./ask-answer";
 
 const TRANSPORT = new DefaultChatTransport({ api: "/api/ask" });
-
-const textOf = (message: UIMessage): string => {
-  const texts: string[] = [];
-
-  for (const part of message.parts) {
-    if (part.type === "text") {
-      texts.push(part.text);
-    }
-  }
-
-  return texts.join("\n\n").trim();
-};
 
 export interface AskPanelProps {
   /** What was typed before choosing Ask Tally; asked at once if not empty. */
@@ -88,7 +79,15 @@ export const AskPanel = ({
     transport: TRANSPORT,
   });
 
-  const [draft, setDraft] = useState("");
+  const carried = initialQuestion.trim();
+  const tooLong = carried.length > ASK_QUESTION_MAX_LENGTH;
+
+  // A question carried over that's too long to ask waits in the box, cut
+  // to fit, for the person to shorten.
+  const [draft, setDraft] = useState(() =>
+    tooLong ? carried.slice(0, ASK_QUESTION_MAX_LENGTH) : ""
+  );
+
   const asked = useRef(false);
 
   const busy = status === "submitted" || status === "streaming";
@@ -107,11 +106,11 @@ export const AskPanel = ({
   // The question typed before choosing Ask Tally, once (the ref survives
   // React's development double run).
   useEffect(() => {
-    if (!asked.current && initialQuestion.trim() !== "") {
+    if (!asked.current && carried !== "" && !tooLong) {
       asked.current = true;
-      void sendMessage({ text: initialQuestion.trim() });
+      void sendMessage({ text: carried });
     }
-  }, [initialQuestion, sendMessage]);
+  }, [carried, sendMessage, tooLong]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     // As on the palette's other pages: Backspace in an empty box goes back,
@@ -123,13 +122,28 @@ export const AskPanel = ({
   };
 
   const links = toolLinks(messages);
-  const hrefs = new Set(links.values());
+  // The same set for as long as the same links are in it, so the answers'
+  // link context holds still while text streams in.
+  const hrefKey = [...links.hrefs].join(" ");
+
+  const hrefs = useMemo(
+    () => new Set(hrefKey === "" ? [] : hrefKey.split(" ")),
+    [hrefKey]
+  );
+
   const last = messages.at(-1);
   const answering = last?.role === "assistant" ? last : undefined;
   // While busy, say what's happening, unless the answer's text is arriving.
   const writing = answering?.parts.at(-1)?.type === "text";
   const showStatus = busy && !writing;
-  const failure = error === undefined ? null : askFailure(error);
+
+  // A finished answer with no words is a failure too, not a blank.
+  const blank: AskFailure | null =
+    status === "ready" && isEmptyAnswer(last)
+      ? { message: ASK_FAILED, retry: true }
+      : null;
+
+  const failure = error === undefined ? blank : askFailure(error);
 
   return (
     <div className="flex min-h-0 grow flex-col">
@@ -151,8 +165,7 @@ export const AskPanel = ({
         <input
           aria-label="Ask Tally a question"
           autoComplete="off"
-          // Focus moves here from the palette's search box.
-          // oxlint-disable-next-line jsx-a11y/no-autofocus
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus moves here from the palette's search box
           autoFocus
           className="placeholder:text-ink-3 h-12 min-w-0 grow bg-transparent text-base outline-none sm:text-sm"
           enterKeyHint="send"
@@ -198,7 +211,7 @@ export const AskPanel = ({
                     className="bg-ink/6 text-ink max-w-[85%] self-end rounded-2xl rounded-ee-md px-3 py-2 text-sm"
                     key={message.id}
                   >
-                    {textOf(message)}
+                    {messageText(message)}
                   </p>
                 ) : (
                   <div
@@ -208,7 +221,7 @@ export const AskPanel = ({
                     <AskAnswer
                       hrefs={hrefs}
                       onFollow={onFollowLink}
-                      text={linkRecords(textOf(message), links)}
+                      text={linkRecords(messageText(message), links.labels)}
                     />
                   </div>
                 )
@@ -226,7 +239,7 @@ export const AskPanel = ({
                       onClick={() => {
                         void regenerate();
                       }}
-                      size="sm"
+                      size="md"
                       variant="outline"
                     >
                       <RotateCcw data-icon="inline-start" />
