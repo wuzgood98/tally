@@ -46,6 +46,7 @@ describe("paletteCommands", () => {
       "go:/reports/shrinkage",
       "go:/staff",
       "go:/tills",
+      "go:/settings",
     ]);
     expect(valuesIn(admin, "Create")).toEqual([
       "new:sale",
@@ -90,11 +91,12 @@ describe("paletteCommands", () => {
     ]);
   });
 
-  it("gives a cashier the till, sales and products, and nothing else", () => {
+  it("gives a cashier the till, sales, products and their settings, and nothing else", () => {
     expect(valuesIn(cashier, "Go to")).toEqual([
       "go:/till",
       "go:/sales",
       "go:/products",
+      "go:/settings",
     ]);
     expect(valuesIn(cashier, "Create")).toEqual(["new:sale"]);
   });

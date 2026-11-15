@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AskTallySwitch } from "@/components/settings/ask-tally-switch";
 import { CompanyForm } from "@/components/settings/company-form";
+import { OfficeLinks } from "@/components/settings/office-links";
 import { SectionHeading } from "@/components/settings/section-heading";
 import { SettingsNav } from "@/components/settings/settings-nav";
 import type { SettingsSection } from "@/components/settings/settings-nav";
@@ -17,23 +18,27 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { ASK_HOURLY_LIMIT, askTallyState } from "@/lib/ask/settings";
 import { badgeBarcode } from "@/lib/badge";
+import { getDb } from "@/lib/db";
 import { isDemo } from "@/lib/demo";
 import { formatDate } from "@/lib/format";
 import { canManageCompany } from "@/lib/permissions";
 import { getCompanySettings } from "@/lib/queries/company";
+import { listTills } from "@/lib/queries/tills";
 import { listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 import { ROLE_LABELS } from "@/lib/site";
+import { listStaff } from "@/lib/staff";
 
 export const metadata: Metadata = { title: "Settings" };
 
 const YOU: SettingsSection = { id: "you", label: "You" };
 const COMPANY: SettingsSection = { id: "company", label: "Company" };
 const ASK: SettingsSection = { id: "ask-tally", label: "Ask Tally" };
+const OFFICE: SettingsSection = { id: "staff-tills", label: "Staff & Tills" };
 
 /** Head office sees every section; everyone else only their own. */
 const EVERYONE: readonly SettingsSection[] = [YOU];
-const HEAD_OFFICE: readonly SettingsSection[] = [YOU, COMPANY, ASK];
+const HEAD_OFFICE: readonly SettingsSection[] = [YOU, COMPANY, ASK, OFFICE];
 
 const SettingsPage = async () => {
   const viewer = await requireViewer();
@@ -46,6 +51,14 @@ const SettingsPage = async () => {
   const home = branches.find((item) => item.id === viewer.branchId);
   const role = ROLE_LABELS[viewer.role];
   const headOffice = canManageCompany(viewer);
+
+  // Only head office sees the Staff & Tills cards, so only they pay for them.
+  const [people, tills] = headOffice
+    ? await Promise.all([listStaff(getDb()), listTills()])
+    : [[], []];
+
+  const activeStaff = people.filter((person) => person.active).length;
+  const liveTills = tills.filter((item) => item.revokedAt === null).length;
 
   const previewStore =
     home?.name ?? branches.find((item) => item.kind === "store")?.name ?? "";
@@ -144,6 +157,30 @@ const SettingsPage = async () => {
                 ? null
                 : `${company.askTally.turnedOn.by} on ${formatDate(company.askTally.turnedOn.at)}`
             }
+          />
+        </section>
+      ) : null}
+
+      {headOffice ? (
+        <section
+          aria-labelledby="settings-office"
+          className="mt-14 scroll-mt-40 lg:max-w-[calc(100%-22.25rem)]"
+          id="staff-tills"
+        >
+          <SectionHeading
+            headOfficeOnly
+            id="settings-office"
+            number={4}
+            title="Staff & Tills"
+          >
+            Who has a badge, and which counters can sell. Each has its own page.
+          </SectionHeading>
+          <OfficeLinks
+            staff={{
+              active: activeStaff,
+              deactivated: people.length - activeStaff,
+            }}
+            tills={{ active: liveTills, revoked: tills.length - liveTills }}
           />
         </section>
       ) : null}

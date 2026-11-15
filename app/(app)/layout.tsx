@@ -11,11 +11,13 @@ import {
   ScanBarcode,
   ScrollText,
   ShoppingCart,
+  SlidersHorizontal,
   TriangleAlert,
   Truck,
   Users,
 } from "lucide-react";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import { signOut } from "@/app/login/actions";
 import { TallyMark } from "@/components/brand/tally-mark";
@@ -34,6 +36,7 @@ import {
   SidebarProvider,
   SidebarToggle,
 } from "@/components/shell/sidebar";
+import { SidebarAccount } from "@/components/shell/sidebar-account";
 import { Toaster } from "@/components/ui/toaster";
 import { askPaletteSettings } from "@/lib/ask/suggestions";
 import { askTallyOn } from "@/lib/ask/switch";
@@ -194,6 +197,9 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
           Tills
         </NavLink>
       ) : null}
+      <NavLink href="/settings" icon={<SlidersHorizontal />}>
+        Settings
+      </NavLink>
     </>
   );
 
@@ -203,12 +209,6 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
     // Reports, Staff and Tills are back office too, so a cashier has none.
     ...(backOffice ? [{ items: office, label: "Office" }] : []),
   ];
-
-  const initials = viewer.name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part.charAt(0))
-    .join("");
 
   return (
     <SidebarProvider
@@ -264,30 +264,10 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
               </nav>
             ))}
 
-            <div className="rail:flex-col-reverse rail:px-0 mt-auto flex items-center gap-2.5 px-1.5 pb-2">
-              <span
-                aria-hidden="true"
-                className="from-brand/90 to-brand/40 text-primary-foreground text-2xs grid size-7 shrink-0 place-items-center rounded-full bg-linear-to-br font-semibold"
-              >
-                {initials}
-              </span>
-              <div className="rail:sr-only min-w-0 grow leading-tight">
-                <p className="truncate text-sm font-medium">{viewer.name}</p>
-                <p className="text-ink-3 truncate text-xs">
-                  {ROLE_LABELS[viewer.role]}
-                  {homeBranch ? ` · ${homeBranch.name}` : ""}
-                </p>
-              </div>
-              <form action={signOut}>
-                <button
-                  aria-label={`Sign out ${viewer.name}`}
-                  className="press text-ink-3 hover:text-ink hover:bg-surface grid size-7 place-items-center rounded-md"
-                  type="submit"
-                >
-                  <LogOut aria-hidden="true" className="size-3.5" />
-                </button>
-              </form>
-            </div>
+            <SidebarAccount
+              detail={`${ROLE_LABELS[viewer.role]}${homeBranch ? ` · ${homeBranch.name}` : ""}`}
+              name={viewer.name}
+            />
           </Sidebar>
 
           <div className="bg-canvas lg:border-line min-w-0 lg:rounded-xl lg:border lg:[view-transition-name:canvas] print:border-0 print:bg-transparent">
@@ -322,6 +302,13 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
                 )}
                 <div className="flex shrink-0 items-center gap-1 lg:hidden">
                   <PaletteIconTrigger />
+                  <Link
+                    aria-label="Settings"
+                    className={shellIconButton}
+                    href="/settings"
+                  >
+                    <SlidersHorizontal aria-hidden="true" className="size-4" />
+                  </Link>
                   <form action={signOut}>
                     <button
                       aria-label={`Sign out ${viewer.name}`}

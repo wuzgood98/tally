@@ -24,6 +24,7 @@ export type PaletteIcon =
   | "sales"
   | "shrinkage"
   | "sellers"
+  | "settings"
   | "sign-out"
   | "low-stock"
   | "staff"
@@ -160,12 +161,24 @@ const allPages = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
 /** Everything else in Go to is back office, which a cashier doesn't see. */
 const FRONT_OF_HOUSE = new Set(["go:/till", "go:/sales", "go:/products"]);
 
+/** Everyone has settings: their badge, password and theme. */
+const SETTINGS = link("go:/settings", "Settings", "/settings", "settings", [
+  "preferences",
+  "account",
+  "password",
+  "profile",
+  "company",
+]);
+
 const goTo = (viewer: Actor, sellsSomewhere: boolean): PaletteCommand[] => {
   const pages = allPages(viewer, sellsSomewhere);
 
-  return canBrowseBackOffice(viewer)
-    ? pages
-    : pages.filter((page) => FRONT_OF_HOUSE.has(page.value));
+  return [
+    ...(canBrowseBackOffice(viewer)
+      ? pages
+      : pages.filter((page) => FRONT_OF_HOUSE.has(page.value))),
+    SETTINGS,
+  ];
 };
 
 const create = (
