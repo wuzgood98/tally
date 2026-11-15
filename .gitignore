@@ -48,3 +48,6 @@ scripts/.icon-preview.png
 # agent skills (installed locally; skills-lock.json pins them)
 /.agents/
 /.claude/skills/
+
+# plans written for agents (kept local)
+/plans/
