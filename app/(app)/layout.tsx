@@ -48,6 +48,7 @@ import {
   sellableBranchIds,
   visibleBranchIds,
 } from "@/lib/permissions";
+import { getCompanyName } from "@/lib/queries/company";
 import { getOverviewTotals } from "@/lib/queries/overview";
 import { countDraftPurchaseOrders } from "@/lib/queries/purchase-orders";
 import { countOpenRequests } from "@/lib/queries/requests";
@@ -55,15 +56,16 @@ import { countIncomingInTransit } from "@/lib/queries/transfers";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from "@/lib/sidebar";
-import { COMPANY_NAME, ROLE_LABELS } from "@/lib/site";
+import { ROLE_LABELS } from "@/lib/site";
 
 const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const viewer = await requireViewer();
 
-  const [branches, scope, jar] = await Promise.all([
+  const [branches, scope, jar, companyName] = await Promise.all([
     listBranches(),
     getScope(viewer),
     cookies(),
+    getCompanyName(),
   ]);
 
   // Warehouses this person sends from: their open requests are a to-do list.
@@ -236,7 +238,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
                 Tally
               </p>
               <p className="text-ink-3 rail:hidden ms-auto truncate text-xs">
-                {COMPANY_NAME}
+                {companyName}
               </p>
             </div>
 

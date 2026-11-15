@@ -23,9 +23,9 @@ import {
 } from "@/lib/ask/settings";
 import { formatDateTime } from "@/lib/format";
 import { canAskTally } from "@/lib/permissions";
+import { getCompanyName } from "@/lib/queries/company";
 import { getScope, listBranches } from "@/lib/scope";
 import { getViewer } from "@/lib/session";
-import { COMPANY_NAME } from "@/lib/site";
 
 /** Seconds: a few tool calls and a short answer, with room to spare. */
 export const maxDuration = 60;
@@ -125,16 +125,17 @@ export const POST = async (request: Request): Promise<Response> => {
     );
   }
 
-  const [scope, branches] = await Promise.all([
+  const [scope, branches, companyName] = await Promise.all([
     getScope(viewer),
     listBranches(),
+    getCompanyName(),
   ]);
 
   // OpenRouter tries these in order when the first is busy or gone.
   const models = askModelIds();
 
   const agent = createAskAgent({
-    companyName: COMPANY_NAME,
+    companyName,
     context: { branches, now: new Date(), scope, viewer },
     data: serverAskData,
     model: openrouter(models[0], { models: [...models] }),

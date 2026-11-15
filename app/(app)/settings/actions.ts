@@ -6,9 +6,10 @@ import { headers } from "next/headers";
 
 import { passwordInput, renameSelf } from "@/lib/account";
 import { getAuth } from "@/lib/auth";
+import { companyInput, saveCompany } from "@/lib/company";
 import { getDb } from "@/lib/db";
 import { isDemo } from "@/lib/demo";
-import { formSecret, formText } from "@/lib/form";
+import { formInt, formSecret, formText } from "@/lib/form";
 import { requireViewer } from "@/lib/session";
 import { StockError } from "@/lib/stock/errors";
 
@@ -94,6 +95,42 @@ export const changePassword = async (
 
     throw error;
   }
+
+  return { error: null, saved: previous.saved + 1 };
+};
+
+export const saveCompanySettings = async (
+  previous: SettingsFormState,
+  form: FormData
+): Promise<SettingsFormState> => {
+  const viewer = await requireViewer();
+
+  const parsed = companyInput.safeParse({
+    companyName: formText(form, "companyName"),
+    defaultReorderPoint: formInt(form, "defaultReorderPoint"),
+    receiptFooter: formText(form, "receiptFooter"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Check the company settings.",
+      saved: previous.saved,
+    };
+  }
+
+  try {
+    // saveCompany checks it's head office and parses the fields again.
+    await saveCompany(getDb(), viewer, parsed.data);
+  } catch (error) {
+    if (error instanceof StockError) {
+      return { error: error.message, saved: previous.saved };
+    }
+
+    throw error;
+  }
+
+  // The name is in the sidebar, on the sign-in label and on paperwork.
+  revalidatePath("/", "layout");
 
   return { error: null, saved: previous.saved + 1 };
 };

@@ -733,6 +733,46 @@ export const documentCounter = pgTable(
   (table) => [primaryKey({ columns: [table.kind, table.branchId] })]
 );
 
+/**
+ * Company-wide settings head office changes on the settings page. One row at
+ * most (`id` is always 1); with none, every value is its default.
+ */
+export const companySettings = pgTable(
+  "company_settings",
+  {
+    /** Ask Tally's company-wide opt-in, given behind a consent screen. */
+    askTallyEnabled: boolean("ask_tally_enabled").notNull().default(false),
+    askTallyEnabledAt: timestamp("ask_tally_enabled_at", {
+      withTimezone: true,
+    }),
+    askTallyEnabledById: text("ask_tally_enabled_by_id").references(
+      () => user.id
+    ),
+    askTallyDisabledAt: timestamp("ask_tally_disabled_at", {
+      withTimezone: true,
+    }),
+    askTallyDisabledById: text("ask_tally_disabled_by_id").references(
+      () => user.id
+    ),
+    /** Null means `TALLY_COMPANY_NAME`, or the demo name. */
+    companyName: text("company_name"),
+    /** Pre-fills a new product's reorder point. */
+    defaultReorderPoint: integer("default_reorder_point").notNull().default(10),
+    id: integer("id").primaryKey().default(1),
+    /** Printed under the total on every receipt; null prints nothing. */
+    receiptFooter: text("receipt_footer"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
+    updatedById: text("updated_by_id").references(() => user.id),
+  },
+  (table) => [
+    check("company_settings_single_row", sql`${table.id} = 1`),
+    check(
+      "company_settings_reorder_non_negative",
+      sql`${table.defaultReorderPoint} >= 0`
+    ),
+  ]
+);
+
 export type Role = (typeof roleEnum.enumValues)[number];
 
 export type AdjustmentReason = (typeof adjustmentReasonEnum.enumValues)[number];

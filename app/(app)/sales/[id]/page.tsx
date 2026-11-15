@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ReceiptFooter } from "@/components/sales/receipt-footer";
 import { ReturnForm } from "@/components/sales/return-form";
 import { ReturnsList } from "@/components/sales/returns-list";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,6 +11,7 @@ import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount, formatDateTime, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { canApproveReturn, canSeeBranch } from "@/lib/permissions";
+import { getCompanySettings } from "@/lib/queries/company";
 import { getSale, getSaleReturns } from "@/lib/queries/sales";
 import { requireViewer } from "@/lib/session";
 import { PAYMENT_LABELS } from "@/lib/stock/payment";
@@ -46,7 +48,11 @@ const SalePage = async ({ params }: PageProps<"/sales/[id]">) => {
     notFound();
   }
 
-  const returns = await getSaleReturns(found.id);
+  const [returns, company] = await Promise.all([
+    getSaleReturns(found.id),
+    getCompanySettings(),
+  ]);
+
   const units = found.lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const returnable = found.lines.flatMap((line) =>
@@ -104,6 +110,14 @@ const SalePage = async ({ params }: PageProps<"/sales/[id]">) => {
 
       <Panel
         flush
+        footer={
+          company.receiptFooter === null ? undefined : (
+            <ReceiptFooter
+              className="border-0 pt-0"
+              text={company.receiptFooter}
+            />
+          )
+        }
         title={`${formatCount(found.lines.length)} ${found.lines.length === 1 ? "line" : "lines"} · ${formatCount(units)} ${units === 1 ? "item" : "items"}`}
       >
         <Table>

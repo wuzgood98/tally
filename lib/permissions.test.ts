@@ -14,6 +14,7 @@ import {
   canDispatchTransfer,
   canDraftPurchaseOrder,
   canManageCatalogue,
+  canManageCompany,
   canReceive,
   canReceiveTransfer,
   canRequestStock,
@@ -124,6 +125,16 @@ describe("permissions", () => {
     expect(canSetReorderPoint(storekeeper, "SPX")).toBe(false);
     expect(canManageCatalogue(manager)).toBe(false);
     expect(canManageCatalogue(admin)).toBe(true);
+  });
+
+  it("leaves company settings to head office", () => {
+    const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
+
+    expect(canManageCompany(admin)).toBe(true);
+
+    for (const actor of [manager, storekeeper, cashier]) {
+      expect(canManageCompany(actor)).toBe(false);
+    }
   });
 
   it("lets a cashier see only their own store and none of the back office", () => {

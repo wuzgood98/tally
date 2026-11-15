@@ -7,7 +7,7 @@ Read this before planning or building anything in Tally. It records what the pro
 Stock control for **one retailer with several branches**, at the scale of China Mall in Ghana: about five large general-merchandise stores plus a central warehouse, selling everything from rice to chest freezers, from local and imported (mostly Chinese) suppliers. It is **not** a mall that rents space to tenant shops; there is one company and one catalogue.
 
 - Demo company: **Akwaaba Mall**, fictional. Branch locations are real Ghanaian places; the company, people and suppliers are made up. Never present it as China Mall or any real business.
-- The company name comes from `TALLY_COMPANY_NAME` (`lib/site.ts`); the demo name is only the default.
+- The company name is set by head office on the settings page (`company_settings`, `lib/company.ts`); until then it comes from `TALLY_COMPANY_NAME`, and the demo name is only the last default.
 - Currency: Ghana cedis (GH₵). Time zone: `Africa/Accra` (GMT all year, no daylight saving).
 - Users: head office (`admin`), branch managers (`manager`), storekeepers (`storekeeper`), cashiers (`cashier`).
 
@@ -241,7 +241,7 @@ Batches:
 
 1. **Done**: design. Three directions as HTML mock-ups; the user chose A, Lanyard.
 2. **Done**: You. The badge, the name and password actions, the theme picker and the sidebar switch. Walked through at 1280px light and dark and at 390px.
-3. Company, with the `company_settings` migration.
+3. **Done**: Company. Migration `0006_company_settings` (it already carries the Ask Tally columns). `lib/company.ts` (`readCompanySettings`, `saveCompany`, `companyInput`; `canManageCompany` is head office), read once per request through `getCompanySettings` / `getCompanyName` (`lib/queries/company.ts`). The name replaces the old `COMPANY_NAME` constant in the sidebar, sign-in label, purchase-order printout and Ask Tally's instructions. `CompanyForm` (`components/settings/company-form.tsx`) sits beside a tilted receipt preview that prints what you type and highlights the footer while it has focus. `ReceiptFooter` (`components/sales/receipt-footer.tsx`) prints it on the till receipt and in the `/sales/[id]` lines panel's footer.
 4. Ask Tally's switch, consent dialog, seed and docs.
 5. Navigation (sidebar, palette, account area) and verification.
 
@@ -283,7 +283,7 @@ These are invariants. New features must keep them. Transfers were added as new m
 ## Database and environment
 
 - **No `DATABASE_URL`** → PGlite (Postgres in WebAssembly) in `.data/pglite`. The first request migrates and seeds it (`databaseReady()` in `lib/db/index.ts`).
-- **With `DATABASE_URL`** → node-postgres. Migrate explicitly with `pnpm db:migrate`; it never auto-seeds.
+- **With `DATABASE_URL`** → node-postgres. Migrate explicitly with `pnpm db:migrate`; it never auto-seeds. `pnpm db:migrate` doesn't read `.env.local` (tsx loads no env file), so on its own it migrates PGlite: run `pnpm exec tsx --env-file=.env.local scripts/migrate.ts` to migrate the database in `.env.local`. The local `.env.local` points `DATABASE_URL` at a Supabase database (November 2026), so `next dev` uses that, not PGlite.
 - **`POSTGRES_URL` counts too** (`databaseUrl` in `lib/db/url.ts`): Vercel's Supabase and Neon integrations set that name. `DATABASE_URL` wins if both are set.
 - **`DATABASE_CA_CERT`** (PEM, ` ` allowed for line breaks) makes node-postgres verify the server against that certificate authority, for hosts Node doesn't trust by default. Supabase needs it (Supabase Root 2021 CA, from Project Settings → Database → SSL Configuration); any `sslmode` in the URL is dropped so it can't override the check. The live demo database is on Supabase (us-east-1, transaction pooler); seeding it from Ghana took about 95 minutes.
 - **Hosting needs a database URL.** PGlite can't run on a serverless host (read-only filesystem, a seed longer than a function may run, nothing shared between instances). A Vercel build (`VERCEL=1`) without either URL fails in `next.config.ts` with instructions (`deployProblem`, `lib/deploy-check.ts`); local builds are unaffected.

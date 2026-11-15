@@ -9,10 +9,10 @@ import { TallyMark } from "@/components/brand/tally-mark";
 import { JsonLd } from "@/components/seo/json-ld";
 import { BRANCHES } from "@/lib/db/seed-data";
 import { isDemo } from "@/lib/demo";
+import { getCompanyName } from "@/lib/queries/company";
 import { param } from "@/lib/search-params";
 import { PUBLIC_PAGE_METADATA } from "@/lib/seo";
 import { getViewer } from "@/lib/session";
-import { COMPANY_NAME } from "@/lib/site";
 import { appJsonLd } from "@/lib/structured-data";
 
 export const metadata: Metadata = {
@@ -32,6 +32,7 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
 
   const nextPath = param(params, "next") || undefined;
   const demo = isDemo();
+  const companyName = await getCompanyName();
 
   return (
     <main className="bg-canvas relative isolate grid min-h-svh place-items-center overflow-hidden px-4 py-12">
@@ -43,7 +44,7 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
           <div className="text-ink-2 text-2xs flex items-center justify-between gap-3 font-mono tracking-widest uppercase">
             <span className="flex min-w-0 items-center gap-2">
               <TallyMark className="text-ink size-4 shrink-0" />
-              <span className="truncate">Tally · {COMPANY_NAME}</span>
+              <span className="truncate">Tally · {companyName}</span>
             </span>
             <span className="shrink-0">No. 0001</span>
           </div>

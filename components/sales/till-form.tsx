@@ -38,6 +38,8 @@ interface Option {
 interface TillFormProps {
   readonly stores: readonly Option[];
   readonly defaultStoreId: string;
+  /** Printed at the foot of the receipt; null for none. */
+  readonly receiptFooter: string | null;
 }
 
 /** The line a repeat scan last bumped; each new count restarts its flash. */
@@ -106,7 +108,11 @@ const FRESH_PAYMENT: Payment = { method: "cash", received: "" };
  * Each sale gets an id from the till the first time it's charged and keeps it
  * until it succeeds, so a retry after a dropped connection can't double-charge.
  */
-export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
+export const TillForm = ({
+  stores,
+  defaultStoreId,
+  receiptFooter,
+}: TillFormProps) => {
   const [storeId, setStoreId] = useState(defaultStoreId);
   const [lines, setLines] = useState<readonly BasketLine[]>([]);
   const [payment, setPayment] = useState<Payment>(FRESH_PAYMENT);
@@ -310,6 +316,7 @@ export const TillForm = ({ stores, defaultStoreId }: TillFormProps) => {
 
         <TillCheckout
           error={error}
+          footer={receiptFooter}
           lines={lines}
           onPaymentMethod={(method) => {
             setPayment((current) => ({ ...current, method }));

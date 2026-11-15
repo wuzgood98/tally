@@ -116,6 +116,10 @@ export const canManageCatalogue = (actor: Actor): boolean =>
 
 export const canManageStaff = (actor: Actor): boolean => actor.role === "admin";
 
+/** The company's name, receipt footer and catalogue defaults. */
+export const canManageCompany = (actor: Actor): boolean =>
+  actor.role === "admin";
+
 /** Till keys let a machine post sales, so only head office hands them out. */
 export const canManageTills = (actor: Actor): boolean => actor.role === "admin";
 
