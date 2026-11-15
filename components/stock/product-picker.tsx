@@ -9,6 +9,7 @@ import type { PickedProduct } from "@/app/(app)/lookup-action";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { isScanEnter } from "@/lib/scan-key";
 
 interface ProductPickerProps {
   readonly onPick: (product: PickedProduct) => void;
@@ -74,7 +75,7 @@ export const ProductPicker = ({
       return;
     }
 
-    if (event.key === "Enter") {
+    if (isScanEnter(event)) {
       // Scanners end with Enter; don't let it submit the surrounding form.
       event.preventDefault();
       find();

@@ -3,7 +3,7 @@
  * except at the edges: parse on the way in, format on the way out.
  */
 
-const PESEWAS_PER_CEDI = 100;
+export const PESEWAS_PER_CEDI = 100;
 
 const cedis = new Intl.NumberFormat("en-GH", {
   currency: "GHS",
@@ -51,3 +51,9 @@ export const parseCedis = (input: string): number | null => {
 /** For prefilling inputs: 1250 → "12.50" (no symbol, no grouping). */
 export const pesewasToInput = (pesewas: number): string =>
   (pesewas / PESEWAS_PER_CEDI).toFixed(2);
+
+/** For the till's cash field: 87000 → "870", 86550 → "865.50". */
+export const pesewasToCashInput = (pesewas: number): string =>
+  pesewas % PESEWAS_PER_CEDI === 0
+    ? String(pesewas / PESEWAS_PER_CEDI)
+    : pesewasToInput(pesewas);
