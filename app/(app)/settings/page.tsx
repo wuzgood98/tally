@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AskTallySwitch } from "@/components/settings/ask-tally-switch";
 import { CompanyForm } from "@/components/settings/company-form";
 import { SectionHeading } from "@/components/settings/section-heading";
 import { SettingsNav } from "@/components/settings/settings-nav";
@@ -14,6 +15,7 @@ import {
   FramePanel,
 } from "@/components/ui/frame";
 import { PageHeader } from "@/components/ui/page-header";
+import { ASK_HOURLY_LIMIT, askTallyState } from "@/lib/ask/settings";
 import { badgeBarcode } from "@/lib/badge";
 import { isDemo } from "@/lib/demo";
 import { formatDate } from "@/lib/format";
@@ -27,10 +29,11 @@ export const metadata: Metadata = { title: "Settings" };
 
 const YOU: SettingsSection = { id: "you", label: "You" };
 const COMPANY: SettingsSection = { id: "company", label: "Company" };
+const ASK: SettingsSection = { id: "ask-tally", label: "Ask Tally" };
 
 /** Head office sees every section; everyone else only their own. */
 const EVERYONE: readonly SettingsSection[] = [YOU];
-const HEAD_OFFICE: readonly SettingsSection[] = [YOU, COMPANY];
+const HEAD_OFFICE: readonly SettingsSection[] = [YOU, COMPANY, ASK];
 
 const SettingsPage = async () => {
   const viewer = await requireViewer();
@@ -115,6 +118,32 @@ const SettingsPage = async () => {
             }
             receiptFooter={company.receiptFooter}
             storeName={previewStore}
+          />
+        </section>
+      ) : null}
+
+      {headOffice ? (
+        <section
+          aria-labelledby="settings-ask"
+          className="mt-14 scroll-mt-40 lg:max-w-[calc(100%-22.25rem)]"
+          id="ask-tally"
+        >
+          <SectionHeading
+            headOfficeOnly
+            id="settings-ask"
+            number={3}
+            title="Ask Tally"
+          >
+            Questions about stock in plain words, from the command palette.
+          </SectionHeading>
+          <AskTallySwitch
+            hourlyLimit={ASK_HOURLY_LIMIT}
+            state={askTallyState(company.askTally.on)}
+            turnedOn={
+              company.askTally.turnedOn === null
+                ? null
+                : `${company.askTally.turnedOn.by} on ${formatDate(company.askTally.turnedOn.at)}`
+            }
           />
         </section>
       ) : null}

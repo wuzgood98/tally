@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import type { Db } from "@/lib/db/client";
 import { companySettings, user } from "@/lib/db/schema";
-import { canManageCompany } from "@/lib/permissions";
+import { canManageAskTally, canManageCompany } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
 
@@ -165,6 +165,40 @@ export const saveCompany = async (
     updatedAt: sql`now()`,
     updatedById: actor.id,
   };
+
+  await db
+    .insert(companySettings)
+    .values({ id: 1, ...values })
+    .onConflictDoUpdate({ set: values, target: companySettings.id });
+};
+
+/**
+ * Head office turns Ask Tally on for the company (the settings page asks for
+ * consent first) or off. The row keeps who did each, and when.
+ */
+export const setAskTally = async (
+  db: Db,
+  actor: Actor,
+  on: boolean
+): Promise<void> => {
+  if (!canManageAskTally(actor)) {
+    throw new StockError(
+      "forbidden",
+      "Only head office can turn Ask Tally on or off."
+    );
+  }
+
+  const values = on
+    ? {
+        askTallyEnabled: true,
+        askTallyEnabledAt: sql`now()`,
+        askTallyEnabledById: actor.id,
+      }
+    : {
+        askTallyDisabledAt: sql`now()`,
+        askTallyDisabledById: actor.id,
+        askTallyEnabled: false,
+      };
 
   await db
     .insert(companySettings)

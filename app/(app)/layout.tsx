@@ -36,6 +36,7 @@ import {
 } from "@/components/shell/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { askPaletteSettings } from "@/lib/ask/suggestions";
+import { askTallyOn } from "@/lib/ask/switch";
 import { FLASH_COOKIE, parseFlash } from "@/lib/flash";
 import { paletteCommands } from "@/lib/palette";
 import {
@@ -61,11 +62,12 @@ import { ROLE_LABELS } from "@/lib/site";
 const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const viewer = await requireViewer();
 
-  const [branches, scope, jar, companyName] = await Promise.all([
+  const [branches, scope, jar, companyName, askOn] = await Promise.all([
     listBranches(),
     getScope(viewer),
     cookies(),
     getCompanyName(),
+    askTallyOn(),
   ]);
 
   // Warehouses this person sends from: their open requests are a to-do list.
@@ -103,7 +105,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       branches.flatMap((item) => (item.kind === "store" ? [item.id] : []))
     ).length > 0;
 
-  const ask = askPaletteSettings(viewer, scope, branches);
+  const ask = askPaletteSettings(viewer, scope, branches, askOn);
 
   const today = (
     <>

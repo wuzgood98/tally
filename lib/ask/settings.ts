@@ -37,13 +37,42 @@ export const ASK_QUESTION_MAX_LENGTH = 500;
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-/**
- * On when the server has an OpenRouter key. When the settings page exists,
- * this is also where the company's opt-in (head office, behind a consent
- * screen) gets checked; nothing else should decide.
- */
-export const askTallyEnabled = (env: Env = process.env): boolean =>
+/** Whether the server could run Ask Tally: it has an OpenRouter key. */
+export const askTallyConfigured = (env: Env = process.env): boolean =>
   (env.OPENROUTER_API_KEY ?? "").trim() !== "";
+
+/**
+ * The one place that decides whether Ask Tally is on: the server has a key
+ * **and** head office has opted the company in, behind the consent screen
+ * on the settings page. With either missing it appears nowhere. The opt-in
+ * is read from the database by `askTallyOn()` (`lib/ask/switch.ts`).
+ */
+export const isAskTallyOn = (
+  optedIn: boolean,
+  env: Env = process.env
+): boolean => optedIn && askTallyConfigured(env);
+
+/** Where the switch stands, for the settings page. */
+export type AskTallyState =
+  /** No key on the server: the switch can't be turned on. */
+  | "no_key"
+  | "off"
+  | "on"
+  /** Opted in, but the key has gone: hidden until it's back. */
+  | "on_no_key";
+
+export const askTallyState = (
+  optedIn: boolean,
+  env: Env = process.env
+): AskTallyState => {
+  const configured = askTallyConfigured(env);
+
+  if (optedIn) {
+    return configured ? "on" : "on_no_key";
+  }
+
+  return configured ? "off" : "no_key";
+};
 
 /**
  * The OpenRouter models to try, first choice first: `ASK_TALLY_MODEL` (one

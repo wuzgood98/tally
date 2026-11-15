@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { companyInput, readCompanySettings, saveCompany } from "@/lib/company";
+import {
+  companyInput,
+  readCompanySettings,
+  saveCompany,
+  setAskTally,
+} from "@/lib/company";
 import { createTestWorld, rejection } from "@/test/db";
 import type { TestWorld } from "@/test/db";
 
@@ -105,5 +110,35 @@ describe("companyInput", () => {
     expect(fraction.error?.issues[0]?.message).toBe(
       "Use a whole number of units."
     );
+  });
+});
+
+describe("setAskTally", () => {
+  it("records who turned it on, and who turned it off", async () => {
+    await setAskTally(world.db, world.admin, true);
+    const on = await readCompanySettings(world.db, {});
+
+    expect(on.askTally.on).toBe(true);
+    expect(on.askTally.turnedOn?.by).toBeTypeOf("string");
+    expect(on.askTally.turnedOff).toBeNull();
+
+    await setAskTally(world.db, world.admin, false);
+    const off = await readCompanySettings(world.db, {});
+
+    expect(off.askTally.on).toBe(false);
+    expect(off.askTally.turnedOff?.by).toBe(on.askTally.turnedOn?.by);
+    // Turning it off keeps the record of who turned it on.
+    expect(off.askTally.turnedOn).toEqual(on.askTally.turnedOn);
+  });
+
+  it("refuses a manager", async () => {
+    const error = await rejection(
+      setAskTally(world.db, world.spintexManager, true)
+    );
+
+    expect(error.code).toBe("forbidden");
+    const settings = await readCompanySettings(world.db, {});
+
+    expect(settings.askTally.on).toBe(false);
   });
 });

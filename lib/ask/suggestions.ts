@@ -5,7 +5,6 @@
  */
 
 import type { AskScope } from "@/lib/ask/context";
-import { askTallyEnabled } from "@/lib/ask/settings";
 import {
   canAskTally,
   canViewBranchReport,
@@ -68,9 +67,10 @@ export const askPaletteSettings = (
   actor: Actor,
   scope: AskScope,
   branches: readonly SuggestionPlace[],
-  env: Readonly<Record<string, string | undefined>> = process.env
+  /** From `askTallyOn()`: the server's key and the company's opt-in. */
+  on: boolean
 ): { readonly suggestions: readonly string[] } | null => {
-  if (!askTallyEnabled(env) || !canAskTally(actor)) {
+  if (!on || !canAskTally(actor)) {
     return null;
   }
 

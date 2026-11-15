@@ -69,10 +69,10 @@ A read-only assistant in the command palette (Ctrl+K, then **Ask Tally** or `?`)
 - **The tools do the sums.** Money comes formatted and totals added up, so the model only quotes them; answers link only to records a tool returned.
 - **Limits:** 20 questions per person per hour, at most 5 tool calls and a short answer each; the conversation is gone when the palette closes.
 
-It runs on [OpenRouter](https://openrouter.ai)'s free models and is off until a key is set:
+It runs on [OpenRouter](https://openrouter.ai)'s free models. It needs **two things**: a key on the server, and head office switching it on for the company on the settings page (Settings → Ask Tally), after a consent screen that spells out what leaves the server. With either missing it appears nowhere, and `/api/ask` answers 404. The demo seed starts with it switched on.
 
 ```bash
-OPENROUTER_API_KEY=sk-or-...                 # in .env.local; Ask Tally stays hidden without it
+OPENROUTER_API_KEY=sk-or-...                 # in .env.local; without it the switch can't be turned on
 ASK_TALLY_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free   # optional; one id, or a comma-separated fallback list
 ```
 

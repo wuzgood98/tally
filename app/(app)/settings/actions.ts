@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { passwordInput, renameSelf } from "@/lib/account";
+import { askTallyConfigured } from "@/lib/ask/settings";
 import { getAuth } from "@/lib/auth";
-import { companyInput, saveCompany } from "@/lib/company";
+import { companyInput, saveCompany, setAskTally } from "@/lib/company";
 import { getDb } from "@/lib/db";
 import { isDemo } from "@/lib/demo";
 import { formInt, formSecret, formText } from "@/lib/form";
@@ -133,4 +134,37 @@ export const saveCompanySettings = async (
   revalidatePath("/", "layout");
 
   return { error: null, saved: previous.saved + 1 };
+};
+
+/**
+ * Turns Ask Tally on (the page shows the consent screen first) or off for
+ * the whole company. Off applies on the next request.
+ */
+export const switchAskTally = async (
+  on: boolean
+): Promise<{ error: string | null }> => {
+  const viewer = await requireViewer();
+
+  // Don't let anyone opt in to something the server can't run.
+  if (on && !askTallyConfigured()) {
+    return {
+      error:
+        "The server has no OPENROUTER_API_KEY, so Ask Tally can't run yet.",
+    };
+  }
+
+  try {
+    await setAskTally(getDb(), viewer, on);
+  } catch (error) {
+    if (error instanceof StockError) {
+      return { error: error.message };
+    }
+
+    throw error;
+  }
+
+  // The palette's Ask row is drawn by the layout on every page.
+  revalidatePath("/", "layout");
+
+  return { error: null };
 };

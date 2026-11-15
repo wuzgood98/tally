@@ -16,11 +16,8 @@ import { createAskAgent } from "@/lib/ask/agent";
 import { serverAskData } from "@/lib/ask/data-server";
 import { trimHistory } from "@/lib/ask/history";
 import { createRateLimiter } from "@/lib/ask/rate-limit";
-import {
-  ASK_HOURLY_LIMIT,
-  askModelIds,
-  askTallyEnabled,
-} from "@/lib/ask/settings";
+import { ASK_HOURLY_LIMIT, askModelIds } from "@/lib/ask/settings";
+import { askTallyOn } from "@/lib/ask/switch";
 import { formatDateTime } from "@/lib/format";
 import { canAskTally } from "@/lib/permissions";
 import { getCompanyName } from "@/lib/queries/company";
@@ -75,7 +72,7 @@ const fromThisSite = (request: Request): boolean => {
 };
 
 export const POST = async (request: Request): Promise<Response> => {
-  if (!askTallyEnabled()) {
+  if (!(await askTallyOn())) {
     return failure(404, "not_found", "Ask Tally isn't turned on.");
   }
 

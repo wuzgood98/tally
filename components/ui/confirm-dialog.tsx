@@ -33,8 +33,13 @@ interface ConfirmReason {
 }
 
 interface ConfirmDialogProps {
-  /** The button that opens the dialog. */
-  readonly trigger: ReactNode;
+  /**
+   * The button that opens the dialog. Leave it out when something else opens
+   * it, such as a switch, and control it with `open` and `onOpenChange`.
+   */
+  readonly trigger?: ReactNode;
+  readonly open?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
   readonly triggerVariant?: ButtonLook["variant"];
   readonly triggerSize?: ButtonLook["size"];
   /** The question, such as "Revoke Front till?". */
@@ -49,6 +54,8 @@ interface ConfirmDialogProps {
   readonly tone?: "danger" | "default";
   /** Asks for a required reason, which is passed to `onConfirm`. */
   readonly reason?: ConfirmReason;
+  /** More to read before agreeing, under the description, like a list. */
+  readonly children?: ReactNode;
   /** Runs the action. A returned error keeps the dialog open and shows it. */
   readonly onConfirm: (reason: string) => Promise<ActionResult>;
 }
@@ -70,6 +77,9 @@ export const ConfirmDialog = ({
   tone = "default",
   reason,
   onConfirm,
+  open,
+  onOpenChange,
+  children,
 }: ConfirmDialogProps) => {
   const [, startTransition] = useTransition();
   const [note, setNote] = useState("");
@@ -104,21 +114,26 @@ export const ConfirmDialog = ({
 
   return (
     <AlertDialog
-      onOpenChange={(open) => {
-        if (open) {
+      onOpenChange={(next) => {
+        if (next) {
           setNote("");
         }
+
+        onOpenChange?.(next);
       }}
+      open={open}
       pendingAnnouncement={pendingLabel}
     >
-      <AlertDialogTrigger
-        className={buttonVariants({
-          size: triggerSize,
-          variant: triggerVariant,
-        })}
-      >
-        {trigger}
-      </AlertDialogTrigger>
+      {trigger === undefined ? null : (
+        <AlertDialogTrigger
+          className={buttonVariants({
+            size: triggerSize,
+            variant: triggerVariant,
+          })}
+        >
+          {trigger}
+        </AlertDialogTrigger>
+      )}
       <AlertDialogBackdrop className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs transition-opacity duration-200 data-ending-style:opacity-0 data-ending-style:duration-150 data-starting-style:opacity-0" />
       {/* It renders in place, so it resets what a table cell passes down. */}
       <AlertDialogContent
@@ -134,6 +149,7 @@ export const ConfirmDialog = ({
         <AlertDialogDescription className="text-ink-2 mt-1.5 text-sm text-pretty">
           {description}
         </AlertDialogDescription>
+        {children}
 
         {reason === undefined ? null : (
           <Field className="mt-4">

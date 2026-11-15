@@ -10,7 +10,9 @@ import {
   ASK_HISTORY_LIMIT,
   ASK_QUESTION_MAX_LENGTH,
   askModelIds,
-  askTallyEnabled,
+  askTallyConfigured,
+  askTallyState,
+  isAskTallyOn,
 } from "@/lib/ask/settings";
 import type { Actor } from "@/lib/permissions";
 
@@ -39,11 +41,29 @@ const say = (id: string, role: UIMessage["role"], text: string): UIMessage => ({
   role,
 });
 
-describe("askTallyEnabled", () => {
-  it("is on only with an OpenRouter key", () => {
-    expect(askTallyEnabled({ OPENROUTER_API_KEY: "sk-or-x" })).toBe(true);
-    expect(askTallyEnabled({ OPENROUTER_API_KEY: "  " })).toBe(false);
-    expect(askTallyEnabled({ ANTHROPIC_API_KEY: "sk-ant-x" })).toBe(false);
+describe("askTallyConfigured", () => {
+  it("needs an OpenRouter key", () => {
+    expect(askTallyConfigured({ OPENROUTER_API_KEY: "sk-or-x" })).toBe(true);
+    expect(askTallyConfigured({ OPENROUTER_API_KEY: "  " })).toBe(false);
+    expect(askTallyConfigured({ ANTHROPIC_API_KEY: "sk-ant-x" })).toBe(false);
+  });
+});
+
+describe("isAskTallyOn", () => {
+  const key = { OPENROUTER_API_KEY: "sk-or-x" };
+
+  it("needs both the key and the company's opt-in", () => {
+    expect(isAskTallyOn(true, key)).toBe(true);
+    expect(isAskTallyOn(false, key)).toBe(false);
+    expect(isAskTallyOn(true, {})).toBe(false);
+    expect(isAskTallyOn(false, {})).toBe(false);
+  });
+
+  it("names the four states for the settings page", () => {
+    expect(askTallyState(false, {})).toBe("no_key");
+    expect(askTallyState(false, key)).toBe("off");
+    expect(askTallyState(true, key)).toBe("on");
+    expect(askTallyState(true, {})).toBe("on_no_key");
   });
 });
 

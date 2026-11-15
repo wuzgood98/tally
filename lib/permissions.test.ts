@@ -13,6 +13,7 @@ import {
   canCancelTransfer,
   canDispatchTransfer,
   canDraftPurchaseOrder,
+  canManageAskTally,
   canManageCatalogue,
   canManageCompany,
   canReceive,
@@ -127,13 +128,15 @@ describe("permissions", () => {
     expect(canManageCatalogue(admin)).toBe(true);
   });
 
-  it("leaves company settings to head office", () => {
+  it("leaves company settings and Ask Tally's switch to head office", () => {
     const cashier: Actor = { branchId: "SPX", id: "c", role: "cashier" };
 
     expect(canManageCompany(admin)).toBe(true);
+    expect(canManageAskTally(admin)).toBe(true);
 
     for (const actor of [manager, storekeeper, cashier]) {
       expect(canManageCompany(actor)).toBe(false);
+      expect(canManageAskTally(actor)).toBe(false);
     }
   });
 
