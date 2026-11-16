@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { getDb } from "@/lib/db";
@@ -12,6 +12,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import type { NotificationRecord } from "@/lib/notifications/describe";
+import type { NotificationSummary } from "@/lib/notifications/poll";
 
 /** The bell shows the last 30 days, at most this many. */
 export const NOTIFICATION_LIMIT = 30;
@@ -24,15 +25,19 @@ const actor = alias(user, "notification_actor");
 /** The request a transfer fulfilled, for "sent stock … for REQ-…". */
 const fulfilled = alias(stockRequest, "fulfilled_request");
 
-export const countUnreadNotifications = async (
+/** Unread count and the newest id: all the bell's poll needs. */
+export const getNotificationSummary = async (
   userId: string
-): Promise<number> => {
+): Promise<NotificationSummary> => {
   const [row] = await getDb()
-    .select({ total: count() })
+    .select({
+      latestId: sql<number>`coalesce(max(${notification.id}), 0)::int`,
+      unread: sql<number>`(count(*) filter (where ${notification.readAt} is null))::int`,
+    })
     .from(notification)
-    .where(and(eq(notification.userId, userId), isNull(notification.readAt)));
+    .where(eq(notification.userId, userId));
 
-  return row?.total ?? 0;
+  return { latestId: row?.latestId ?? 0, unread: row?.unread ?? 0 };
 };
 
 export const listNotifications = async (

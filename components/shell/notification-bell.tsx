@@ -26,6 +26,8 @@ const BADGE_MAX = 9;
 
 export interface NotificationFeed {
   readonly unread: number;
+  /** The newest notification's id, for the poll to compare against. */
+  readonly latestId: number;
   readonly days: readonly NotificationDay[];
 }
 

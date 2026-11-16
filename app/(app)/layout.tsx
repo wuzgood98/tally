@@ -31,6 +31,7 @@ import { shellIconButton } from "@/components/shell/icon-button";
 import { NavLink } from "@/components/shell/nav-link";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import type { NotificationFeed } from "@/components/shell/notification-bell";
+import { NotificationPoller } from "@/components/shell/notification-poller";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import {
   Sidebar,
@@ -57,7 +58,7 @@ import {
 } from "@/lib/permissions";
 import { getCompanyName } from "@/lib/queries/company";
 import {
-  countUnreadNotifications,
+  getNotificationSummary,
   listNotifications,
 } from "@/lib/queries/notifications";
 import { getOverviewTotals } from "@/lib/queries/overview";
@@ -74,14 +75,14 @@ const loadFeed = async (
   userId: string,
   branches: readonly { id: string; name: string }[]
 ): Promise<NotificationFeed> => {
-  const [unread, records] = await Promise.all([
-    countUnreadNotifications(userId),
+  const [summary, records] = await Promise.all([
+    getNotificationSummary(userId),
     listNotifications(userId),
   ]);
 
   const names = new Map(branches.map((item) => [item.id, item.name]));
 
-  return { days: notificationDays(records, names, new Date()), unread };
+  return { ...summary, days: notificationDays(records, names, new Date()) };
 };
 
 const AppLayout = async ({ children }: LayoutProps<"/">) => {
@@ -368,6 +369,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
           </div>
         </SidebarFrame>
         <Toaster />
+        <NotificationPoller feed={feed} />
         <FlashToast flash={parseFlash(jar.get(FLASH_COOKIE)?.value)} />
       </CommandPaletteProvider>
     </SidebarProvider>

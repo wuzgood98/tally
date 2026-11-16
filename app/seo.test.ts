@@ -84,6 +84,9 @@ describe("proxy", () => {
       "/login",
       "/terms",
       "/privacy",
+      // These answer 401 themselves.
+      "/api/ask",
+      "/api/notifications",
     ]) {
       expect(pattern.test(path), path).toBe(false);
     }
