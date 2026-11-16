@@ -25,6 +25,7 @@ import {
   stockTransferLine,
 } from "@/lib/db/schema";
 import type { TransferStatus } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications/notify";
 import {
   canCancelTransfer,
   canDispatchTransfer,
@@ -273,6 +274,13 @@ export const dispatchTransfer = async (
       }))
     );
 
+    await notify(tx, actor, {
+      fromBranchId: input.fromBranchId,
+      kind: "transfer_dispatched",
+      toBranchId: input.toBranchId,
+      transferId: transfer.id,
+    });
+
     return { id: transfer.id, number, status: "in_transit" };
   });
 };
@@ -481,6 +489,16 @@ export const receiveTransfer = async (
         );
     }
     /* oxlint-enable no-await-in-loop, react-doctor/async-await-in-loop */
+
+    if (unitsLost > 0) {
+      await notify(tx, actor, {
+        fromBranchId: transfer.fromBranchId,
+        kind: "transfer_received_short",
+        toBranchId: transfer.toBranchId,
+        transferId: transfer.id,
+        units: unitsLost,
+      });
+    }
   });
 
   return {
@@ -530,6 +548,13 @@ export const cancelTransfer = async (
       });
     }
     /* oxlint-enable no-await-in-loop, react-doctor/async-await-in-loop */
+
+    await notify(tx, actor, {
+      fromBranchId: transfer.fromBranchId,
+      kind: "transfer_cancelled",
+      toBranchId: transfer.toBranchId,
+      transferId: transfer.id,
+    });
   });
 
   return { id: transfer.id, number: transfer.number, status: "cancelled" };

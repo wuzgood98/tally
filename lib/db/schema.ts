@@ -779,6 +779,62 @@ export const companySettings = pgTable(
   ]
 );
 
+export const notificationKindEnum = pgEnum("notification_kind", [
+  "po_drafted",
+  "po_approved",
+  "po_cancelled",
+  "po_closed",
+  "transfer_dispatched",
+  "transfer_received_short",
+  "transfer_cancelled",
+  "request_raised",
+  "request_cancelled",
+]);
+
+/**
+ * Someone else did something that concerns this person: one row per
+ * recipient, written in the same transaction as the change it reports, so a
+ * change that rolls back tells no one. Wording and links are worked out when
+ * it's shown (`describeNotification`), from the document it points at.
+ */
+export const notification = pgTable(
+  "notification",
+  {
+    /** Who did it; null if they're gone. */
+    actorId: text("actor_id").references(() => user.id),
+    createdAt: createdAt(),
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    kind: notificationKindEnum("kind").notNull(),
+    purchaseOrderId: integer("purchase_order_id").references(
+      () => purchaseOrder.id
+    ),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    requestId: integer("request_id").references(() => stockRequest.id),
+    transferId: integer("transfer_id").references(() => stockTransfer.id),
+    /** Units lost in transit, for a transfer received short. */
+    units: integer("units"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+  },
+  (table) => [
+    index("notification_user_idx").on(table.userId, table.id),
+    index("notification_unread_idx")
+      .on(table.userId)
+      .where(sql`${table.readAt} is null`),
+    check(
+      "notification_one_document",
+      sql`num_nonnulls(${table.purchaseOrderId}, ${table.transferId}, ${table.requestId}) = 1`
+    ),
+    check(
+      "notification_document_matches_kind",
+      sql`(${table.kind}::text like 'po\\_%') = (${table.purchaseOrderId} is not null) and (${table.kind}::text like 'transfer\\_%') = (${table.transferId} is not null) and (${table.kind}::text like 'request\\_%') = (${table.requestId} is not null)`
+    ),
+  ]
+);
+
+export type NotificationKind = (typeof notificationKindEnum.enumValues)[number];
+
 export type Role = (typeof roleEnum.enumValues)[number];
 
 export type AdjustmentReason = (typeof adjustmentReasonEnum.enumValues)[number];

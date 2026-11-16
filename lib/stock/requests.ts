@@ -18,6 +18,7 @@ import {
   stockRequestLine,
 } from "@/lib/db/schema";
 import type { StockRequestStatus } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications/notify";
 import { canDispatchTransfer, canRequestStock } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
@@ -191,6 +192,13 @@ export const requestStock = async (
       .insert(stockRequestLine)
       .values(input.lines.map((line) => ({ ...line, requestId: request.id })));
 
+    await notify(tx, actor, {
+      branchId: input.branchId,
+      fromBranchId: warehouseId,
+      kind: "request_raised",
+      requestId: request.id,
+    });
+
     return { id: request.id, number, status: "requested", transferId: null };
   });
 };
@@ -338,26 +346,39 @@ export const cancelStockRequest = async (
 
   assertOpen(request);
 
-  const cancelled = await db
-    .update(stockRequest)
-    .set({
-      cancelledAt: new Date(),
-      cancelledById: actor.id,
-      // Keep what the store wrote; add why it was called off.
-      note:
-        textOrNull(input.note) === null
-          ? undefined
-          : sql`concat_ws(' · ', ${stockRequest.note}, ${`Cancelled: ${input.note ?? ""}`}::text)`,
-      status: "cancelled",
-    })
-    .where(
-      and(eq(stockRequest.id, request.id), eq(stockRequest.status, "requested"))
-    )
-    .returning({ id: stockRequest.id });
+  await db.transaction(async (tx) => {
+    const cancelled = await tx
+      .update(stockRequest)
+      .set({
+        cancelledAt: new Date(),
+        cancelledById: actor.id,
+        // Keep what the store wrote; add why it was called off.
+        note:
+          textOrNull(input.note) === null
+            ? undefined
+            : sql`concat_ws(' · ', ${stockRequest.note}, ${`Cancelled: ${input.note ?? ""}`}::text)`,
+        status: "cancelled",
+      })
+      .where(
+        and(
+          eq(stockRequest.id, request.id),
+          eq(stockRequest.status, "requested")
+        )
+      )
+      .returning({ id: stockRequest.id });
 
-  if (cancelled.length === 0) {
-    assertOpen(await loadRequest(db, request.id));
-  }
+    if (cancelled.length === 0) {
+      assertOpen(await loadRequest(tx, request.id));
+      throw new Error("An open stock request could not be cancelled.");
+    }
+
+    await notify(tx, actor, {
+      branchId: request.branchId,
+      fromBranchId: request.fromBranchId,
+      kind: "request_cancelled",
+      requestId: request.id,
+    });
+  });
 
   return {
     id: request.id,
