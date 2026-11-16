@@ -11,7 +11,7 @@ export const PRIVACY_EMAIL = "privacy@tally.example";
 
 /** Change these whenever the page's text changes. */
 export const TERMS_UPDATED = "2026-11-15";
-export const PRIVACY_UPDATED = "2026-11-15";
+export const PRIVACY_UPDATED = "2026-11-16";
 
 export const TERMS_PATH = "/terms" satisfies PublicPath;
 export const PRIVACY_PATH = "/privacy" satisfies PublicPath;

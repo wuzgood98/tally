@@ -7,7 +7,8 @@
  * office, or cancelled.
  *
  * Every status change is one conditional UPDATE on the current status, so two
- * people acting on the same order at once can't both succeed.
+ * people acting on the same order at once can't both succeed. It runs in a
+ * transaction with the notifications it sends, so a lost race tells no one.
  */
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -22,6 +23,7 @@ import {
   supplier,
 } from "@/lib/db/schema";
 import type { PurchaseOrderStatus } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications/notify";
 import {
   canApprovePurchaseOrder,
   canCancelDraftPurchaseOrder,
@@ -30,11 +32,10 @@ import {
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
 import { nextDocumentNumber } from "@/lib/stock/ledger";
+import { DAY_MS } from "@/lib/time";
 
 export const MAX_ORDER_LINES = 200;
 export const MAX_ORDER_QUANTITY = 100_000;
-
-const DAY_MS = 86_400_000;
 
 const orderLines = z
   .array(
@@ -219,6 +220,12 @@ export const draftPurchaseOrder = async (
       .insert(purchaseOrderLine)
       .values(lines.map((line) => ({ ...line, purchaseOrderId: order.id })));
 
+    await notify(tx, actor, {
+      branchId: input.branchId,
+      kind: "po_drafted",
+      purchaseOrderId: order.id,
+    });
+
     return { id: order.id, number, status: "draft" };
   });
 };
@@ -301,6 +308,11 @@ const transition = async (
   }
 };
 
+const orderEvent = (
+  order: LoadedOrder,
+  kind: "po_approved" | "po_cancelled" | "po_closed"
+) => ({ branchId: order.branchId, kind, purchaseOrderId: order.id });
+
 /** Replaces a draft's lines and note. Approved orders can't change. */
 export const updatePurchaseOrder = async (
   db: Db,
@@ -363,10 +375,13 @@ export const approvePurchaseOrder = async (
   const order = await loadOrder(db, purchaseOrderId);
   assertStatus(order, ["draft"]);
 
-  await transition(db, order, ["draft"], "approved", {
-    approvedAt: now,
-    approvedById: actor.id,
-    expectedAt: new Date(now.getTime() + order.leadTimeDays * DAY_MS),
+  await db.transaction(async (tx) => {
+    await transition(tx, order, ["draft"], "approved", {
+      approvedAt: now,
+      approvedById: actor.id,
+      expectedAt: new Date(now.getTime() + order.leadTimeDays * DAY_MS),
+    });
+    await notify(tx, actor, orderEvent(order, "po_approved"));
   });
 
   return { id: order.id, number: order.number, status: "approved" };
@@ -400,10 +415,13 @@ export const cancelPurchaseOrder = async (
 
   assertStatus(order, ["draft", "approved"]);
 
-  await transition(db, order, ["draft", "approved"], "cancelled", {
-    closedAt: new Date(),
-    closedById: actor.id,
-    closeNote: input.note,
+  await db.transaction(async (tx) => {
+    await transition(tx, order, ["draft", "approved"], "cancelled", {
+      closedAt: new Date(),
+      closedById: actor.id,
+      closeNote: input.note,
+    });
+    await notify(tx, actor, orderEvent(order, "po_cancelled"));
   });
 
   return { id: order.id, number: order.number, status: "cancelled" };
@@ -427,10 +445,13 @@ export const closePurchaseOrder = async (
   const order = await loadOrder(db, input.purchaseOrderId);
   assertStatus(order, ["partly_received"]);
 
-  await transition(db, order, ["partly_received"], "closed", {
-    closedAt: new Date(),
-    closedById: actor.id,
-    closeNote: input.note,
+  await db.transaction(async (tx) => {
+    await transition(tx, order, ["partly_received"], "closed", {
+      closedAt: new Date(),
+      closedById: actor.id,
+      closeNote: input.note,
+    });
+    await notify(tx, actor, orderEvent(order, "po_closed"));
   });
 
   return { id: order.id, number: order.number, status: "closed" };

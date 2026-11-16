@@ -29,6 +29,8 @@ import { CommandPaletteProvider } from "@/components/shell/command-palette-provi
 import { FlashToast } from "@/components/shell/flash-toast";
 import { shellIconButton } from "@/components/shell/icon-button";
 import { NavLink } from "@/components/shell/nav-link";
+import { NotificationBell } from "@/components/shell/notification-bell";
+import { NotificationPoller } from "@/components/shell/notification-poller";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import {
   Sidebar,
@@ -41,6 +43,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { askPaletteSettings } from "@/lib/ask/suggestions";
 import { askTallyOn } from "@/lib/ask/switch";
 import { FLASH_COOKIE, parseFlash } from "@/lib/flash";
+import { notificationDays } from "@/lib/notifications/describe";
+import type { NotificationFeed } from "@/lib/notifications/poll";
 import { paletteCommands } from "@/lib/palette";
 import {
   canApprovePurchaseOrder,
@@ -53,6 +57,10 @@ import {
   visibleBranchIds,
 } from "@/lib/permissions";
 import { getCompanyName } from "@/lib/queries/company";
+import {
+  getNotificationSummary,
+  listNotifications,
+} from "@/lib/queries/notifications";
 import { getOverviewTotals } from "@/lib/queries/overview";
 import { countDraftPurchaseOrders } from "@/lib/queries/purchase-orders";
 import { countOpenRequests } from "@/lib/queries/requests";
@@ -61,6 +69,25 @@ import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from "@/lib/sidebar";
 import { ROLE_LABELS } from "@/lib/site";
+
+/** The bell's unread count and its last 30 days, grouped by day. */
+const loadFeed = async (
+  userId: string,
+  branches: readonly { id: string; name: string }[]
+): Promise<NotificationFeed> => {
+  const [{ latestId, unread }, records] = await Promise.all([
+    getNotificationSummary(userId),
+    listNotifications(userId),
+  ]);
+
+  const names = new Map(branches.map((item) => [item.id, item.name]));
+
+  return {
+    days: notificationDays(records, names, new Date()),
+    latestId,
+    unread,
+  };
+};
 
 const AppLayout = async ({ children }: LayoutProps<"/">) => {
   const viewer = await requireViewer();
@@ -80,7 +107,9 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
       : []
   );
 
-  const [totals, incoming, draftsToApprove, requestsToFulfil] =
+  const backOffice = canBrowseBackOffice(viewer);
+
+  const [totals, incoming, draftsToApprove, requestsToFulfil, feed] =
     await Promise.all([
       getOverviewTotals(scope),
       countIncomingInTransit(scope),
@@ -89,10 +118,11 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
         ? countDraftPurchaseOrders()
         : Promise.resolve(0),
       countOpenRequests(fulfilFrom),
+      // Cashiers are never notified, so they get no bell.
+      backOffice ? loadFeed(viewer.id, branches) : Promise.resolve(null),
     ]);
 
   const homeBranch = branches.find((item) => item.id === viewer.branchId);
-  const backOffice = canBrowseBackOffice(viewer);
 
   // Only someone who sees every branch gets the switcher; a cashier sees
   // their store's name instead.
@@ -244,11 +274,15 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
               </p>
             </div>
 
-            <div className="rail:hidden">
-              <PaletteFieldTrigger />
+            <div className="rail:hidden flex items-center gap-1">
+              <div className="min-w-0 grow">
+                <PaletteFieldTrigger />
+              </div>
+              <NotificationBell feed={feed} />
             </div>
-            <div className="rail:grid hidden place-items-center">
+            <div className="rail:grid hidden place-items-center gap-1">
               <PaletteIconTrigger />
+              <NotificationBell feed={feed} side="right" />
             </div>
 
             {groups.map((group) => (
@@ -302,6 +336,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
                 )}
                 <div className="flex shrink-0 items-center gap-1 lg:hidden">
                   <PaletteIconTrigger />
+                  <NotificationBell feed={feed} />
                   <Link
                     aria-label="Settings"
                     className={shellIconButton}
@@ -338,6 +373,7 @@ const AppLayout = async ({ children }: LayoutProps<"/">) => {
           </div>
         </SidebarFrame>
         <Toaster />
+        <NotificationPoller feed={feed} />
         <FlashToast flash={parseFlash(jar.get(FLASH_COOKIE)?.value)} />
       </CommandPaletteProvider>
     </SidebarProvider>

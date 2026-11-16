@@ -15,7 +15,7 @@ import { hashPassword } from "better-auth/crypto";
 // and every write, happens in the same order each run so the data repeats.
 // mulberry32 itself is defined in 32-bit integer operations.
 /* oxlint-disable no-bitwise, no-await-in-loop, react-doctor/async-await-in-loop -- see above */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
 import { gtinCheckDigit } from "@/lib/barcode";
 import type { Db } from "@/lib/db/client";
@@ -25,6 +25,7 @@ import {
   category,
   companySettings,
   goodsReceipt,
+  notification,
   product,
   sale,
   saleLine,
@@ -60,8 +61,8 @@ import {
   dispatchTransfer,
   receiveTransfer,
 } from "@/lib/stock/transfer";
+import { DAY_MS } from "@/lib/time";
 
-const DAY_MS = 86_400_000;
 const HISTORY_DAYS = 30;
 const OPENING_DAYS_AGO = 35;
 const INSERT_CHUNK = 400;
@@ -1014,12 +1015,16 @@ const runSaleEvent = async (
   }
 };
 
+const startOfUtcDay = (at: Date): Date =>
+  new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+
 const runHistory = async (
   db: Db,
   random: Random,
   products: readonly SeededProduct[],
   staff: SeedStaff,
-  events: readonly HistoryEvent[]
+  events: readonly HistoryEvent[],
+  now: Date
 ): Promise<void> => {
   const { managers } = staff;
   const bySupplier = Map.groupBy(products, (item) => item.supplierId);
@@ -1045,9 +1050,29 @@ const runHistory = async (
     requests: new Map(),
   };
 
+  // Notifications written by an event take its time, as its documents do.
+  // Only purchasing and transfer events write any. Everything before today
+  // has been seen (read when it came); today's news is still unread. Accra
+  // keeps GMT all year, so its day starts at UTC midnight.
+  const today = startOfUtcDay(now);
+  let notified = 0;
+
+  const backdateNotifications = async (at: Date): Promise<void> => {
+    const rows = await db
+      .update(notification)
+      .set({ createdAt: at, readAt: at < today ? at : null })
+      .where(gt(notification.id, notified))
+      .returning({ id: notification.id });
+
+    for (const row of rows) {
+      notified = Math.max(notified, row.id);
+    }
+  };
+
   for (const event of events) {
     if (isPurchasingEvent(event)) {
       await runPurchasingEvent(purchasing, event);
+      await backdateNotifications(event.at);
 
       continue;
     }
@@ -1064,6 +1089,7 @@ const runHistory = async (
       event.kind === "cancel"
     ) {
       await runTransferEvent(db, random, products, managers, transfers, event);
+      await backdateNotifications(event.at);
 
       continue;
     }
@@ -1210,7 +1236,8 @@ export const seed = async (db: Db, now = new Date()): Promise<SeedSummary> => {
     random,
     products,
     staff,
-    planHistory(random, supplierIds, now)
+    planHistory(random, supplierIds, now),
+    now
   );
 
   const [[movements], staffIds] = await Promise.all([

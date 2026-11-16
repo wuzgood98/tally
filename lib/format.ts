@@ -29,7 +29,16 @@ const dayMonth = new Intl.DateTimeFormat("en-GB", {
   timeZone: TIME_ZONE,
 });
 
+const timeOnly = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: TIME_ZONE,
+});
+
 const count = new Intl.NumberFormat("en-GH");
+
+/** "14:05" */
+export const formatTime = (date: Date): string => timeOnly.format(date);
 
 /** "12 Nov, 14:05" */
 export const formatDateTime = (date: Date): string => dateTime.format(date);

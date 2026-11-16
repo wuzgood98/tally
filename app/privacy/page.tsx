@@ -65,6 +65,12 @@ const PrivacyPage = async () => {
             transfer, order, request, sale and approval records who did it and
             when.
           </li>
+          <li>
+            <strong>Notifications:</strong> when someone else&rsquo;s work
+            concerns you (stock sent to your branch, an order approved or
+            cancelled), Tally notes it for you, with who did it, when, and when
+            you read it.
+          </li>
         </ul>
         <p>
           Tally keeps <strong>nothing about customers</strong>. A sale records
@@ -97,6 +103,10 @@ const PrivacyPage = async () => {
           design: a mistake is corrected with a new entry, so the history always
           shows who did what. These records are kept for as long as{" "}
           {companyName} keeps its stock and sales records.
+        </p>
+        <p>
+          The bell shows your notifications from the last 30 days; older ones
+          are kept with the records they point to.
         </p>
       </LegalSection>
 

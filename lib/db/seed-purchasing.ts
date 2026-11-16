@@ -32,9 +32,9 @@ import {
   fulfilStockRequest,
   requestStock,
 } from "@/lib/stock/requests";
+import { DAY_MS } from "@/lib/time";
 
 const HOUR_MS = 3_600_000;
-const DAY_MS = 24 * HOUR_MS;
 
 /** Request transfers get their own key range, apart from the seed's transfers. */
 const REQUEST_TRANSFER_KEYS = 1000;

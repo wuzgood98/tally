@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { isValidGtin } from "@/lib/barcode";
@@ -6,6 +6,7 @@ import { readCompanySettings } from "@/lib/company";
 import { connectPglite } from "@/lib/db/client";
 import type { Connection } from "@/lib/db/client";
 import {
+  notification,
   product,
   purchaseOrder,
   sale,
@@ -14,6 +15,7 @@ import {
   stockRequest,
   stockTransfer,
   stockTransferLine,
+  user,
 } from "@/lib/db/schema";
 import { seed } from "@/lib/db/seed";
 import {
@@ -33,10 +35,13 @@ let connection: Connection;
  */
 const SEED_TIMEOUT_MS = 180_000;
 
+const SEEDED_AT = "2026-11-12T12:00:00Z";
+const TODAY = "2026-11-12T00:00:00Z";
+
 beforeAll(async () => {
   connection = connectPglite();
   await connection.migrate();
-  await seed(connection.db, new Date("2026-11-12T12:00:00Z"));
+  await seed(connection.db, new Date(SEEDED_AT));
 }, SEED_TIMEOUT_MS);
 
 afterAll(async () => {
@@ -189,6 +194,42 @@ describe("seed", () => {
     for (const { barcode } of rows) {
       expect(isValidGtin(barcode ?? "")).toBe(true);
     }
+  });
+
+  it("dates notifications with their events and leaves only today's unread", async () => {
+    const unread = sql`${notification.readAt} is null`;
+
+    const [row] = await connection.db
+      .select({
+        future: sql<number>`count(*) filter (where ${notification.createdAt} > ${SEEDED_AT})::int`,
+        headOffice: sql<number>`count(*) filter (where ${unread} and ${user.email} = 'efua.asante@akwaaba.example')::int`,
+        stale: sql<number>`count(*) filter (where ${unread} and ${notification.createdAt} < ${TODAY})::int`,
+        total: sql<number>`count(*)::int`,
+        unread: sql<number>`count(*) filter (where ${unread})::int`,
+      })
+      .from(notification)
+      .innerJoin(user, sql`${user.id} = ${notification.userId}`);
+
+    expect(row).toMatchObject({ future: 0, stale: 0 });
+    expect(row?.total).toBeGreaterThan(20);
+    expect(row?.unread).toBeGreaterThan(0);
+    // Spintex's draft from this morning waits for head office's approval.
+    expect(row?.headOffice).toBeGreaterThan(0);
+  });
+
+  it("keeps notification ids in time order", async () => {
+    const rows = await connection.db
+      .select({ createdAt: notification.createdAt })
+      .from(notification)
+      .orderBy(asc(notification.id));
+
+    const behind = rows.filter(
+      (row, index) =>
+        index > 0 &&
+        row.createdAt < (rows[index - 1]?.createdAt ?? row.createdAt)
+    );
+
+    expect(behind).toEqual([]);
   });
 
   it("turns Ask Tally on, as head office, for the demo", async () => {
