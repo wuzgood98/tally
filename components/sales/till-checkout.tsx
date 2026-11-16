@@ -58,7 +58,7 @@ const changeLine = (
 };
 
 const ReceiptLines = ({ lines }: { readonly lines: readonly BasketLine[] }) => (
-  <ul className="border-line-strong figures grid gap-1 border-y border-dashed py-3 text-xs">
+  <ul className="border-line-strong figures grid grid-cols-1 gap-1 border-y border-dashed py-3 text-xs">
     {lines.length === 0 ? (
       <li className="text-ink-3">Scan the first item.</li>
     ) : (
@@ -151,7 +151,7 @@ export const TillCheckout = ({
     <div className="drop-shadow-receipt lg:sticky lg:top-20">
       <section
         aria-label="Receipt"
-        className="label-paper label-tear grid gap-4 px-5 pt-7 pb-5"
+        className="label-paper label-tear grid grid-cols-1 gap-4 px-5 pt-7 pb-5"
       >
         <div className="figures text-ink-3 text-2xs flex justify-between gap-3 tracking-widest uppercase">
           <span className="truncate">{storeName} · Till</span>
