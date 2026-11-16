@@ -509,6 +509,8 @@ export const CommandPalette = ({
     }
 
     if (command.kind === "sign-out") {
+      // Closed first: signing out may ask first (sales waiting at the till).
+      palette.close();
       await onSignOut();
 
       return;

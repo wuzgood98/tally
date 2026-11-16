@@ -22,15 +22,11 @@ import {
   saleLine,
   paymentMethodEnum,
 } from "@/lib/db/schema";
+import { MAX_SALE_LINES, MAX_SALE_QUANTITY } from "@/lib/limits";
 import { canSell } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
 import { applyMovement, nextDocumentNumber } from "@/lib/stock/ledger";
-
-export const MAX_SALE_LINES = 200;
-
-/** A sanity cap per line, so a barcode scanned into the quantity box is caught. */
-export const MAX_SALE_QUANTITY = 10_000;
 
 export const saleInput = z.object({
   branchId: z.string().min(1),
@@ -63,6 +59,11 @@ export const saleInput = z.object({
       "Each product can appear only once on a sale."
     ),
   paymentMethod: z.enum(paymentMethodEnum.enumValues),
+  /**
+   * The total the till showed, in pesewas. Kept beside the real total so a
+   * shelf price changed while the sale sat in an offline queue shows up.
+   */
+  expectedTotal: z.int().nonnegative().optional(),
 });
 
 export type SaleRawInput = z.input<typeof saleInput>;
@@ -208,6 +209,7 @@ const writeSale = async (
           branchId: input.branchId,
           cashierId: source.cashierId,
           clientRef: input.clientRef,
+          expectedTotal: input.expectedTotal ?? null,
           number,
           paymentMethod: input.paymentMethod,
           tillId: source.tillId,

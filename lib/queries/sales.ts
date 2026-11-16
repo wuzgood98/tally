@@ -90,6 +90,7 @@ export const getSale = async (id: number) => {
       cashier: sql<string | null>`coalesce(${user.name}, ${till.name})`,
       clientRef: sale.clientRef,
       createdAt: sale.createdAt,
+      expectedTotal: sale.expectedTotal,
       id: sale.id,
       number: sale.number,
       paymentMethod: sale.paymentMethod,

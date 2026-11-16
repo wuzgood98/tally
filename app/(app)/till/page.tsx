@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TillForm } from "@/components/sales/till-form";
+import { TillDataProvider } from "@/components/till/till-data-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { sellableBranchIds } from "@/lib/permissions";
 import { getCompanySettings } from "@/lib/queries/company";
@@ -60,11 +61,14 @@ const TillPage = async () => {
         }
         title="Till"
       />
-      <TillForm
-        defaultStoreId={defaultStoreId}
-        receiptFooter={company.receiptFooter}
-        stores={stores.map(({ id, name }) => ({ id, name }))}
-      />
+      <TillDataProvider userId={viewer.id}>
+        <TillForm
+          cashierId={viewer.id}
+          defaultStoreId={defaultStoreId}
+          receiptFooter={company.receiptFooter}
+          stores={stores.map(({ id, name }) => ({ id, name }))}
+        />
+      </TillDataProvider>
     </>
   );
 };

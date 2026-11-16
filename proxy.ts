@@ -28,10 +28,10 @@ export const proxy = (request: NextRequest) => {
 
 export const config = {
   matcher: [
-    // Public: sign-in, Terms and Privacy, auth and till APIs, Ask Tally's and the bell's APIs (which
+    // Public: sign-in, Terms and Privacy, auth and till APIs (the POS one and the till's own), Ask Tally's and the bell's APIs (which
     // answer 401 themselves), and the files browsers and crawlers fetch without a
     // session (icons, manifest, robots, sitemap, the social card and
     // security.txt).
-    "/((?!login|terms|privacy|api/auth|api/v1|api/ask|api/notifications|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icons/|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|\\.well-known/).*)",
+    "/((?!login|terms|privacy|api/auth|api/v1|api/till|api/ask|api/notifications|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icons/|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|\\.well-known/).*)",
   ],
 };

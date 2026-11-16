@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 
-import { signOut } from "@/app/login/actions";
+import { SignOutButton } from "@/components/shell/sign-out-guard";
 import { initialsOf } from "@/lib/badge";
 
 interface SidebarAccountProps {
@@ -33,14 +33,11 @@ export const SidebarAccount = ({ name, detail }: SidebarAccountProps) => (
         <span className="sr-only">, settings</span>
       </span>
     </Link>
-    <form action={signOut}>
-      <button
-        aria-label={`Sign out ${name}`}
-        className="press text-ink-3 hover:text-ink hover:bg-surface grid size-7 place-items-center rounded-md"
-        type="submit"
-      >
-        <LogOut aria-hidden="true" className="size-3.5" />
-      </button>
-    </form>
+    <SignOutButton
+      className="press text-ink-3 hover:text-ink hover:bg-surface grid size-7 place-items-center rounded-md"
+      label={`Sign out ${name}`}
+    >
+      <LogOut aria-hidden="true" className="size-3.5" />
+    </SignOutButton>
   </div>
 );

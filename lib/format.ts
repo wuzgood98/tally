@@ -60,6 +60,10 @@ export const formatCount = (value: number): string => count.format(value);
 export const formatUnits = (value: number): string =>
   `${count.format(value)} ${value === 1 ? "unit" : "units"}`;
 
+/** "1 sale", "1,200 sales". */
+export const formatSales = (value: number): string =>
+  `${count.format(value)} ${value === 1 ? "sale" : "sales"}`;
+
 /** +12 / −3, with a true minus sign. */
 export const formatSigned = (value: number): string =>
   value > 0 ? `+${count.format(value)}` : `−${count.format(Math.abs(value))}`;

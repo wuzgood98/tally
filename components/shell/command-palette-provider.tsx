@@ -7,10 +7,10 @@ import type { ReactNode } from "react";
 
 import { findPaletteResults } from "@/app/(app)/palette-action";
 import { setScope } from "@/app/(app)/scope-action";
-import { signOut } from "@/app/login/actions";
 import { CommandPalette } from "@/components/shell/command-palette";
 import type { AskSettings } from "@/components/shell/command-palette";
 import { useIsDesktop, useSidebar } from "@/components/shell/sidebar";
+import { useSignOut } from "@/components/shell/sign-out-guard";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
 import { parseTheme } from "@/lib/theme";
@@ -23,7 +23,7 @@ interface CommandPaletteProviderProps {
   readonly ask: AskSettings | null;
 }
 
-/** The palette wired to the app: Next's router and the sign-out action. */
+/** The palette wired to the app: Next's router and the guarded sign-out. */
 export const CommandPaletteProvider = ({
   groups,
   children,
@@ -36,6 +36,7 @@ export const CommandPaletteProvider = ({
   const { theme, setTheme } = useTheme();
 
   const desktop = useIsDesktop();
+  const signOutSafely = useSignOut();
 
   return (
     <CommandPalette
@@ -48,7 +49,7 @@ export const CommandPaletteProvider = ({
       onSetTheme={(next) => {
         setTheme(next);
       }}
-      onSignOut={signOut}
+      onSignOut={signOutSafely}
       onSwitchScope={async (next) => {
         const formData = new FormData();
         formData.set("scope", next);

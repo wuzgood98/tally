@@ -23,7 +23,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { DEFAULT_REORDER_POINT } from "../limits.ts";
+import { DEFAULT_REORDER_POINT, PRODUCT_UNITS } from "../limits.ts";
 
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -156,7 +156,7 @@ export const supplier = pgTable("supplier", {
 // Catalogue.
 // ---------------------------------------------------------------------------
 
-export const unitEnum = pgEnum("unit", ["each", "pack", "kg", "litre", "pair"]);
+export const unitEnum = pgEnum("unit", PRODUCT_UNITS);
 
 export const product = pgTable(
   "product",
@@ -460,6 +460,13 @@ export const sale = pgTable(
     paymentMethod: paymentMethodEnum("payment_method").notNull(),
     /** Sum of quantity × unit price over the lines, in pesewas. */
     total: integer("total").notNull(),
+    /**
+     * The total the in-app till showed when the sale was charged, in pesewas.
+     * A sale queued offline is priced when it reaches the server, so a shelf
+     * price changed in between makes this differ from `total`; the sale page
+     * flags the gap for a manager. Null for sales from a POS system.
+     */
+    expectedTotal: integer("expected_total"),
   },
   (table) => [
     uniqueIndex("sale_number_idx").on(table.number),
