@@ -46,15 +46,15 @@ export const HISTORY_PARAMS = {
   totalIs: "total.eq",
 } as const;
 
-const instant = z.iso.datetime({ offset: true });
+const isoDateTime = z.iso.datetime({ offset: true });
 
 export const historyQuery = z
   .object({
     /** Sales recorded at exactly this instant. */
-    at: instant.optional(),
+    at: isoDateTime.optional(),
     branchId: z.string().min(1),
     /** Sales at or after this instant. */
-    from: instant.optional(),
+    from: isoDateTime.optional(),
     /** A page of this many; left out, every sale in the (bounded) window. */
     limit: z.coerce.number().int().min(1).max(HISTORY_PAGE_MAX).optional(),
     offset: z.coerce.number().int().min(0).max(HISTORY_OFFSET_MAX).default(0),
@@ -67,7 +67,7 @@ export const historyQuery = z
       })
       .default({ direction: "desc", field: "createdAt" }),
     /** Sales before this instant. */
-    to: instant.optional(),
+    to: isoDateTime.optional(),
     /** Sales of exactly this total, in pesewas. */
     totalIs: z.coerce.number().int().nonnegative().optional(),
   })
@@ -104,15 +104,30 @@ export type ParsedHistory =
 
 const KNOWN = new Set<string>(Object.values(HISTORY_PARAMS));
 
-/** Reads the query string. A parameter that isn't on the list is an error, not ignored. */
+/** The one parameter that may repeat: each is another payment method. */
+const REPEATABLE = new Set<string>([HISTORY_PARAMS.payment]);
+
+/**
+ * Reads the query string. A parameter that isn't on the list, or one given
+ * twice that takes a single value, is an error, not ignored.
+ */
 export const parseHistoryParams = (params: URLSearchParams): ParsedHistory => {
-  const unknown = [...params.keys()].find((key) => !KNOWN.has(key));
+  const keys = [...params.keys()];
+  const unknown = keys.find((key) => !KNOWN.has(key));
 
   if (unknown !== undefined) {
     return {
       message: `${unknown}: not a filter this list supports.`,
       ok: false,
     };
+  }
+
+  const repeated = keys.find(
+    (key, index) => !REPEATABLE.has(key) && keys.indexOf(key) !== index
+  );
+
+  if (repeated !== undefined) {
+    return { message: `${repeated}: give it once.`, ok: false };
   }
 
   const sortText = params.get(HISTORY_PARAMS.sort);

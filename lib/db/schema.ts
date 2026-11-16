@@ -23,7 +23,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { DEFAULT_REORDER_POINT } from "../limits.ts";
+import { DEFAULT_REORDER_POINT, PRODUCT_UNITS } from "../limits.ts";
 
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -156,7 +156,7 @@ export const supplier = pgTable("supplier", {
 // Catalogue.
 // ---------------------------------------------------------------------------
 
-export const unitEnum = pgEnum("unit", ["each", "pack", "kg", "litre", "pair"]);
+export const unitEnum = pgEnum("unit", PRODUCT_UNITS);
 
 export const product = pgTable(
   "product",

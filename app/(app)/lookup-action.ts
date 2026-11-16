@@ -5,6 +5,7 @@ import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { product, stockLevel } from "@/lib/db/schema";
 import type { Unit } from "@/lib/db/schema";
+import { LOOKUP_MATCHES_MAX, LOOKUP_TEXT_MAX } from "@/lib/limits";
 import { canBrowseBackOffice } from "@/lib/permissions";
 import { requireViewer } from "@/lib/session";
 
@@ -28,8 +29,6 @@ export interface LookupResult {
   /** Otherwise, name matches to choose from. */
   readonly matches: readonly PickedProduct[];
 }
-
-const MAX_MATCHES = 8;
 
 const withStock = async (
   rows: readonly (Omit<PickedProduct, "averageCost" | "onHand"> & {
@@ -84,7 +83,7 @@ const columns = {
 export const lookupProducts = async (text: string): Promise<LookupResult> => {
   const viewer = await requireViewer();
   const seesCosts = canBrowseBackOffice(viewer);
-  const query = text.trim().slice(0, 100);
+  const query = text.trim().slice(0, LOOKUP_TEXT_MAX);
 
   if (!query) {
     return { exact: null, matches: [] };
@@ -117,7 +116,7 @@ export const lookupProducts = async (text: string): Promise<LookupResult> => {
     .from(product)
     .where(and(eq(product.active, true), ilike(product.name, pattern)))
     .orderBy(asc(product.name))
-    .limit(MAX_MATCHES);
+    .limit(LOOKUP_MATCHES_MAX);
 
   return { exact: null, matches: await withStock(rows, seesCosts) };
 };

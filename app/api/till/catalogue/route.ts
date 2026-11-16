@@ -17,7 +17,7 @@ export const GET = async (): Promise<Response> => {
   }
 
   return Response.json(
-    { products: await getTillCatalogue(getDb()) },
+    { products: await getTillCatalogue(getDb(), caller) },
     { headers: NO_STORE }
   );
 };

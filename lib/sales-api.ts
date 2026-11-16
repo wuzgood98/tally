@@ -9,9 +9,10 @@ import { z } from "zod";
 
 import type { Db } from "@/lib/db/client";
 import { product } from "@/lib/db/schema";
+import { MAX_SALE_LINES } from "@/lib/limits";
 import { StockError } from "@/lib/stock/errors";
 import { PAYMENT_METHODS } from "@/lib/stock/payment";
-import { MAX_SALE_LINES, recordTillSale } from "@/lib/stock/sales";
+import { recordTillSale } from "@/lib/stock/sales";
 import type { SaleResult, TillIdentity } from "@/lib/stock/sales";
 
 const apiLine = z

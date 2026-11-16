@@ -7,15 +7,14 @@
 
 import type { TillCollections } from "@/lib/till/client/collections";
 import { requestJson } from "@/lib/till/client/http";
-import { chargeBody, draftSale } from "@/lib/till/draft";
-import type { ChargeInput } from "@/lib/till/draft";
-import { stockLevelKey, tillSaleReply } from "@/lib/till/schema";
-import type { TillSaleReply } from "@/lib/till/schema";
+import { draftSale } from "@/lib/till/draft";
+import { stockLevelKey, tillCharge, tillSaleReply } from "@/lib/till/schema";
+import type { TillCharge, TillSaleReply } from "@/lib/till/schema";
 
 /** The optimistic step, shared with the offline queue. Must stay synchronous. */
 export const applyCharge = (
   { sales, stockLevels }: TillCollections,
-  input: ChargeInput
+  input: TillCharge
 ): void => {
   sales.insert(draftSale(input, new Date()));
 
@@ -48,9 +47,10 @@ export const confirmCharge = async (
   }
 };
 
-export const postCharge = async (input: ChargeInput): Promise<TillSaleReply> =>
+/** Posts a charge. Parsed first, so only its own fields are sent: ids and quantities, never prices. */
+export const postCharge = async (input: TillCharge): Promise<TillSaleReply> =>
   await requestJson("/api/till/sales", tillSaleReply, {
-    body: JSON.stringify(chargeBody(input)),
+    body: JSON.stringify(tillCharge.parse(input)),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });

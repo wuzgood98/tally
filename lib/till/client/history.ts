@@ -30,6 +30,7 @@ import {
   historyReply,
   historySale,
 } from "@/lib/till/history-contract";
+import { MINUTE_MS } from "@/lib/time";
 
 export const HISTORY_COLLECTION_ID = "till-sale-history";
 
@@ -45,13 +46,13 @@ export class UnsupportedHistoryQueryError extends Error {
 }
 
 /** A time as the endpoint takes it: the ISO string the browser compares by. */
-const instant = z
+const asIsoTime = z
   .union([z.iso.datetime({ offset: true }), z.date()])
   .transform((value) => new Date(value).toISOString());
 
-const text = z.string().min(1);
-const methods = z.array(text).min(1);
-const amount = z.int().nonnegative();
+const nonEmptyText = z.string().min(1);
+const nonEmptyList = z.array(nonEmptyText).min(1);
+const pesewas = z.int().nonnegative();
 
 const isSortField = (
   field: string
@@ -67,43 +68,43 @@ const addFilter = (
 
   switch (name) {
     case "branchId.eq": {
-      params.set(HISTORY_PARAMS.branch, text.parse(value));
+      params.set(HISTORY_PARAMS.branch, nonEmptyText.parse(value));
 
       return;
     }
 
     case "createdAt.gte": {
-      params.set(HISTORY_PARAMS.from, instant.parse(value));
+      params.set(HISTORY_PARAMS.from, asIsoTime.parse(value));
 
       return;
     }
 
     case "createdAt.lt": {
-      params.set(HISTORY_PARAMS.to, instant.parse(value));
+      params.set(HISTORY_PARAMS.to, asIsoTime.parse(value));
 
       return;
     }
 
     case "createdAt.eq": {
-      params.set(HISTORY_PARAMS.at, instant.parse(value));
+      params.set(HISTORY_PARAMS.at, asIsoTime.parse(value));
 
       return;
     }
 
     case "total.eq": {
-      params.set(HISTORY_PARAMS.totalIs, String(amount.parse(value)));
+      params.set(HISTORY_PARAMS.totalIs, String(pesewas.parse(value)));
 
       return;
     }
 
     case "paymentMethod.eq": {
-      params.append(HISTORY_PARAMS.payment, text.parse(value));
+      params.append(HISTORY_PARAMS.payment, nonEmptyText.parse(value));
 
       return;
     }
 
     case "paymentMethod.in": {
-      for (const method of methods.parse(value)) {
+      for (const method of nonEmptyList.parse(value)) {
         params.append(HISTORY_PARAMS.payment, method);
       }
 
@@ -244,7 +245,7 @@ export const createHistoryCollection = (queryClient: QueryClient) => {
       queryKey: historyKey,
       schema: historySale,
       select: (reply) => reply.sales,
-      staleTime: 60_000,
+      staleTime: MINUTE_MS,
       syncMode: "on-demand",
     })
   );

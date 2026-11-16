@@ -22,15 +22,11 @@ import {
   saleLine,
   paymentMethodEnum,
 } from "@/lib/db/schema";
+import { MAX_SALE_LINES, MAX_SALE_QUANTITY } from "@/lib/limits";
 import { canSell } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
 import { applyMovement, nextDocumentNumber } from "@/lib/stock/ledger";
-
-export const MAX_SALE_LINES = 200;
-
-/** A sanity cap per line, so a barcode scanned into the quantity box is caught. */
-export const MAX_SALE_QUANTITY = 10_000;
 
 export const saleInput = z.object({
   branchId: z.string().min(1),

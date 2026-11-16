@@ -3,32 +3,19 @@
  * till's key (`Authorization: Bearer tly_…`), which also fixes the store.
  *
  * 201 with the new sale; 200 with `duplicate: true` when the till resends a
- * sale it already sent (same clientRef); 400 / 401 / 404 with
+ * sale it already sent (same clientRef); 400 / 401 / 403 / 404 / 409 with
  * `{ error: { code, message } }` otherwise.
  */
 
 import { getDb, databaseReady } from "@/lib/db";
-import { jsonFailure, STOCK_ERROR_STATUS } from "@/lib/http";
+import {
+  answerStockErrors,
+  invalidBody,
+  jsonFailure,
+  readBody,
+} from "@/lib/http";
 import { apiSaleBody, postTillSale } from "@/lib/sales-api";
-import { StockError } from "@/lib/stock/errors";
 import { authenticateTill } from "@/lib/tills";
-
-const failure = (status: number, code: string, message: string): Response =>
-  jsonFailure(
-    status,
-    code,
-    message,
-    status === 401 ? { "WWW-Authenticate": "Bearer" } : {}
-  );
-
-/** The body, parsed, or null when it isn't JSON at all. */
-const readSaleBody = async (request: Request) => {
-  try {
-    return apiSaleBody.safeParse(await request.json());
-  } catch {
-    return null;
-  }
-};
 
 export const POST = async (request: Request): Promise<Response> => {
   await databaseReady();
@@ -40,33 +27,24 @@ export const POST = async (request: Request): Promise<Response> => {
   );
 
   if (identity === null) {
-    return failure(
+    return jsonFailure(
       401,
       "unauthorized",
-      "Send a valid till key as a Bearer token."
+      "Send a valid till key as a Bearer token.",
+      { "WWW-Authenticate": "Bearer" }
     );
   }
 
-  const body = await readSaleBody(request);
+  const body = await readBody(request, apiSaleBody);
 
-  if (body === null) {
-    return failure(400, "invalid_input", "The body must be JSON.");
+  if (body === undefined || !body.success) {
+    return invalidBody(body?.error);
   }
 
-  if (!body.success) {
-    const [issue] = body.error.issues;
+  const sale = body.data;
 
-    return failure(
-      400,
-      "invalid_input",
-      issue === undefined
-        ? "The body must be JSON."
-        : `${issue.path.join(".") || "body"}: ${issue.message}`
-    );
-  }
-
-  try {
-    const recorded = await postTillSale(db, identity, body.data);
+  return await answerStockErrors(async () => {
+    const recorded = await postTillSale(db, identity, sale);
 
     return Response.json(
       {
@@ -79,11 +57,5 @@ export const POST = async (request: Request): Promise<Response> => {
       },
       { status: recorded.duplicate ? 200 : 201 }
     );
-  } catch (error) {
-    if (!(error instanceof StockError)) {
-      throw error;
-    }
-
-    return failure(STOCK_ERROR_STATUS[error.code], error.code, error.message);
-  }
+  });
 };

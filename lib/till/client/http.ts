@@ -1,16 +1,22 @@
 /**
  * Fetching the till endpoints from the browser. Every failure becomes a
- * `TillHttpError` carrying the status, so the caller (and later the offline
- * queue) can tell a refusal worth keeping (400, 403, 404) from one worth
- * retrying (401, 5xx, no connection at all: status 0).
+ * `TillHttpError` carrying the status, so the caller and the offline queue
+ * can tell a refusal for good (`refused`: one of `REFUSED_STATUSES`, in
+ * Tally's own JSON) from one worth retrying (401, 5xx, an answer from
+ * something other than Tally, no connection at all: status 0).
  */
 
 import { z } from "zod";
+
+import { REFUSED_STATUSES } from "@/lib/http";
 
 /** The `{ error: { code, message } }` every till endpoint answers a failure with. */
 const failureBody = z.object({
   error: z.object({ code: z.string(), message: z.string() }),
 });
+
+/** The code for a failure that wasn't Tally's JSON: a proxy's or a host's error page. */
+const NOT_FROM_TALLY = "http_error";
 
 export class TillHttpError extends Error {
   /** HTTP status; 0 when the request never got an answer (offline, DNS, CORS). */
@@ -23,17 +29,20 @@ export class TillHttpError extends Error {
     this.status = status;
     this.code = code;
   }
+
+  /**
+   * True when Tally itself will never accept the request as it stands. A 4xx
+   * page from something in between (a proxy, the host) isn't Tally's answer,
+   * so it's worth trying again.
+   */
+  get refused(): boolean {
+    return REFUSED_STATUSES.has(this.status) && this.code !== NOT_FROM_TALLY;
+  }
 }
 
 const OFFLINE_MESSAGE =
   "Couldn't reach Tally. Check the connection and try again.";
 
-/**
- * Sends a request and parses the JSON answer with `schema`. Redirects are
- * errors: the endpoints never redirect, so one means something in between
- * (a sign-in page, a captive portal) answered instead, and that must never
- * look like success.
- */
 /** The JSON body parsed with `schema`; no body (an HTML error page, an empty reply) fails the parse. */
 const parseJson = async <T>(
   response: Response,
@@ -56,11 +65,17 @@ const failureFrom = async (response: Response): Promise<TillHttpError> => {
       )
     : new TillHttpError(
         response.status,
-        "http_error",
+        NOT_FROM_TALLY,
         `Tally answered ${String(response.status)}.`
       );
 };
 
+/**
+ * Sends a request and parses the JSON answer with `schema`. Redirects are
+ * errors: the endpoints never redirect, so one means something in between
+ * (a sign-in page, a captive portal) answered instead, and that must never
+ * look like success.
+ */
 export const requestJson = async <T>(
   url: string,
   schema: z.ZodType<T>,

@@ -10,8 +10,7 @@
  */
 
 import { getDb } from "@/lib/db";
-import { jsonFailure, NO_STORE, STOCK_ERROR_STATUS } from "@/lib/http";
-import { StockError } from "@/lib/stock/errors";
+import { answerStockErrors, jsonFailure, NO_STORE } from "@/lib/http";
 import { getSaleHistory } from "@/lib/till/api";
 import { tillCaller } from "@/lib/till/caller";
 import { parseHistoryParams } from "@/lib/till/history-contract";
@@ -29,20 +28,12 @@ export const GET = async (request: Request): Promise<Response> => {
     return jsonFailure(400, "invalid_input", parsed.message);
   }
 
-  try {
-    return Response.json(
-      { sales: await getSaleHistory(getDb(), caller, parsed.query) },
-      { headers: NO_STORE }
-    );
-  } catch (error) {
-    if (!(error instanceof StockError)) {
-      throw error;
-    }
+  const { query } = parsed;
 
-    return jsonFailure(
-      STOCK_ERROR_STATUS[error.code],
-      error.code,
-      error.message
-    );
-  }
+  return await answerStockErrors(async () =>
+    Response.json(
+      { sales: await getSaleHistory(getDb(), caller, query) },
+      { headers: NO_STORE }
+    )
+  );
 };

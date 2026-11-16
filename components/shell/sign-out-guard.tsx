@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { formatCount } from "@/lib/format";
+import { formatSales } from "@/lib/format";
 import { countQueuedSales } from "@/lib/till/client/outbox";
 
 type RequestSignOut = () => Promise<void>;
@@ -29,14 +29,11 @@ export const useSignOut = (): RequestSignOut => {
   return request;
 };
 
-const salesWord = (count: number): string =>
-  count === 1 ? "1 sale" : `${formatCount(count)} sales`;
-
 /** "1 sale … hasn't … It stays … is … it" or the plural, in one place. */
 const waitingWarning = (count: number): string =>
   count === 1
     ? "1 sale you charged on this device hasn't reached Tally yet. It stays here and is sent the next time you sign in on this device, with a connection. Until then, Tally's stock and sales don't include it."
-    : `${salesWord(count)} you charged on this device haven't reached Tally yet. They stay here and are sent the next time you sign in on this device, with a connection. Until then, Tally's stock and sales don't include them.`;
+    : `${formatSales(count)} you charged on this device haven't reached Tally yet. They stay here and are sent the next time you sign in on this device, with a connection. Until then, Tally's stock and sales don't include them.`;
 
 /**
  * Every way out of the app (the sidebar, the phone header, the palette) goes
@@ -85,7 +82,7 @@ export const SignOutGuard = ({
         }}
         open={queued !== null}
         pendingLabel="Signing out…"
-        title={`Sign out with ${salesWord(queued ?? 0)} waiting to send?`}
+        title={`Sign out with ${formatSales(queued ?? 0)} waiting to send?`}
       />
     </SignOutContext>
   );

@@ -6,9 +6,8 @@
  */
 
 import type { LookupResult, PickedProduct } from "@/app/(app)/lookup-action";
+import { LOOKUP_MATCHES_MAX, LOOKUP_TEXT_MAX } from "@/lib/limits";
 import type { TillProduct, TillStockLevel } from "@/lib/till/schema";
-
-const MAX_MATCHES = 8;
 
 /** The picker's shape: the till never knows costs, and on-hand comes from the levels. */
 export const toPicked = (
@@ -31,7 +30,7 @@ export const lookupTillProducts = (
   products: readonly TillProduct[],
   levels: readonly TillStockLevel[]
 ): LookupResult => {
-  const query = text.trim().slice(0, 100);
+  const query = text.trim().slice(0, LOOKUP_TEXT_MAX);
 
   if (query === "") {
     return { exact: null, matches: [] };
@@ -52,7 +51,7 @@ export const lookupTillProducts = (
   const matches = products
     .filter((item) => item.name.toLocaleLowerCase().includes(name))
     .toSorted((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
-    .slice(0, MAX_MATCHES)
+    .slice(0, LOOKUP_MATCHES_MAX)
     .map((item) => toPicked(item, levels));
 
   return { exact: null, matches };

@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { product, sale } from "@/lib/db/schema";
 import { receiveGoods } from "@/lib/stock/receive";
@@ -9,6 +10,7 @@ import {
   getTillCatalogue,
   getTillSales,
   getTillStockLevels,
+  tillAccess,
   tillStoreIds,
 } from "@/lib/till/api";
 import {
@@ -74,7 +76,7 @@ describe("till reads", () => {
   });
 
   it("serves active products with shelf prices and no costs", async () => {
-    const products = await getTillCatalogue(world.db);
+    const products = await getTillCatalogue(world.db, world.spintexCashier);
 
     expect(new Set(products.map((item) => item.id))).toEqual(
       new Set([world.products.rice, world.products.kettle])
@@ -85,6 +87,9 @@ describe("till reads", () => {
     }
 
     expect(() => tillCatalogueReply.parse({ products })).not.toThrow();
+    expect(await getTillCatalogue(world.db, world.spintexStorekeeper)).toEqual(
+      []
+    );
   });
 
   it("gives a cashier only their own store's balances", async () => {
@@ -101,6 +106,67 @@ describe("till reads", () => {
     expect(
       await getTillStockLevels(world.db, world.spintexStorekeeper)
     ).toEqual([]);
+  });
+});
+
+/** The status and error code of a reply `tillAccess` sent instead of a person. */
+const refusal = async (
+  reply: Response | { readonly id: string }
+): Promise<readonly [number, string] | null> => {
+  if (!(reply instanceof Response)) {
+    return null;
+  }
+
+  const body: unknown = await reply.json();
+
+  const { code } = z
+    .object({ error: z.object({ code: z.string() }) })
+    .parse(body).error;
+
+  return [reply.status, code];
+};
+
+describe("who may use the till endpoints", () => {
+  it("lets in someone with a till", async () => {
+    expect(
+      await tillAccess(world.db, world.spintexCashier, world.spintexCashier.id)
+    ).toBe(world.spintexCashier);
+  });
+
+  it("asks a signed-out till to sign in again", async () => {
+    expect(await refusal(await tillAccess(world.db, null))).toEqual([
+      401,
+      "unauthorized",
+    ]);
+  });
+
+  it("hides the endpoints from someone with no till", async () => {
+    expect(
+      await refusal(await tillAccess(world.db, world.spintexStorekeeper))
+    ).toEqual([404, "not_found"]);
+  });
+
+  it("holds a sale charged by someone else, even when the person signed in has no till", async () => {
+    // A storekeeper signed in on the till's device: the queued sale must wait
+    // for its cashier (401), not be refused for good (404).
+    expect(
+      await refusal(
+        await tillAccess(
+          world.db,
+          world.spintexStorekeeper,
+          world.spintexCashier.id
+        )
+      )
+    ).toEqual([401, "wrong_user"]);
+    expect(
+      await refusal(
+        await tillAccess(
+          world.db,
+          world.spintexManager,
+          world.spintexCashier.id
+        )
+      )
+    ).toEqual([401, "wrong_user"]);
   });
 });
 
@@ -160,6 +226,24 @@ describe("charging from the till", () => {
     expect(await onHand(world.db, SPINTEX, world.products.kettle)).toBe(after);
   });
 
+  it("never hands back someone else's sale for a reused reference", async () => {
+    const body = {
+      branchId: SPINTEX,
+      clientRef: nextRef(),
+      expectedTotal: 15_000,
+      lines: [{ productId: world.products.rice, quantity: 1 }],
+      paymentMethod: "cash" as const,
+    };
+
+    await chargeTillSale(world.db, world.spintexCashier, body);
+
+    const error = await rejection(
+      chargeTillSale(world.db, world.spintexManager, body)
+    );
+
+    expect(error.code).toBe("conflict");
+  });
+
   it("charges the shelf price and keeps the till's total beside it", async () => {
     // The price went up while the sale sat in the till's offline queue.
     await world.db
@@ -212,7 +296,7 @@ describe("the till's sales list", () => {
     const sales = await getTillSales(world.db, world.spintexCashier);
 
     expect(() => tillSalesReply.parse({ sales })).not.toThrow();
-    expect(sales.map((item) => item.units)).toEqual([1, 1, 2]);
+    expect(sales.map((item) => item.units)).toEqual([1, 1, 1, 2]);
     expect(new Set(sales.map((item) => item.paymentMethod))).toEqual(
       new Set(["mobile_money", "card", "cash"])
     );

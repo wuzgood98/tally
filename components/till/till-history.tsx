@@ -1,9 +1,9 @@
 "use client";
 
 import { and, eq, gte, lt, useLiveQuery } from "@tanstack/react-db";
-import Link from "next/link";
 import { useState } from "react";
 
+import { SaleRow } from "@/components/till/sale-row";
 import { useTillData } from "@/components/till/till-data-provider";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -12,10 +12,7 @@ import { Panel } from "@/components/ui/panel";
 import { Select } from "@/components/ui/select";
 import { labelledOptions, namedOptions } from "@/components/ui/select-options";
 import type { PaymentMethod } from "@/lib/db/schema";
-import { formatCount, formatTime } from "@/lib/format";
-import { formatCedis } from "@/lib/money";
 import { PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/stock/payment";
-import type { HistorySale } from "@/lib/till/history-contract";
 import { DAY_MS } from "@/lib/time";
 
 const PAGE = 20;
@@ -48,30 +45,6 @@ const dayWindow = (day: string) => {
     to: new Date(start.getTime() + DAY_MS).toISOString(),
   };
 };
-
-const HistoryRow = ({ sale }: { readonly sale: HistorySale }) => (
-  <li className="border-line flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b px-4 py-2.5 text-sm last:border-b-0">
-    <time
-      className="text-ink-3 figures w-12 shrink-0 text-xs"
-      dateTime={sale.createdAt}
-    >
-      {formatTime(new Date(sale.createdAt))}
-    </time>
-    <Link
-      className="font-mono text-xs hover:underline"
-      href={`/sales/${String(sale.id)}`}
-    >
-      {sale.number}
-    </Link>
-    <span className="text-ink-3 text-xs">
-      {formatCount(sale.units)} {sale.units === 1 ? "item" : "items"} ·{" "}
-      {PAYMENT_LABELS[sale.paymentMethod]}
-    </span>
-    <span className="figures ml-auto font-medium">
-      {formatCedis(sale.total)}
-    </span>
-  </li>
-);
 
 interface Option {
   readonly id: string;
@@ -217,7 +190,7 @@ export const TillHistory = ({
         {sales.length > 0 ? (
           <ul>
             {sales.map((sale) => (
-              <HistoryRow key={sale.id} sale={sale} />
+              <SaleRow key={sale.id} sale={sale} />
             ))}
           </ul>
         ) : null}

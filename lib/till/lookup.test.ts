@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { chargeBody, draftSale } from "@/lib/till/draft";
+import { draftSale } from "@/lib/till/draft";
 import { lookupTillProducts } from "@/lib/till/lookup";
+import { tillCharge } from "@/lib/till/schema";
 import type { TillProduct, TillStockLevel } from "@/lib/till/schema";
 
 const product = (
@@ -96,7 +97,11 @@ describe("a charged sale before the server answers", () => {
   });
 
   it("sends ids and quantities, never prices", () => {
-    const body = chargeBody(input);
+    // A line that picked up a price on the way is sent without it.
+    const body = tillCharge.parse({
+      ...input,
+      lines: input.lines.map((line) => ({ ...line, sellPrice: 1000 })),
+    });
 
     expect(body.lines).toEqual([
       { productId: 1, quantity: 2 },

@@ -12,15 +12,13 @@
  * What the cashier sees: if Tally answers within a few seconds the sale is
  * "recorded" with its number, as before. Otherwise it is "queued": saved on
  * this till, the basket clears, and the sale gets its number when it syncs.
- * A sale Tally refuses for good (400, 403, 404, 409) while the customer
- * waits is an error on screen; after they've gone, it goes to the
+ * A sale Tally refuses for good (`REFUSED_STATUSES` in `lib/http.ts`) while
+ * the customer waits is an error on screen; after they've gone, it goes to the
  * needs-attention list instead of vanishing.
  */
 
 import {
   BroadcastChannelLeader,
-  IndexedDBAdapter,
-  LocalStorageAdapter,
   NonRetriableError,
   startOfflineExecutor,
   WebLocksLeader,
@@ -43,7 +41,7 @@ import { TILL_COLLECTION_IDS } from "@/lib/till/client/collections";
 import type { TillCollections } from "@/lib/till/client/collections";
 import { TillHttpError } from "@/lib/till/client/http";
 import { createBrowserOnlineDetector } from "@/lib/till/client/online";
-import { outboxName } from "@/lib/till/client/outbox";
+import { outboxName, outboxStorage } from "@/lib/till/client/outbox";
 import { tillCharge } from "@/lib/till/schema";
 import type { TillCharge, TillSaleReply } from "@/lib/till/schema";
 
@@ -51,9 +49,6 @@ export const RECORD_SALE = "recordSale";
 
 /** What the queue hands a mutation function: the transaction, and its idempotency key. */
 type QueuedSale = Parameters<OfflineConfig["mutationFns"][string]>[0];
-
-/** Statuses that mean Tally will never accept this sale as it stands. */
-const REFUSED = new Set([400, 403, 404, 409, 422]);
 
 /** How long the cashier waits for Tally before the sale counts as queued. */
 export const ONLINE_GRACE_MS = 5000;
@@ -87,16 +82,7 @@ export const browserPlumbing = async (
   userId: string
 ): Promise<SyncPlumbing> => {
   const name = outboxName(userId);
-  let storage: StorageAdapter | undefined;
   let leaderElection: LeaderElection | undefined;
-
-  const indexedDb = await IndexedDBAdapter.probe();
-
-  if (indexedDb.available) {
-    storage = new IndexedDBAdapter(name);
-  } else if (LocalStorageAdapter.probe().available) {
-    storage = new LocalStorageAdapter(`${name}:`);
-  }
 
   if (WebLocksLeader.isSupported()) {
     leaderElection = new WebLocksLeader(name);
@@ -107,7 +93,7 @@ export const browserPlumbing = async (
   return {
     leaderElection,
     onlineDetector: createBrowserOnlineDetector(),
-    storage,
+    storage: await outboxStorage(userId),
   };
 };
 
@@ -170,8 +156,8 @@ export const createTillSync = ({
   plumbing,
   graceMs = ONLINE_GRACE_MS,
 }: TillSyncOptions) => {
-  /** Charges the cashier is still waiting on, so a refusal shows on screen instead. */
-  const live = new Set<string>();
+  /** Charges the customer is still waiting at the till for, so a refusal shows on screen instead. */
+  const customerWaiting = new Set<string>();
   const replies = new Map<string, TillSaleReply>();
   const listeners = new Set<() => void>();
   let executor: OfflineExecutor | null = null;
@@ -259,8 +245,8 @@ export const createTillSync = ({
     try {
       reply = await postCharge(input);
     } catch (error) {
-      if (error instanceof TillHttpError && REFUSED.has(error.status)) {
-        if (!live.has(input.clientRef)) {
+      if (error instanceof TillHttpError && error.refused) {
+        if (!customerWaiting.has(input.clientRef)) {
           await keepForAttention(input, error.message);
         }
 
@@ -375,7 +361,7 @@ export const createTillSync = ({
     }
 
     const running = executor;
-    live.add(input.clientRef);
+    customerWaiting.add(input.clientRef);
     let settledYet = false;
 
     const transaction = running.createOfflineTransaction({
@@ -389,13 +375,19 @@ export const createTillSync = ({
       applyCharge(collections, input);
     });
 
-    const settled = transaction
-      .commit()
-      .then(() => recorded(input.clientRef))
-      .finally(() => {
+    const settle = async (): Promise<ChargeOutcome> => {
+      try {
+        await transaction.commit();
+
+        return recorded(input.clientRef);
+      } finally {
         settledYet = true;
         refreshSoon();
-      });
+      }
+    };
+
+    // Not awaited yet: it races the outbox below.
+    const settled = settle();
 
     refreshSoon();
 
@@ -410,7 +402,7 @@ export const createTillSync = ({
         whenQueued(running, transaction.id, () => settledYet),
       ]);
     } finally {
-      live.delete(input.clientRef);
+      customerWaiting.delete(input.clientRef);
       refreshSoon();
     }
   };

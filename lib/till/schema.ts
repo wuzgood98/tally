@@ -9,20 +9,8 @@
 
 import { z } from "zod";
 
-import type { Unit } from "@/lib/db/schema";
+import { MAX_SALE_LINES, MAX_SALE_QUANTITY, PRODUCT_UNITS } from "@/lib/limits";
 import { PAYMENT_METHODS } from "@/lib/stock/payment";
-
-const UNITS = [
-  "each",
-  "pack",
-  "kg",
-  "litre",
-  "pair",
-] as const satisfies readonly Unit[];
-
-/** Kept in step with `MAX_SALE_LINES` and `MAX_SALE_QUANTITY` in `lib/stock/sales.ts`. */
-const MAX_LINES = 200;
-const MAX_QUANTITY = 10_000;
 
 /** A product the till can sell: what a scan or a search needs, and the shelf price. */
 export const tillProduct = z.object({
@@ -32,7 +20,7 @@ export const tillProduct = z.object({
   /** Shelf price including VAT, in pesewas. */
   sellPrice: z.int().nonnegative(),
   sku: z.string(),
-  unit: z.enum(UNITS),
+  unit: z.enum(PRODUCT_UNITS),
 });
 
 export type TillProduct = z.output<typeof tillProduct>;
@@ -72,27 +60,6 @@ export const tillSale = z.object({
 
 export type TillSale = z.output<typeof tillSale>;
 
-/** What the till posts to charge a sale. Prices are never sent: the server charges the shelf price. */
-export const tillSaleBody = z.object({
-  branchId: z.string().min(1),
-  /** Who charged it. The server refuses (401) if someone else is signed in. */
-  cashierId: z.string().min(1),
-  clientRef: z.string().trim().min(8).max(64),
-  expectedTotal: z.int().nonnegative(),
-  lines: z
-    .array(
-      z.object({
-        productId: z.int().positive(),
-        quantity: z.int().positive().max(MAX_QUANTITY),
-      })
-    )
-    .min(1)
-    .max(MAX_LINES),
-  paymentMethod: z.enum(PAYMENT_METHODS),
-});
-
-export type TillSaleBody = z.output<typeof tillSaleBody>;
-
 /** The server's answer: the sale as recorded and the stores' new balances for its products. */
 export const tillSaleReply = z.object({
   /** True when this clientRef was already recorded: nothing new was written. */
@@ -112,24 +79,27 @@ export const tillStockLevelsReply = z.object({
 export const tillSalesReply = z.object({ sales: z.array(tillSale) });
 
 /**
- * A charge as the till queues it: everything needed to send it again after a
- * reload, so it is parsed again when it comes back out of the browser's
- * storage rather than trusted.
+ * A charge: what the till queues and posts to `/api/till/sales`. Everything
+ * needed to send it again after a reload, so it is parsed again when it comes
+ * back out of the browser's storage rather than trusted, and parsed before it
+ * is sent, which drops anything else. Prices are never sent: the server
+ * charges the shelf price.
  */
 export const tillCharge = z.object({
   branchId: z.string().min(1),
+  /** Who charged it. The server holds it (401) if someone else is signed in. */
   cashierId: z.string().min(1),
-  clientRef: z.string().min(8).max(64),
+  clientRef: z.string().trim().min(8).max(64),
   expectedTotal: z.int().nonnegative(),
   lines: z
     .array(
       z.object({
         productId: z.int().positive(),
-        quantity: z.int().positive().max(MAX_QUANTITY),
+        quantity: z.int().positive().max(MAX_SALE_QUANTITY),
       })
     )
     .min(1)
-    .max(MAX_LINES),
+    .max(MAX_SALE_LINES),
   paymentMethod: z.enum(PAYMENT_METHODS),
 });
 

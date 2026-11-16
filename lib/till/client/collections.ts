@@ -23,6 +23,7 @@ import {
   tillStockLevel,
   tillStockLevelsReply,
 } from "@/lib/till/schema";
+import { MINUTE_MS } from "@/lib/time";
 
 /** Collection ids. Stable, because the offline queue (batch 3) finds collections by id. */
 export const TILL_COLLECTION_IDS = {
@@ -30,8 +31,6 @@ export const TILL_COLLECTION_IDS = {
   sales: "till-sales",
   stockLevels: "till-stock-levels",
 } as const;
-
-const MINUTE_MS = 60_000;
 
 export const createTillCollections = (queryClient: QueryClient) => {
   const products = createCollection(

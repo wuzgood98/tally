@@ -4,23 +4,24 @@
  * GET: today's sales the signed-in person rang up, for the till's sales
  * collection.
  *
- * POST: charge a sale (`tillSaleBody`). The till's offline queue sends it, and
+ * POST: charge a sale (`tillCharge`). The till's offline queue sends it, and
  * may send it again after a dropped connection or a reload, so it is
  * idempotent by clientRef: 201 with the sale, 200 with `duplicate: true` for
  * one already recorded. A sale charged by someone other than the person now
- * signed in gets 401 `wrong_user`, which the queue holds on to until that
- * person signs in again; it is never recorded against someone else. 400 / 403
- * / 404 are permanent refusals.
+ * signed in gets 401 `wrong_user` before anything else is checked, which the
+ * queue holds on to until that person signs in again; it is never recorded
+ * against someone else. `REFUSED_STATUSES` (`lib/http.ts`) are permanent
+ * refusals.
  */
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { getDb } from "@/lib/db";
-import { jsonFailure, NO_STORE, STOCK_ERROR_STATUS } from "@/lib/http";
-import { StockError } from "@/lib/stock/errors";
+import { answerStockErrors, invalidBody, NO_STORE, readBody } from "@/lib/http";
 import { chargeTillSale, getTillSales } from "@/lib/till/api";
 import { tillCaller } from "@/lib/till/caller";
-import { tillSaleBody } from "@/lib/till/schema";
+import { tillCharge } from "@/lib/till/schema";
 
 export const GET = async (): Promise<Response> => {
   const caller = await tillCaller();
@@ -35,46 +36,28 @@ export const GET = async (): Promise<Response> => {
   );
 };
 
-/** The body, parsed, or null when it isn't JSON at all. */
-const readBody = async (request: Request) => {
-  try {
-    return tillSaleBody.safeParse(await request.json());
-  } catch {
-    return null;
-  }
-};
+/** Just who charged it, read even from a body that fails the full parse. */
+const chargedByOnly = z.object({ cashierId: z.string() });
 
 export const POST = async (request: Request): Promise<Response> => {
-  const caller = await tillCaller();
+  // Read from a copy: the full body is parsed below, once the caller is known.
+  const chargedBy = await readBody(request.clone(), chargedByOnly);
+  const caller = await tillCaller(chargedBy?.data?.cashierId);
 
   if (caller instanceof Response) {
     return caller;
   }
 
-  const body = await readBody(request);
+  const body = await readBody(request, tillCharge);
 
-  if (body === null || !body.success) {
-    const issue = body?.error.issues[0];
-
-    return jsonFailure(
-      400,
-      "invalid_input",
-      issue === undefined
-        ? "The body must be JSON."
-        : `${issue.path.join(".") || "body"}: ${issue.message}`
-    );
+  if (body === undefined || !body.success) {
+    return invalidBody(body?.error);
   }
 
-  if (body.data.cashierId !== caller.id) {
-    return jsonFailure(
-      401,
-      "wrong_user",
-      "This sale was charged by someone else. It will be sent when they sign in."
-    );
-  }
+  const charge = body.data;
 
-  try {
-    const reply = await chargeTillSale(getDb(), caller, body.data);
+  return await answerStockErrors(async () => {
+    const reply = await chargeTillSale(getDb(), caller, charge);
 
     // Nav badges and the overview count today's sales and stock.
     if (!reply.duplicate) {
@@ -85,15 +68,5 @@ export const POST = async (request: Request): Promise<Response> => {
       headers: NO_STORE,
       status: reply.duplicate ? 200 : 201,
     });
-  } catch (error) {
-    if (!(error instanceof StockError)) {
-      throw error;
-    }
-
-    return jsonFailure(
-      STOCK_ERROR_STATUS[error.code],
-      error.code,
-      error.message
-    );
-  }
+  });
 };

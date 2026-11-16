@@ -4,12 +4,9 @@ import { Cloud, CloudOff, MonitorX, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useSyncStatus } from "@/components/till/till-data-provider";
-import { formatCount } from "@/lib/format";
+import { formatSales } from "@/lib/format";
 import type { SyncStatus } from "@/lib/till/client/sync";
 import { cn } from "@/lib/utils";
-
-const sales = (count: number): string =>
-  count === 1 ? "1 sale" : `${formatCount(count)} sales`;
 
 interface Look {
   readonly icon: ReactNode;
@@ -35,7 +32,7 @@ const describe = (status: SyncStatus): Look => {
       text:
         status.queued === 0
           ? "Offline. Keep charging: sales are saved on this till and sent when the connection is back."
-          : `Offline · ${sales(status.queued)} saved on this till, sent when the connection is back.`,
+          : `Offline · ${formatSales(status.queued)} saved on this till, sent when the connection is back.`,
       tone: "warn",
     };
   }
@@ -46,7 +43,7 @@ const describe = (status: SyncStatus): Look => {
 
     return {
       icon: <RefreshCw aria-hidden="true" className={ICON} />,
-      text: `Sending ${sales(status.queued)} saved on this till.${reason}`,
+      text: `Sending ${formatSales(status.queued)} saved on this till.${reason}`,
       tone: status.lastError === null ? "quiet" : "warn",
     };
   }

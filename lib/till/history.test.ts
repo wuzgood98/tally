@@ -128,6 +128,11 @@ describe("parseHistoryParams", () => {
     ["a malformed sort", "branchId=SPX&sort=createdAt"],
     ["a time that isn't one", "branchId=SPX&createdAt.gte=yesterday"],
     ["an unknown payment method", "branchId=SPX&paymentMethod=cheque"],
+    [
+      "a single-value filter given twice",
+      "branchId=SPX&limit=5&createdAt.gte=2026-11-10T00:00:00.000Z&createdAt.gte=2026-11-12T00:00:00.000Z",
+    ],
+    ["two stores", "branchId=SPX&branchId=KSI&limit=5"],
   ])("refuses %s", (_label, search) => {
     expect(parseHistoryParams(new URLSearchParams(search)).ok).toBe(false);
   });
