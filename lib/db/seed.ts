@@ -15,7 +15,7 @@ import { hashPassword } from "better-auth/crypto";
 // and every write, happens in the same order each run so the data repeats.
 // mulberry32 itself is defined in 32-bit integer operations.
 /* oxlint-disable no-bitwise, no-await-in-loop, react-doctor/async-await-in-loop -- see above */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { gtinCheckDigit } from "@/lib/barcode";
 import type { Db } from "@/lib/db/client";
@@ -25,6 +25,7 @@ import {
   category,
   companySettings,
   goodsReceipt,
+  notification,
   product,
   sale,
   saleLine,
@@ -1045,9 +1046,26 @@ const runHistory = async (
     requests: new Map(),
   };
 
+  // Notifications written by an event take its time, as its documents do.
+  // Only purchasing and transfer events write any.
+  let notified = 0;
+
+  const backdateNotifications = async (at: Date): Promise<void> => {
+    const rows = await db
+      .update(notification)
+      .set({ createdAt: at })
+      .where(gt(notification.id, notified))
+      .returning({ id: notification.id });
+
+    for (const row of rows) {
+      notified = Math.max(notified, row.id);
+    }
+  };
+
   for (const event of events) {
     if (isPurchasingEvent(event)) {
       await runPurchasingEvent(purchasing, event);
+      await backdateNotifications(event.at);
 
       continue;
     }
@@ -1064,6 +1082,7 @@ const runHistory = async (
       event.kind === "cancel"
     ) {
       await runTransferEvent(db, random, products, managers, transfers, event);
+      await backdateNotifications(event.at);
 
       continue;
     }
@@ -1160,6 +1179,17 @@ const runHistory = async (
   }
 };
 
+const startOfUtcDay = (at: Date): Date =>
+  new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+
+/** Everything before today has been seen; today's news is still unread. */
+const markReadBefore = async (db: Db, start: Date): Promise<void> => {
+  await db
+    .update(notification)
+    .set({ readAt: sql`${notification.createdAt}` })
+    .where(lt(notification.createdAt, start));
+};
+
 export const isSeeded = async (db: Db): Promise<boolean> => {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -1212,6 +1242,9 @@ export const seed = async (db: Db, now = new Date()): Promise<SeedSummary> => {
     staff,
     planHistory(random, supplierIds, now)
   );
+
+  // Accra keeps GMT all year, so its day starts at UTC midnight.
+  await markReadBefore(db, startOfUtcDay(now));
 
   const [[movements], staffIds] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(stockMovement),
