@@ -85,6 +85,11 @@ export const TillToday = ({ storeId }: { readonly storeId: string }) => {
 
   return (
     <Panel
+      action={
+        <Link className="text-sm hover:underline" href="/till/history">
+          Earlier sales
+        </Link>
+      }
       flush
       title={
         salesToday === 0

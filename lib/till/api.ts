@@ -7,13 +7,21 @@
  * ledger; the till's own idea of the balance is only ever a display.
  */
 
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import type { Db } from "@/lib/db/client";
 import { branch, product, sale, saleLine, stockLevel } from "@/lib/db/schema";
-import { sellableBranchIds } from "@/lib/permissions";
+import { canSeeBranch, sellableBranchIds } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
+import { StockError } from "@/lib/stock/errors";
 import { recordSale } from "@/lib/stock/sales";
+import { HISTORY_WINDOW_MAX } from "@/lib/till/history-contract";
+import type {
+  HistoryQuery,
+  HistorySale,
+  HistorySortField,
+} from "@/lib/till/history-contract";
 import { stockLevelKey } from "@/lib/till/schema";
 import type {
   TillProduct,
@@ -193,4 +201,68 @@ export const chargeTillSale = async (
   );
 
   return { duplicate: recorded.duplicate, levels, sale: toTillSale(row) };
+};
+
+/** The only columns the history sorts by: the allow-list's other half. */
+const HISTORY_SORT_COLUMNS: Readonly<Record<HistorySortField, AnyPgColumn>> = {
+  createdAt: sale.createdAt,
+  total: sale.total,
+};
+
+/**
+ * A page of a store's recorded sales, filtered and sorted on the server: what
+ * the till's on-demand history collection asks for, one subset at a time.
+ * Anyone may look at a branch except a cashier, who sees only their own store.
+ */
+export const getSaleHistory = async (
+  db: Db,
+  actor: Actor,
+  query: HistoryQuery
+): Promise<HistorySale[]> => {
+  if (!canSeeBranch(actor, query.branchId)) {
+    throw new StockError("forbidden", "You can't see this branch's sales.");
+  }
+
+  const order = query.sort.direction === "asc" ? asc : desc;
+
+  const rows = await db
+    .select(saleColumns)
+    .from(sale)
+    .leftJoin(saleLine, eq(saleLine.saleId, sale.id))
+    .where(
+      and(
+        eq(sale.branchId, query.branchId),
+        query.from === undefined
+          ? undefined
+          : gte(sale.createdAt, new Date(query.from)),
+        query.to === undefined
+          ? undefined
+          : lt(sale.createdAt, new Date(query.to)),
+        query.at === undefined
+          ? undefined
+          : eq(sale.createdAt, new Date(query.at)),
+        query.totalIs === undefined ? undefined : eq(sale.total, query.totalIs),
+        query.paymentMethods === undefined
+          ? undefined
+          : inArray(sale.paymentMethod, query.paymentMethods)
+      )
+    )
+    .groupBy(sale.id)
+    // The id breaks ties, so pages never overlap or skip a sale.
+    .orderBy(order(HISTORY_SORT_COLUMNS[query.sort.field]), order(sale.id))
+    // A whole window asks for one more than allowed, to know if it's too big.
+    .limit(query.limit ?? HISTORY_WINDOW_MAX + 1)
+    .offset(query.offset);
+
+  if (query.limit === undefined && rows.length > HISTORY_WINDOW_MAX) {
+    throw new StockError(
+      "invalid_input",
+      `More than ${String(HISTORY_WINDOW_MAX)} sales match: pick a shorter time.`
+    );
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+  }));
 };

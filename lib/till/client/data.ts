@@ -1,7 +1,7 @@
 /**
  * The till's data layer in the browser, one per signed-in person: a
- * QueryClient, the collections, the needs-attention list and the offline
- * queue. Built on first use and kept on `globalThis`, so React's double
+ * QueryClient, the collections (eager ones for the till, an on-demand one for
+ * the sales history), the needs-attention list and the offline queue. Built on first use and kept on `globalThis`, so React's double
  * renders and hot reloads reuse it instead of starting a second sync and a
  * second queue (which would lose the tab's lock on the outbox). Someone else
  * signing in on the same tab gets a fresh one, and the previous person's is
@@ -14,6 +14,8 @@ import { createAttentionCollection } from "@/lib/till/client/attention";
 import type { AttentionCollection } from "@/lib/till/client/attention";
 import { createTillCollections } from "@/lib/till/client/collections";
 import type { TillCollections } from "@/lib/till/client/collections";
+import { createHistoryCollection } from "@/lib/till/client/history";
+import type { HistoryCollection } from "@/lib/till/client/history";
 import { browserPlumbing, createTillSync } from "@/lib/till/client/sync";
 import type { TillSync } from "@/lib/till/client/sync";
 
@@ -21,6 +23,7 @@ export interface TillData extends TillCollections {
   readonly userId: string;
   readonly queryClient: QueryClient;
   readonly attention: AttentionCollection;
+  readonly history: HistoryCollection;
   readonly sync: TillSync;
 }
 
@@ -37,6 +40,7 @@ const release = async (data: TillData): Promise<void> => {
     data.stockLevels.cleanup(),
     data.sales.cleanup(),
     data.attention.cleanup(),
+    data.history.cleanup(),
   ]);
 };
 
@@ -68,6 +72,7 @@ export const getTillData = (userId: string): TillData => {
   const data: TillData = {
     ...collections,
     attention,
+    history: createHistoryCollection(queryClient),
     queryClient,
     sync,
     userId,
