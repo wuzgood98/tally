@@ -35,6 +35,8 @@ const contentSecurityPolicy = ({ isDev, isHttps }: HeaderOptions): string =>
     "img-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
+    // The till's offline service worker (public/till-sw.js).
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

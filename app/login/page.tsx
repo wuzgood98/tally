@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { DemoAccounts } from "@/components/auth/demo-accounts";
+import { ForgetOfflineTill } from "@/components/auth/forget-offline-till";
 import { LabelBarcode } from "@/components/auth/label-barcode";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { StockBins } from "@/components/auth/stock-bins";
@@ -87,6 +88,7 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
           </Link>
         </nav>
       </div>
+      <ForgetOfflineTill />
     </main>
   );
 };

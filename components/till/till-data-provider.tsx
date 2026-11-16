@@ -1,12 +1,13 @@
 "use client";
 
 import { useLiveQuery } from "@tanstack/react-db";
-import { createContext, use, useSyncExternalStore } from "react";
+import { createContext, use, useEffect, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { getTillData } from "@/lib/till/client/data";
 import type { TillData } from "@/lib/till/client/data";
+import { startTillOffline } from "@/lib/till/client/offline-start";
 import { STARTING } from "@/lib/till/client/sync";
 import type { SyncStatus } from "@/lib/till/client/sync";
 
@@ -38,6 +39,19 @@ const Waiting = ({ children }: { readonly children: ReactNode }) => (
     {children}
   </output>
 );
+
+/**
+ * Once the till is on screen, with every script it needs loaded, hands them
+ * to the service worker so the till opens next time without a connection.
+ */
+const OfflineStart = () => {
+  useEffect(() => {
+    // Without it the till still works; it just won't open from cold offline.
+    startTillOffline().catch(() => null);
+  }, []);
+
+  return null;
+};
 
 /**
  * Holds the till back until the catalogue and the shelf counts are in the
@@ -101,7 +115,12 @@ const WhenLoaded = ({
     return <Waiting>Loading the till…</Waiting>;
   }
 
-  return <TillDataContext value={data}>{children}</TillDataContext>;
+  return (
+    <TillDataContext value={data}>
+      {children}
+      <OfflineStart />
+    </TillDataContext>
+  );
 };
 
 /**

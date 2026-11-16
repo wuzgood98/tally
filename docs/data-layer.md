@@ -226,6 +226,6 @@ Vitest runs in Node, with no IndexedDB, Web Locks or real network, and that's en
 
 ## Not done
 
-- **Opening `/till` from cold without a connection.** There's no service worker, so the page itself won't load. Next's bundled `progressive-web-apps.md` points to Serwist. With it, browser SQLite persistence (`@tanstack/browser-db-sqlite-persistence`, OPFS) for the catalogue would let a reload work offline. Both need CSP changes (`worker-src`, `'wasm-unsafe-eval'`).
+- **Saying how old the offline copy is.** `public/till-sw.js` lets `/till` open from cold without a connection (see `docs/CONTEXT.md`, "Till offline start"); each saved answer carries `X-Tally-Saved-At`, but the till doesn't show it yet. Browser SQLite (`@tanstack/browser-db-sqlite-persistence`) stays an option if the catalogue outgrows a cached JSON reply; it would need `'wasm-unsafe-eval'` in the CSP.
 - **SSR of collections.** The rc has `DbProvider` / `HydrationBoundary`; the till renders a loading line on the server instead.
 - **Other screens.** Products, low stock and transfers are still server-rendered.

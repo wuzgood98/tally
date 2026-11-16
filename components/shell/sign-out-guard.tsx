@@ -12,9 +12,19 @@ import type { ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatSales } from "@/lib/format";
+import { forgetOfflineTill } from "@/lib/till/client/offline-start";
 import { countQueuedSales } from "@/lib/till/client/outbox";
 
 type RequestSignOut = () => Promise<void>;
+
+/**
+ * The saved till belongs to whoever opened it last, so it goes with them.
+ * Their queued sales stay in their own outbox.
+ */
+const signOutAndForget = async (): Promise<void> => {
+  await forgetOfflineTill().catch(() => null);
+  await signOut();
+};
 
 const SignOutContext = createContext<RequestSignOut | null>(null);
 
@@ -55,7 +65,7 @@ export const SignOutGuard = ({
     const waiting = await countQueuedSales(userId);
 
     if (waiting === 0) {
-      await signOut();
+      await signOutAndForget();
 
       return;
     }
@@ -71,7 +81,7 @@ export const SignOutGuard = ({
         confirmLabel="Sign out anyway"
         description={waitingWarning(queued ?? 0)}
         onConfirm={async () => {
-          await signOut();
+          await signOutAndForget();
 
           return { error: null };
         }}
