@@ -1,8 +1,6 @@
 "use client";
 
 import { useShortcut } from "@ui-sdk/react/shortcuts";
-import { CircleCheck } from "lucide-react";
-import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import type { SubmitEvent } from "react";
 
@@ -14,7 +12,11 @@ import {
 import { TillLineRow } from "@/components/sales/till-line-row";
 import type { BasketLine } from "@/components/sales/till-line-row";
 import { ProductPicker } from "@/components/stock/product-picker";
+import { LastSale } from "@/components/till/last-sale";
+import type { LastSaleFacts } from "@/components/till/last-sale";
+import { TillAttention } from "@/components/till/till-attention";
 import { useTillData } from "@/components/till/till-data-provider";
+import { TillSyncStatus } from "@/components/till/till-sync-status";
 import { TillToday } from "@/components/till/till-today";
 import { useBasketShelf } from "@/components/till/use-basket-shelf";
 import type { ShelfFacts } from "@/components/till/use-basket-shelf";
@@ -23,7 +25,6 @@ import { Frame, FramePanel } from "@/components/ui/frame";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
 import type { PaymentMethod } from "@/lib/db/schema";
-import { formatCedis } from "@/lib/money";
 import { wholeNumber } from "@/lib/numbers";
 import {
   NO_TENDER,
@@ -31,10 +32,9 @@ import {
   changeDue,
   readTender,
 } from "@/lib/stock/quick-cash";
-import type { SaleResult } from "@/lib/stock/sales";
-import { TillHttpError } from "@/lib/till/client/http";
+import { chargeFailureMessage } from "@/lib/till/client/sync";
+import type { ChargeOutcome } from "@/lib/till/client/sync";
 import { lookupTillProducts } from "@/lib/till/lookup";
-import type { TillSaleReply } from "@/lib/till/schema";
 
 interface Option {
   readonly id: string;
@@ -95,47 +95,6 @@ const withShelf = (
     };
   });
 
-const recordedFrom = (reply: TillSaleReply): SaleResult => ({
-  duplicate: reply.duplicate,
-  id: reply.sale.id ?? 0,
-  number: reply.sale.number ?? reply.sale.clientRef,
-  total: reply.sale.total,
-});
-
-/** The sale just rung up, and the cash it left to hand back. */
-interface RecordedSale {
-  readonly recorded: SaleResult;
-  /** Cash to hand back, in pesewas; null when none is due. */
-  readonly change: number | null;
-}
-
-/** Stays until the next sale, so the change due never times out. */
-const LastSale = ({
-  sale: { recorded, change },
-}: {
-  readonly sale: RecordedSale;
-}) => (
-  <output className="bg-brand-soft text-good flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg px-4 py-3 text-sm font-medium">
-    <span className="flex items-center gap-2">
-      <CircleCheck aria-hidden="true" className="size-4" />
-      {recorded.duplicate
-        ? `Already recorded as ${recorded.number}: nothing was charged twice.`
-        : `${recorded.number} recorded · ${formatCedis(recorded.total)}.`}
-    </span>
-    {change === null || recorded.duplicate ? null : (
-      <span className="text-ink">
-        Change{" "}
-        <span className="tabular text-lg font-semibold">
-          {formatCedis(change)}
-        </span>
-      </span>
-    )}
-    <Link className="ml-auto underline" href={`/sales/${recorded.id}`}>
-      Receipt
-    </Link>
-  </output>
-);
-
 /** How the customer pays, and the cash field as typed. */
 interface Payment {
   readonly method: PaymentMethod;
@@ -160,7 +119,7 @@ export const TillForm = ({
   const [basket, setBasket] = useState<readonly BasketLine[]>([]);
   const [payment, setPayment] = useState<Payment>(FRESH_PAYMENT);
   const [error, setError] = useState<string | null>(null);
-  const [lastSale, setLastSale] = useState<RecordedSale | null>(null);
+  const [lastSale, setLastSale] = useState<LastSaleFacts | null>(null);
   const [pending, startTransition] = useTransition();
   const [bump, setBump] = useState<Bump | null>(null);
   const clientRef = useRef<string | null>(null);
@@ -261,12 +220,13 @@ export const TillForm = ({
     const change = changeDue(tender);
 
     startTransition(async () => {
-      let reply: TillSaleReply;
+      let outcome: ChargeOutcome;
 
       try {
         // The sale shows in "Your sales today" and the shelf counts drop at
-        // once; both roll back if Tally refuses it or can't be reached.
-        reply = await till.charge({
+        // once. Without a connection it's saved on the till and sent later;
+        // if Tally refuses it, both roll back and the basket stays.
+        outcome = await till.sync.charge({
           branchId: storeId,
           cashierId,
           clientRef: ref,
@@ -278,17 +238,20 @@ export const TillForm = ({
           paymentMethod: payment.method,
         });
       } catch (error_) {
-        if (!(error_ instanceof TillHttpError)) {
+        const message =
+          error_ instanceof Error ? chargeFailureMessage(error_) : null;
+
+        if (message === null) {
           throw error_;
         }
 
-        setError(error_.message);
+        setError(message);
 
         return;
       }
 
       clientRef.current = null;
-      setLastSale({ change, recorded: recordedFrom(reply) });
+      setLastSale({ change, outcome, total: summary.total });
       setBasket([]);
       setPayment(FRESH_PAYMENT);
       setError(null);
@@ -302,6 +265,8 @@ export const TillForm = ({
 
   return (
     <form className="grid grid-cols-1 gap-6" onSubmit={onSubmit} ref={form}>
+      <TillSyncStatus />
+      <TillAttention />
       {lastSale === null ? null : <LastSale sale={lastSale} />}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">

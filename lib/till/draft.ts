@@ -4,22 +4,10 @@
  * offline queue can rebuild the request after a reload.
  */
 
-import type { PaymentMethod } from "@/lib/db/schema";
-import type { TillSale, TillSaleBody } from "@/lib/till/schema";
+import type { TillCharge, TillSale, TillSaleBody } from "@/lib/till/schema";
 
-export interface ChargeInput {
-  readonly branchId: string;
-  readonly cashierId: string;
-  /** The till's id for the sale; reused on a retry so it can't be charged twice. */
-  readonly clientRef: string;
-  readonly paymentMethod: PaymentMethod;
-  readonly lines: readonly {
-    readonly productId: number;
-    readonly quantity: number;
-  }[];
-  /** Pesewas, at the shelf prices the till knows. */
-  readonly expectedTotal: number;
-}
+/** What the till charges: see `tillCharge`. */
+export type ChargeInput = TillCharge;
 
 /**
  * The sale as the till shows it before the server answers: no id or number

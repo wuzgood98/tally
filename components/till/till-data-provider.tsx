@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { getTillData } from "@/lib/till/client/data";
 import type { TillData } from "@/lib/till/client/data";
+import { STARTING } from "@/lib/till/client/sync";
+import type { SyncStatus } from "@/lib/till/client/sync";
 
 const TillDataContext = createContext<TillData | null>(null);
 
@@ -21,6 +23,13 @@ export const useTillData = (): TillData => {
   return data;
 };
 
+/** The offline queue's state: whether it can keep sales, how many wait, why the last send failed. */
+export const useSyncStatus = (): SyncStatus => {
+  const { sync } = useTillData();
+
+  return useSyncExternalStore(sync.subscribe, sync.getStatus, () => STARTING);
+};
+
 /** Nothing to subscribe to: the data layer is made once per person and kept. */
 const subscribe = () => () => null;
 
@@ -30,7 +39,10 @@ const Waiting = ({ children }: { readonly children: ReactNode }) => (
   </output>
 );
 
-/** Holds the till back until the catalogue and the shelf counts are in the browser. */
+/**
+ * Holds the till back until the catalogue and the shelf counts are in the
+ * browser, and the offline queue has put back any sales it was keeping.
+ */
 const WhenLoaded = ({
   data,
   children,
@@ -52,7 +64,17 @@ const WhenLoaded = ({
       })),
   });
 
-  if (products.isLoadingError || levels.isLoadingError) {
+  const status = useSyncExternalStore(
+    data.sync.subscribe,
+    data.sync.getStatus,
+    () => STARTING
+  );
+
+  if (
+    products.isLoadingError ||
+    levels.isLoadingError ||
+    status.problem !== null
+  ) {
     return (
       <div className="grid justify-items-center gap-3 p-6 text-center">
         <p className="text-danger text-sm">
@@ -63,6 +85,7 @@ const WhenLoaded = ({
             // Errors stay on the collections' health; the buttons retry.
             data.products.utils.refetch().catch(() => null);
             data.stockLevels.utils.refetch().catch(() => null);
+            data.sync.start().catch(() => null);
           }}
           size="md"
           type="button"
@@ -74,7 +97,7 @@ const WhenLoaded = ({
     );
   }
 
-  if (!products.isReady || !levels.isReady) {
+  if (!products.isReady || !levels.isReady || !status.ready) {
     return <Waiting>Loading the till…</Waiting>;
   }
 

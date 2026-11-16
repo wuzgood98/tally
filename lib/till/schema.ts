@@ -110,3 +110,54 @@ export const tillStockLevelsReply = z.object({
 });
 
 export const tillSalesReply = z.object({ sales: z.array(tillSale) });
+
+/**
+ * A charge as the till queues it: everything needed to send it again after a
+ * reload, so it is parsed again when it comes back out of the browser's
+ * storage rather than trusted.
+ */
+export const tillCharge = z.object({
+  branchId: z.string().min(1),
+  cashierId: z.string().min(1),
+  clientRef: z.string().min(8).max(64),
+  expectedTotal: z.int().nonnegative(),
+  lines: z
+    .array(
+      z.object({
+        productId: z.int().positive(),
+        quantity: z.int().positive().max(MAX_QUANTITY),
+      })
+    )
+    .min(1)
+    .max(MAX_LINES),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+});
+
+export type TillCharge = z.output<typeof tillCharge>;
+
+/**
+ * A sale Tally refused after the till had already let the customer go: kept
+ * on this device, outside the outbox, so a manager can see what left the
+ * shop and put it right (sell it again, or count the shelf).
+ */
+export const attentionSale = z.object({
+  branchId: z.string(),
+  /** When the till charged it. */
+  chargedAt: z.iso.datetime({ offset: true }),
+  clientRef: z.string(),
+  expectedTotal: z.int().nonnegative(),
+  /** When Tally refused it. */
+  failedAt: z.iso.datetime({ offset: true }),
+  lines: z.array(
+    z.object({
+      name: z.string(),
+      productId: z.int().positive(),
+      quantity: z.int().positive(),
+    })
+  ),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  /** Tally's reason, written for a person. */
+  reason: z.string(),
+});
+
+export type AttentionSale = z.output<typeof attentionSale>;

@@ -1,14 +1,9 @@
 /**
- * Charging a sale, optimistically, across two collections at once: the sale
- * appears in the till's list and the shelf counts drop the moment the cashier
- * presses Charge. The server's answer then replaces both with what it
- * recorded; if it refuses, or can't be reached, both changes roll back.
- *
- * Batch 3 swaps this for an offline transaction with the same optimistic
- * step, so a sale charged without a connection is queued instead.
+ * The pieces of a charge: the optimistic step across two collections (the
+ * sale appears in the till's list and the shelf counts drop the moment the
+ * cashier presses Charge), the request, and writing the server's answer in.
+ * `lib/till/client/sync.ts` runs them through the offline queue.
  */
-
-import { createOptimisticAction } from "@tanstack/react-db";
 
 import type { TillCollections } from "@/lib/till/client/collections";
 import { requestJson } from "@/lib/till/client/http";
@@ -59,36 +54,3 @@ export const postCharge = async (input: ChargeInput): Promise<TillSaleReply> =>
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
-
-/**
- * The online charge. Resolves with the server's answer once the sale is
- * recorded and the collections hold it; rejects with a `TillHttpError` after
- * rolling back.
- */
-export const createChargeAction = (collections: TillCollections) => {
-  const replies = new Map<string, TillSaleReply>();
-
-  const charge = createOptimisticAction<ChargeInput>({
-    mutationFn: async (input) => {
-      const reply = await postCharge(input);
-      await confirmCharge(collections, reply);
-      replies.set(input.clientRef, reply);
-    },
-    onMutate: (input) => {
-      applyCharge(collections, input);
-    },
-  });
-
-  return async (input: ChargeInput): Promise<TillSaleReply> => {
-    const transaction = charge(input);
-    await transaction.when("settled");
-    const reply = replies.get(input.clientRef);
-    replies.delete(input.clientRef);
-
-    if (reply === undefined) {
-      throw new Error(`No answer was kept for sale ${input.clientRef}.`);
-    }
-
-    return reply;
-  };
-};
