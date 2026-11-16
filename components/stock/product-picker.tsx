@@ -5,7 +5,7 @@ import { useId, useRef, useState, useTransition } from "react";
 import type { KeyboardEvent } from "react";
 
 import { lookupProducts } from "@/app/(app)/lookup-action";
-import type { PickedProduct } from "@/app/(app)/lookup-action";
+import type { LookupResult, PickedProduct } from "@/app/(app)/lookup-action";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,11 @@ interface ProductPickerProps {
   readonly label: string;
   readonly hint?: string;
   readonly autoFocus?: boolean;
+  /**
+   * How to find what was typed or scanned. The server by default; the till
+   * passes its own, which searches the products already in the browser.
+   */
+  readonly lookup?: (text: string) => LookupResult | Promise<LookupResult>;
 }
 
 /**
@@ -28,6 +33,7 @@ export const ProductPicker = ({
   label,
   hint,
   autoFocus = false,
+  lookup = lookupProducts,
 }: ProductPickerProps) => {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -52,7 +58,7 @@ export const ProductPicker = ({
     }
 
     startTransition(async () => {
-      const result = await lookupProducts(query);
+      const result = await lookup(query);
 
       if (result.exact) {
         pick(result.exact);

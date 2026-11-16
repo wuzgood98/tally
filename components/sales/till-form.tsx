@@ -7,7 +7,6 @@ import { useRef, useState, useTransition } from "react";
 import type { SubmitEvent } from "react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
-import { tillSaleAction } from "@/app/(app)/till/actions";
 import {
   CHARGE_SHORTCUT,
   TillCheckout,
@@ -15,6 +14,10 @@ import {
 import { TillLineRow } from "@/components/sales/till-line-row";
 import type { BasketLine } from "@/components/sales/till-line-row";
 import { ProductPicker } from "@/components/stock/product-picker";
+import { useTillData } from "@/components/till/till-data-provider";
+import { TillToday } from "@/components/till/till-today";
+import { useBasketShelf } from "@/components/till/use-basket-shelf";
+import type { ShelfFacts } from "@/components/till/use-basket-shelf";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Frame, FramePanel } from "@/components/ui/frame";
 import { Select } from "@/components/ui/select";
@@ -29,6 +32,9 @@ import {
   readTender,
 } from "@/lib/stock/quick-cash";
 import type { SaleResult } from "@/lib/stock/sales";
+import { TillHttpError } from "@/lib/till/client/http";
+import { lookupTillProducts } from "@/lib/till/lookup";
+import type { TillSaleReply } from "@/lib/till/schema";
 
 interface Option {
   readonly id: string;
@@ -36,6 +42,8 @@ interface Option {
 }
 
 interface TillFormProps {
+  /** The signed-in person; every sale carries it, so a queued one is never sent as someone else. */
+  readonly cashierId: string;
   readonly stores: readonly Option[];
   readonly defaultStoreId: string;
   /** Printed at the foot of the receipt; null for none. */
@@ -60,6 +68,39 @@ const totals = (lines: readonly BasketLine[]) => {
 
   return { total, units };
 };
+
+/**
+ * The basket with the prices and shelf counts the till knows now, so a price
+ * that changes while the customer waits shows before Charge, not after.
+ */
+const withShelf = (
+  lines: readonly BasketLine[],
+  shelf: ReadonlyMap<number, ShelfFacts>,
+  storeId: string
+): BasketLine[] =>
+  lines.map((line) => {
+    const facts = shelf.get(line.product.id);
+
+    if (facts === undefined) {
+      return line;
+    }
+
+    return {
+      ...line,
+      product: {
+        ...line.product,
+        onHand: { ...line.product.onHand, [storeId]: facts.onHand },
+        sellPrice: facts.sellPrice,
+      },
+    };
+  });
+
+const recordedFrom = (reply: TillSaleReply): SaleResult => ({
+  duplicate: reply.duplicate,
+  id: reply.sale.id ?? 0,
+  number: reply.sale.number ?? reply.sale.clientRef,
+  total: reply.sale.total,
+});
 
 /** The sale just rung up, and the cash it left to hand back. */
 interface RecordedSale {
@@ -109,12 +150,14 @@ const FRESH_PAYMENT: Payment = { method: "cash", received: "" };
  * until it succeeds, so a retry after a dropped connection can't double-charge.
  */
 export const TillForm = ({
+  cashierId,
   stores,
   defaultStoreId,
   receiptFooter,
 }: TillFormProps) => {
+  const till = useTillData();
   const [storeId, setStoreId] = useState(defaultStoreId);
-  const [lines, setLines] = useState<readonly BasketLine[]>([]);
+  const [basket, setBasket] = useState<readonly BasketLine[]>([]);
   const [payment, setPayment] = useState<Payment>(FRESH_PAYMENT);
   const [error, setError] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<RecordedSale | null>(null);
@@ -123,7 +166,18 @@ export const TillForm = ({
   const clientRef = useRef<string | null>(null);
   const scanArea = useRef<HTMLDivElement>(null);
   const form = useRef<HTMLFormElement>(null);
+
+  const shelf = useBasketShelf(
+    storeId,
+    basket.map((line) => line.product.id)
+  );
+
+  const lines = withShelf(basket, shelf, storeId);
   const summary = totals(lines);
+
+  // Scans are looked up in the browser's copy of the catalogue: no round trip.
+  const lookup = (text: string) =>
+    lookupTillProducts(text, till.products.toArray, till.stockLevels.toArray);
 
   const tender =
     payment.method === "cash"
@@ -155,7 +209,7 @@ export const TillForm = ({
       }));
     }
 
-    setLines((current) => {
+    setBasket((current) => {
       const existing = current.find((line) => line.product.id === product.id);
 
       if (existing === undefined) {
@@ -172,7 +226,7 @@ export const TillForm = ({
   };
 
   const update = (productId: number, quantity: string) => {
-    setLines((current) =>
+    setBasket((current) =>
       current.map((line) =>
         line.product.id === productId ? { ...line, quantity } : line
       )
@@ -180,7 +234,7 @@ export const TillForm = ({
   };
 
   const remove = (productId: number) => {
-    setLines((current) =>
+    setBasket((current) =>
       current.filter((line) => line.product.id !== productId)
     );
   };
@@ -207,25 +261,35 @@ export const TillForm = ({
     const change = changeDue(tender);
 
     startTransition(async () => {
-      const result = await tillSaleAction({
-        branchId: storeId,
-        clientRef: ref,
-        lines: lines.map((line) => ({
-          productId: line.product.id,
-          quantity: wholeNumber(line.quantity) ?? 0,
-        })),
-        paymentMethod: payment.method,
-      });
+      let reply: TillSaleReply;
 
-      if (result.sale === null) {
-        setError(result.error);
+      try {
+        // The sale shows in "Your sales today" and the shelf counts drop at
+        // once; both roll back if Tally refuses it or can't be reached.
+        reply = await till.charge({
+          branchId: storeId,
+          cashierId,
+          clientRef: ref,
+          expectedTotal: summary.total,
+          lines: lines.map((line) => ({
+            productId: line.product.id,
+            quantity: wholeNumber(line.quantity) ?? 0,
+          })),
+          paymentMethod: payment.method,
+        });
+      } catch (error_) {
+        if (!(error_ instanceof TillHttpError)) {
+          throw error_;
+        }
+
+        setError(error_.message);
 
         return;
       }
 
       clientRef.current = null;
-      setLastSale({ change, recorded: result.sale });
-      setLines([]);
+      setLastSale({ change, recorded: recordedFrom(reply) });
+      setBasket([]);
       setPayment(FRESH_PAYMENT);
       setError(null);
       // Ready for the next customer's first scan. Not the store picker's
@@ -256,7 +320,12 @@ export const TillForm = ({
                   />
                 </Field>
               ) : null}
-              <ProductPicker autoFocus label="Scan items" onPick={addProduct} />
+              <ProductPicker
+                autoFocus
+                label="Scan items"
+                lookup={lookup}
+                onPick={addProduct}
+              />
             </div>
             {lines.length === 0 ? (
               <p className="text-ink-2 p-6 text-center text-sm">
@@ -333,6 +402,8 @@ export const TillForm = ({
           units={summary.units}
         />
       </div>
+
+      <TillToday storeId={storeId} />
     </form>
   );
 };

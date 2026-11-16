@@ -13,6 +13,8 @@
  * / 404 are permanent refusals.
  */
 
+import { revalidatePath } from "next/cache";
+
 import { getDb } from "@/lib/db";
 import { jsonFailure, NO_STORE, STOCK_ERROR_STATUS } from "@/lib/http";
 import { StockError } from "@/lib/stock/errors";
@@ -73,6 +75,11 @@ export const POST = async (request: Request): Promise<Response> => {
 
   try {
     const reply = await chargeTillSale(getDb(), caller, body.data);
+
+    // Nav badges and the overview count today's sales and stock.
+    if (!reply.duplicate) {
+      revalidatePath("/", "layout");
+    }
 
     return Response.json(reply, {
       headers: NO_STORE,

@@ -68,7 +68,7 @@ Decisions the user accepted for sales:
 Batches:
 
 1. **Done**: migration `0002_sales`; `sale`, `sale_line`, `sale_return` and `sale_return_line` tables; movement kinds `sale` and `sale_return`; `recordSale` (`lib/stock/sales.ts`, idempotent on `(branch, client_ref)`) and `returnSale` (`lib/stock/returns.ts`); permissions `canSell`, `canApproveReturn` and `sellableBranchIds`; tests, including `saleMismatches`.
-2. Collections in the browser (eager), a provider on `/till`, the till reading from live queries.
+2. **Done**: till screen `/till` (`TillForm`: scan to basket, Cash / Mobile money / Card, cash received and change, warns when a line goes beyond the record; the clientRef is kept until the sale succeeds so retries can't double-charge; focus returns to the scan box after each sale), sales list `/sales` with today's total, sale detail `/sales/[id]`, Till and Sales in the nav, cashier in the staff form, and one demo cashier per store (Esi Quaye at Spintex is on the sign-in page). Payment labels live in `lib/stock/payment.ts`, kept free of the schema so client code doesn't bundle Drizzle. Walked through in the browser as a cashier at desktop and 390px.
 3. Offline outbox: `@tanstack/offline-transactions`, the charge path, a sync status chip, the needs-attention list, the sign-out warning.
 4. On-demand sales history.
 5. Docs: adopting collections from a TanStack Query/REST workflow, then on-demand sync.
