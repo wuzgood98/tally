@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getTillData } from "@/lib/till/client/data";
 import type { TillData } from "@/lib/till/client/data";
 import { startTillOffline } from "@/lib/till/client/offline-start";
+import type { SavedSnapshot } from "@/lib/till/client/saved-copy";
 import { STARTING } from "@/lib/till/client/sync";
 import type { SyncStatus } from "@/lib/till/client/sync";
 
@@ -29,6 +30,20 @@ export const useSyncStatus = (): SyncStatus => {
   const { sync } = useTillData();
 
   return useSyncExternalStore(sync.subscribe, sync.getStatus, () => STARTING);
+};
+
+/**
+ * The oldest saved copy on screen (the catalogue or the shelf counts) and
+ * when the till last heard about it, or null while everything came from Tally.
+ */
+export const useSavedCopy = (): SavedSnapshot | null => {
+  const { savedCopies } = useTillData();
+
+  return useSyncExternalStore(
+    savedCopies.subscribe,
+    savedCopies.getSnapshot,
+    () => null
+  );
 };
 
 /** Nothing to subscribe to: the data layer is made once per person and kept. */

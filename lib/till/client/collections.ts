@@ -15,6 +15,8 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { BasicIndex, BTreeIndex, createCollection } from "@tanstack/react-db";
 
 import { requestJson } from "@/lib/till/client/http";
+import { createSavedCopies, savedAtOf } from "@/lib/till/client/saved-copy";
+import type { SavedCopies, SavedSource } from "@/lib/till/client/saved-copy";
 import {
   tillCatalogueReply,
   tillProduct,
@@ -32,7 +34,19 @@ export const TILL_COLLECTION_IDS = {
   stockLevels: "till-stock-levels",
 } as const;
 
-export const createTillCollections = (queryClient: QueryClient) => {
+/**
+ * `savedCopies` hears, for the catalogue and the shelf counts, whether each
+ * answer came from Tally or from the copy the service worker saved, so the
+ * till can say how old what it shows is.
+ */
+export const createTillCollections = (
+  queryClient: QueryClient,
+  savedCopies: SavedCopies = createSavedCopies()
+) => {
+  const noteAge = (source: SavedSource) => (response: Response) => {
+    savedCopies.report(source, savedAtOf(response));
+  };
+
   const products = createCollection(
     queryCollectionOptions({
       getKey: (item) => item.id,
@@ -40,6 +54,7 @@ export const createTillCollections = (queryClient: QueryClient) => {
       queryClient,
       queryFn: async ({ signal }) =>
         await requestJson("/api/till/catalogue", tillCatalogueReply, {
+          onAnswer: noteAge("products"),
           signal,
         }),
       queryKey: ["till", "products"],
@@ -57,6 +72,7 @@ export const createTillCollections = (queryClient: QueryClient) => {
       queryClient,
       queryFn: async ({ signal }) =>
         await requestJson("/api/till/stock-levels", tillStockLevelsReply, {
+          onAnswer: noteAge("stockLevels"),
           signal,
         }),
       queryKey: ["till", "stock-levels"],
@@ -91,7 +107,7 @@ export const createTillCollections = (queryClient: QueryClient) => {
   sales.createIndex((row) => row.branchId, { indexType: BasicIndex });
   sales.createIndex((row) => row.createdAt, { indexType: BTreeIndex });
 
-  return { products, sales, stockLevels };
+  return { products, sales, savedCopies, stockLevels };
 };
 
 export type TillCollections = ReturnType<typeof createTillCollections>;

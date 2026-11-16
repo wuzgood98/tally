@@ -76,10 +76,15 @@ const failureFrom = async (response: Response): Promise<TillHttpError> => {
  * (a sign-in page, a captive portal) answered instead, and that must never
  * look like success.
  */
+export interface RequestJsonInit extends RequestInit {
+  /** Sees every good answer before it's parsed, e.g. to read a header. */
+  readonly onAnswer?: (response: Response) => void;
+}
+
 export const requestJson = async <T>(
   url: string,
   schema: z.ZodType<T>,
-  init: RequestInit = {}
+  { onAnswer, ...init }: RequestJsonInit = {}
 ): Promise<T> => {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -114,6 +119,8 @@ export const requestJson = async <T>(
       "Tally sent an answer the till doesn't understand. Reload the page."
     );
   }
+
+  onAnswer?.(response);
 
   return parsed.data;
 };
