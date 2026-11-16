@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { getAuth } from "@/lib/auth";
 import { databaseReady } from "@/lib/db";
+import { forgetFlash } from "@/lib/flash-server";
 import { formSecret, formText } from "@/lib/form";
 
 export interface SignInState {
@@ -76,6 +77,7 @@ export const signIn = async (
   const failure = await attemptSignIn(parsed.data.email, parsed.data.password);
 
   if (failure === null) {
+    await forgetFlash();
     redirect(safeNext(parsed.data.next));
   }
 
@@ -84,5 +86,6 @@ export const signIn = async (
 
 export const signOut = async (): Promise<void> => {
   await getAuth().api.signOut({ headers: await headers() });
+  await forgetFlash();
   redirect("/login");
 };

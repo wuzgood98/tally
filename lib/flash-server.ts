@@ -25,3 +25,13 @@ export const flash = async (message: FlashMessage): Promise<void> => {
     }
   );
 };
+
+/**
+ * Drops any confirmation still waiting. Signing in or out calls it too: a
+ * toast left by one person's action must never greet the next person.
+ */
+export const forgetFlash = async (): Promise<void> => {
+  const jar = await cookies();
+
+  jar.delete(FLASH_COOKIE);
+};
