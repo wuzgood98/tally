@@ -3,34 +3,53 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import type { NotificationFeed } from "@/components/shell/notification-bell";
 import {
-  notificationSummary,
+  notificationPoll,
   POLL_INTERVAL_MS,
   POLL_MIN_GAP_MS,
   pollOutcome,
 } from "@/lib/notifications/poll";
+import type {
+  NotificationFeed,
+  NotificationPoll,
+} from "@/lib/notifications/poll";
 
 const SUMMARY_URL = "/api/notifications";
 
-/** The latest summary, or null when there's nothing usable (offline, a blip). */
-const fetchSummary = async () => {
+/**
+ * How long the live region stays empty before an announcement. Emptying it
+ * first means the same words ("1 new notification") are read out again.
+ */
+const ANNOUNCE_GAP_MS = 100;
+
+type FetchResult =
+  | { readonly kind: "answer"; readonly answer: NotificationPoll }
+  /** Signed out, or no longer someone who's notified: stop polling. */
+  | { readonly kind: "stop" }
+  /** Nothing usable this time (offline, a blip): try again later. */
+  | { readonly kind: "skip" };
+
+const SKIP: FetchResult = { kind: "skip" };
+
+const fetchSummary = async (after: number): Promise<FetchResult> => {
   try {
-    const response = await fetch(SUMMARY_URL, { cache: "no-store" });
+    const response = await fetch(`${SUMMARY_URL}?after=${after}`, {
+      cache: "no-store",
+    });
 
     if (response.status === 401 || response.status === 404) {
-      return "stop" as const;
+      return { kind: "stop" };
     }
 
     if (!response.ok) {
-      return null;
+      return SKIP;
     }
 
-    const parsed = notificationSummary.safeParse(await response.json());
+    const parsed = notificationPoll.safeParse(await response.json());
 
-    return parsed.success ? parsed.data : null;
+    return parsed.success ? { answer: parsed.data, kind: "answer" } : SKIP;
   } catch {
-    return null;
+    return SKIP;
   }
 };
 
@@ -52,6 +71,15 @@ const Poller = ({ feed }: { readonly feed: NotificationFeed }) => {
   const lastPoll = useRef(0);
   const busy = useRef(false);
   const stopped = useRef(false);
+  const announceTimer = useRef<number | undefined>(undefined);
+
+  const announce = (text: string) => {
+    setAnnouncement("");
+    window.clearTimeout(announceTimer.current);
+    announceTimer.current = window.setTimeout(() => {
+      setAnnouncement(text);
+    }, ANNOUNCE_GAP_MS);
+  };
 
   const poll = useEffectEvent(async () => {
     const now = Date.now();
@@ -67,24 +95,23 @@ const Poller = ({ feed }: { readonly feed: NotificationFeed }) => {
 
     busy.current = true;
     lastPoll.current = now;
-    const latest = await fetchSummary();
+    const result = await fetchSummary(feed.latestId);
     busy.current = false;
 
-    if (latest === "stop") {
-      // Signed out, or no longer someone who's notified.
+    if (result.kind === "stop") {
       stopped.current = true;
 
       return;
     }
 
-    if (latest === null) {
+    if (result.kind === "skip") {
       return;
     }
 
-    const outcome = pollOutcome(feed, latest);
+    const outcome = pollOutcome(feed, result.answer);
 
     if (outcome.announcement !== null) {
-      setAnnouncement(outcome.announcement);
+      announce(outcome.announcement);
     }
 
     if (outcome.refresh) {
@@ -109,6 +136,7 @@ const Poller = ({ feed }: { readonly feed: NotificationFeed }) => {
 
     return () => {
       window.clearInterval(timer);
+      window.clearTimeout(announceTimer.current);
       document.removeEventListener("visibilitychange", onReturn);
       window.removeEventListener("focus", onReturn);
     };

@@ -30,7 +30,6 @@ import { FlashToast } from "@/components/shell/flash-toast";
 import { shellIconButton } from "@/components/shell/icon-button";
 import { NavLink } from "@/components/shell/nav-link";
 import { NotificationBell } from "@/components/shell/notification-bell";
-import type { NotificationFeed } from "@/components/shell/notification-bell";
 import { NotificationPoller } from "@/components/shell/notification-poller";
 import { ScopeSwitcher } from "@/components/shell/scope-switcher";
 import {
@@ -45,6 +44,7 @@ import { askPaletteSettings } from "@/lib/ask/suggestions";
 import { askTallyOn } from "@/lib/ask/switch";
 import { FLASH_COOKIE, parseFlash } from "@/lib/flash";
 import { notificationDays } from "@/lib/notifications/describe";
+import type { NotificationFeed } from "@/lib/notifications/poll";
 import { paletteCommands } from "@/lib/palette";
 import {
   canApprovePurchaseOrder,
@@ -75,14 +75,18 @@ const loadFeed = async (
   userId: string,
   branches: readonly { id: string; name: string }[]
 ): Promise<NotificationFeed> => {
-  const [summary, records] = await Promise.all([
+  const [{ latestId, unread }, records] = await Promise.all([
     getNotificationSummary(userId),
     listNotifications(userId),
   ]);
 
   const names = new Map(branches.map((item) => [item.id, item.name]));
 
-  return { ...summary, days: notificationDays(records, names, new Date()) };
+  return {
+    days: notificationDays(records, names, new Date()),
+    latestId,
+    unread,
+  };
 };
 
 const AppLayout = async ({ children }: LayoutProps<"/">) => {

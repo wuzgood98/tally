@@ -795,7 +795,7 @@ export const notificationKindEnum = pgEnum("notification_kind", [
  * Someone else did something that concerns this person: one row per
  * recipient, written in the same transaction as the change it reports, so a
  * change that rolls back tells no one. Wording and links are worked out when
- * it's shown (`describeNotification`), from the document it points at.
+ * it's shown (`notificationDays`), from the document it points at.
  */
 export const notification = pgTable(
   "notification",

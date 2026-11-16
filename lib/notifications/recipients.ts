@@ -12,18 +12,23 @@
  * Pure, so the rules are tested without a database.
  */
 
-import type { NotificationKind, Role } from "@/lib/db/schema";
+import type { Role } from "@/lib/db/schema";
+import type {
+  OrderNotificationKind,
+  RequestNotificationKind,
+  TransferNotificationKind,
+} from "@/lib/notifications/kinds";
 import type { Actor } from "@/lib/permissions";
 
 export type NotificationEvent =
   | {
-      readonly kind: Extract<NotificationKind, `po_${string}`>;
+      readonly kind: OrderNotificationKind;
       readonly purchaseOrderId: number;
       /** The branch the order is for. */
       readonly branchId: string;
     }
   | {
-      readonly kind: Extract<NotificationKind, `transfer_${string}`>;
+      readonly kind: TransferNotificationKind;
       readonly transferId: number;
       readonly fromBranchId: string;
       readonly toBranchId: string;
@@ -31,7 +36,7 @@ export type NotificationEvent =
       readonly units?: number;
     }
   | {
-      readonly kind: Extract<NotificationKind, `request_${string}`>;
+      readonly kind: RequestNotificationKind;
       readonly requestId: number;
       /** The store that asked. */
       readonly branchId: string;

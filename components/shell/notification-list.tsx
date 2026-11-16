@@ -18,21 +18,23 @@ import type {
 } from "@/lib/notifications/describe";
 import { cn } from "@/lib/utils";
 
-const KIND_ICONS: Record<NotificationKind, ReactNode> = {
-  po_approved: <ShoppingCart />,
-  po_cancelled: <PackageX />,
-  po_closed: <PackageX />,
-  po_drafted: <ShoppingCart />,
-  request_cancelled: <Inbox />,
-  request_raised: <Inbox />,
-  transfer_cancelled: <ArrowLeftRight />,
-  transfer_dispatched: <Truck />,
-  transfer_received_short: <TriangleAlert />,
-};
+interface KindLook {
+  readonly icon: ReactNode;
+  /** The icon's colour: a loss is the one kind worth a warning. */
+  readonly tone: "text-ink-3" | "text-warn";
+}
 
-/** A loss is the one kind worth a warning colour. */
-const isWarning = (kind: NotificationKind): boolean =>
-  kind === "transfer_received_short";
+const KIND_LOOKS: Record<NotificationKind, KindLook> = {
+  po_approved: { icon: <ShoppingCart />, tone: "text-ink-3" },
+  po_cancelled: { icon: <PackageX />, tone: "text-ink-3" },
+  po_closed: { icon: <PackageX />, tone: "text-ink-3" },
+  po_drafted: { icon: <ShoppingCart />, tone: "text-ink-3" },
+  request_cancelled: { icon: <Inbox />, tone: "text-ink-3" },
+  request_raised: { icon: <Inbox />, tone: "text-ink-3" },
+  transfer_cancelled: { icon: <ArrowLeftRight />, tone: "text-ink-3" },
+  transfer_dispatched: { icon: <Truck />, tone: "text-ink-3" },
+  transfer_received_short: { icon: <TriangleAlert />, tone: "text-warn" },
+};
 
 interface RowProps {
   readonly item: NotificationItem;
@@ -53,10 +55,10 @@ const NotificationRow = ({ item, onFollow }: RowProps) => (
         aria-hidden="true"
         className={cn(
           "bg-surface-2 mt-0.5 grid size-7 shrink-0 place-items-center rounded-md [&_svg]:size-3.5",
-          isWarning(item.kind) ? "text-warn" : "text-ink-3"
+          KIND_LOOKS[item.kind].tone
         )}
       >
-        {KIND_ICONS[item.kind]}
+        {KIND_LOOKS[item.kind].icon}
       </span>
       <span className="grid min-w-0 grow gap-0.5">
         <span

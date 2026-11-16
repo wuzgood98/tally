@@ -32,11 +32,10 @@ import {
 import type { Actor } from "@/lib/permissions";
 import { StockError } from "@/lib/stock/errors";
 import { nextDocumentNumber } from "@/lib/stock/ledger";
+import { DAY_MS } from "@/lib/time";
 
 export const MAX_ORDER_LINES = 200;
 export const MAX_ORDER_QUANTITY = 100_000;
-
-const DAY_MS = 86_400_000;
 
 const orderLines = z
   .array(

@@ -13,6 +13,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import type { Scope } from "@/lib/scope";
+import { DAY_MS } from "@/lib/time";
 
 export const SALES_PAGE_SIZE = 50;
 
@@ -173,8 +174,6 @@ export type SaleReturnSummary = Awaited<
 >[number];
 
 export type SaleDetail = NonNullable<Awaited<ReturnType<typeof getSale>>>;
-
-const DAY_MS = 86_400_000;
 
 /** The products that sold most units in the last `days`, in the scope. */
 export const getBestSellers = async (

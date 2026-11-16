@@ -6,6 +6,17 @@
 
 import type { NotificationKind } from "@/lib/db/schema";
 import { formatDay, formatTime, formatUnits } from "@/lib/format";
+import {
+  isOrderKind,
+  isRequestKind,
+  isTransferKind,
+} from "@/lib/notifications/kinds";
+import type {
+  OrderNotificationKind,
+  RequestNotificationKind,
+  TransferNotificationKind,
+} from "@/lib/notifications/kinds";
+import { DAY_MS } from "@/lib/time";
 
 export interface NotificationRecord {
   readonly id: number;
@@ -57,62 +68,61 @@ type BranchNames = ReadonlyMap<string, string>;
 const nameOf = (branches: BranchNames, id: string): string =>
   branches.get(id) ?? id;
 
-const orderText = (
-  record: NotificationRecord,
-  order: NonNullable<NotificationRecord["purchaseOrder"]>,
-  branches: BranchNames
-): string => {
-  const who = record.actorName ?? "Someone";
-  const from = `the order from ${order.supplierName}`;
+type Order = NonNullable<NotificationRecord["purchaseOrder"]>;
 
-  if (record.kind === "po_drafted") {
-    return `${who} drafted an order from ${order.supplierName} for ${nameOf(branches, order.branchId)}, for you to approve`;
-  }
+type Transfer = NonNullable<NotificationRecord["transfer"]>;
 
-  if (record.kind === "po_approved") {
-    return `${who} approved ${from}`;
-  }
+type Request = NonNullable<NotificationRecord["request"]>;
 
-  if (record.kind === "po_cancelled") {
-    return `${who} cancelled ${from}`;
-  }
+/** What every sentence may draw on besides its document. */
+interface TextContext {
+  /** Who did it, or "Someone" if they're gone. */
+  readonly who: string;
+  readonly units: number | null;
+  readonly branches: BranchNames;
+}
 
-  return `${who} closed ${from} short`;
+// One sentence per kind, in a Record per document, so a new kind doesn't
+// compile until it has its wording.
+
+const ORDER_TEXT: Record<
+  OrderNotificationKind,
+  (order: Order, context: TextContext) => string
+> = {
+  po_approved: (order, { who }) =>
+    `${who} approved the order from ${order.supplierName}`,
+  po_cancelled: (order, { who }) =>
+    `${who} cancelled the order from ${order.supplierName}`,
+  po_closed: (order, { who }) =>
+    `${who} closed the order from ${order.supplierName} short`,
+  po_drafted: (order, { branches, who }) =>
+    `${who} drafted an order from ${order.supplierName} for ${nameOf(branches, order.branchId)}, for you to approve`,
 };
 
-const transferText = (
-  record: NotificationRecord,
-  transfer: NonNullable<NotificationRecord["transfer"]>,
-  branches: BranchNames
-): string => {
-  const who = record.actorName ?? "Someone";
-  const from = nameOf(branches, transfer.fromBranchId);
-
-  if (record.kind === "transfer_dispatched") {
+const TRANSFER_TEXT: Record<
+  TransferNotificationKind,
+  (transfer: Transfer, context: TextContext) => string
+> = {
+  transfer_cancelled: (transfer, { branches, who }) =>
+    `${who} called back the transfer from ${nameOf(branches, transfer.fromBranchId)}`,
+  transfer_dispatched: (transfer, { branches, who }) => {
     const purpose =
       transfer.requestNumber === null ? "" : ` for ${transfer.requestNumber}`;
 
-    return `${who} sent stock from ${from}${purpose}`;
-  }
-
-  if (record.kind === "transfer_received_short") {
-    return `${nameOf(branches, transfer.toBranchId)} received it ${formatUnits(record.units ?? 0)} short`;
-  }
-
-  return `${who} called back the transfer from ${from}`;
+    return `${who} sent stock from ${nameOf(branches, transfer.fromBranchId)}${purpose}`;
+  },
+  transfer_received_short: (transfer, { branches, units }) =>
+    `${nameOf(branches, transfer.toBranchId)} received it ${formatUnits(units ?? 0)} short`,
 };
 
-const requestText = (
-  record: NotificationRecord,
-  request: NonNullable<NotificationRecord["request"]>,
-  branches: BranchNames
-): string => {
-  const who = record.actorName ?? "Someone";
-  const store = nameOf(branches, request.branchId);
-
-  return record.kind === "request_raised"
-    ? `${who} asked for stock for ${store}`
-    : `${who} cancelled ${store}'s request`;
+const REQUEST_TEXT: Record<
+  RequestNotificationKind,
+  (request: Request, context: TextContext) => string
+> = {
+  request_cancelled: (request, { branches, who }) =>
+    `${who} cancelled ${nameOf(branches, request.branchId)}'s request`,
+  request_raised: (request, { branches, who }) =>
+    `${who} asked for stock for ${nameOf(branches, request.branchId)}`,
 };
 
 /** The sentence, number and link; null if its document is missing. */
@@ -120,36 +130,40 @@ const describe = (
   record: NotificationRecord,
   branches: BranchNames
 ): Pick<NotificationItem, "href" | "number" | "text"> | null => {
-  const { purchaseOrder, request, transfer } = record;
+  const { kind, purchaseOrder, request, transfer } = record;
 
-  if (purchaseOrder !== null) {
+  const context: TextContext = {
+    branches,
+    units: record.units,
+    who: record.actorName ?? "Someone",
+  };
+
+  if (purchaseOrder !== null && isOrderKind(kind)) {
     return {
       href: `/purchase-orders/${purchaseOrder.id}`,
       number: purchaseOrder.number,
-      text: orderText(record, purchaseOrder, branches),
+      text: ORDER_TEXT[kind](purchaseOrder, context),
     };
   }
 
-  if (transfer !== null) {
+  if (transfer !== null && isTransferKind(kind)) {
     return {
       href: `/transfers/${transfer.id}`,
       number: transfer.number,
-      text: transferText(record, transfer, branches),
+      text: TRANSFER_TEXT[kind](transfer, context),
     };
   }
 
-  if (request !== null) {
+  if (request !== null && isRequestKind(kind)) {
     return {
       href: `/requests/${request.id}`,
       number: request.number,
-      text: requestText(record, request, branches),
+      text: REQUEST_TEXT[kind](request, context),
     };
   }
 
   return null;
 };
-
-const DAY_MS = 86_400_000;
 
 /** Accra's day is the UTC day: "2026-11-12". */
 const dayKey = (date: Date): string => date.toISOString().slice(0, 10);

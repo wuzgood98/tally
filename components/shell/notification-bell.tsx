@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@ui-sdk/react/popover";
+import { Popover, PopoverTitle, PopoverTrigger } from "@ui-sdk/react/popover";
 import { Bell } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -15,21 +10,13 @@ import {
 } from "@/app/(app)/notification-actions";
 import { shellIconButton } from "@/components/shell/icon-button";
 import { NotificationList } from "@/components/shell/notification-list";
-import type {
-  NotificationDay,
-  NotificationItem,
-} from "@/lib/notifications/describe";
+import { PopoverContent } from "@/components/ui/popover";
+import type { NotificationItem } from "@/lib/notifications/describe";
+import type { NotificationFeed } from "@/lib/notifications/poll";
 import { cn } from "@/lib/utils";
 
 /** Above this the badge reads "9+". */
 const BADGE_MAX = 9;
-
-export interface NotificationFeed {
-  readonly unread: number;
-  /** The newest notification's id, for the poll to compare against. */
-  readonly latestId: number;
-  readonly days: readonly NotificationDay[];
-}
 
 interface NotificationBellProps {
   /** Null for people who are never notified (cashiers): no bell at all. */
@@ -77,7 +64,7 @@ const BellPanel = ({
       </PopoverTrigger>
       <PopoverContent
         align={side === "right" ? "start" : "end"}
-        className="border-line-strong bg-surface text-ink shadow-float data-[presentation=popover]:pop-in z-50 flex flex-col overflow-hidden border p-0 font-sans data-[presentation=popover]:max-h-[min(30rem,80vh)] data-[presentation=popover]:w-88 data-[presentation=popover]:rounded-xl data-[presentation=sheet]:max-h-[80svh] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0"
+        className="data-[presentation=popover]:max-h-[min(30rem,80vh)] data-[presentation=popover]:w-88"
         // Start on the newest notification, not "Mark all read", so a stray
         // Enter doesn't clear everything.
         initialFocus="[data-notification]"

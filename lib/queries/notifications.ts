@@ -12,32 +12,41 @@ import {
   user,
 } from "@/lib/db/schema";
 import type { NotificationRecord } from "@/lib/notifications/describe";
-import type { NotificationSummary } from "@/lib/notifications/poll";
+import type { NotificationPoll } from "@/lib/notifications/poll";
+import { DAY_MS } from "@/lib/time";
 
 /** The bell shows the last 30 days, at most this many. */
 export const NOTIFICATION_LIMIT = 30;
 
 const WINDOW_DAYS = 30;
-const DAY_MS = 86_400_000;
 
 const actor = alias(user, "notification_actor");
 
 /** The request a transfer fulfilled, for "sent stock … for REQ-…". */
 const fulfilled = alias(stockRequest, "fulfilled_request");
 
-/** Unread count and the newest id: all the bell's poll needs. */
+/**
+ * Unread count, the newest id, and how many unread are newer than `after`
+ * (the newest the page shows): all the bell's poll needs, in one query.
+ */
 export const getNotificationSummary = async (
-  userId: string
-): Promise<NotificationSummary> => {
+  userId: string,
+  after = 0
+): Promise<NotificationPoll> => {
   const [row] = await getDb()
     .select({
+      fresh: sql<number>`(count(*) filter (where ${notification.readAt} is null and ${notification.id} > ${after}))::int`,
       latestId: sql<number>`coalesce(max(${notification.id}), 0)::int`,
       unread: sql<number>`(count(*) filter (where ${notification.readAt} is null))::int`,
     })
     .from(notification)
     .where(eq(notification.userId, userId));
 
-  return { latestId: row?.latestId ?? 0, unread: row?.unread ?? 0 };
+  return {
+    fresh: row?.fresh ?? 0,
+    latestId: row?.latestId ?? 0,
+    unread: row?.unread ?? 0,
+  };
 };
 
 export const listNotifications = async (
@@ -84,38 +93,48 @@ export const listNotifications = async (
     .orderBy(desc(notification.id))
     .limit(NOTIFICATION_LIMIT);
 
+  // A left join types every document column as nullable. A document that
+  // isn't all there counts as gone, and `notificationDays` drops the row,
+  // rather than naming a branch "".
   return rows.map((row) => ({
     actorName: row.actorName,
     createdAt: row.createdAt,
     id: row.id,
     kind: row.kind,
     purchaseOrder:
-      row.orderId === null || row.orderNumber === null
+      row.orderId === null ||
+      row.orderNumber === null ||
+      row.orderBranchId === null
         ? null
         : {
-            branchId: row.orderBranchId ?? "",
+            branchId: row.orderBranchId,
             id: row.orderId,
             number: row.orderNumber,
             supplierName: row.supplierName ?? "the supplier",
           },
     readAt: row.readAt,
     request:
-      row.requestId === null || row.requestNumber === null
+      row.requestId === null ||
+      row.requestNumber === null ||
+      row.requestBranchId === null
         ? null
         : {
-            branchId: row.requestBranchId ?? "",
+            branchId: row.requestBranchId,
             id: row.requestId,
             number: row.requestNumber,
           },
     transfer:
-      row.transferId === null || row.transferNumber === null
+      row.transferId === null ||
+      row.transferNumber === null ||
+      row.transferFrom === null ||
+      row.transferTo === null
         ? null
         : {
-            fromBranchId: row.transferFrom ?? "",
+            fromBranchId: row.transferFrom,
             id: row.transferId,
             number: row.transferNumber,
             requestNumber: row.transferRequest,
-            toBranchId: row.transferTo ?? "",
+            toBranchId: row.transferTo,
           },
     units: row.units,
   }));

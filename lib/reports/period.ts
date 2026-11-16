@@ -5,6 +5,7 @@
 
 import { canViewEveryBranchReport, canViewReports } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
+import { DAY_MS } from "@/lib/time";
 
 /** The ranges a report offers, in days, today included. */
 export const REPORT_RANGES = [7, 30, 90] as const;
@@ -12,8 +13,6 @@ export const REPORT_RANGES = [7, 30, 90] as const;
 export type ReportRange = (typeof REPORT_RANGES)[number];
 
 export const DEFAULT_REPORT_RANGE: ReportRange = 30;
-
-const DAY_MS = 86_400_000;
 
 export interface ReportPeriod {
   /** Midnight starting the first day. Accra keeps GMT all year, so UTC days are local days. */
