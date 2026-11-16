@@ -102,12 +102,13 @@ export const Select = ({
     }}
     {...props}
   >
+    {/* min-w-0 drops ui-sdk's 12rem floor so a field fits its column. */}
     <SelectTrigger
       aria-label={ariaLabel}
       className={cn(
         variant === "chip"
           ? "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-lg border ps-2.5 pe-2 text-start text-sm"
-          : "field flex items-center justify-between gap-2 text-start",
+          : "field flex min-w-0 items-center justify-between gap-2 text-start",
         variant === "field" && size === "sm" && "h-8",
         className
       )}
