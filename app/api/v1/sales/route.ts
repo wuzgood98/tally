@@ -8,27 +8,17 @@
  */
 
 import { getDb, databaseReady } from "@/lib/db";
+import { jsonFailure, STOCK_ERROR_STATUS } from "@/lib/http";
 import { apiSaleBody, postTillSale } from "@/lib/sales-api";
 import { StockError } from "@/lib/stock/errors";
-import type { StockErrorCode } from "@/lib/stock/errors";
 import { authenticateTill } from "@/lib/tills";
 
-const STATUS: Record<StockErrorCode, number> = {
-  conflict: 409,
-  forbidden: 403,
-  insufficient_stock: 409,
-  invalid_input: 400,
-  no_change: 400,
-  not_found: 404,
-};
-
 const failure = (status: number, code: string, message: string): Response =>
-  Response.json(
-    { error: { code, message } },
-    {
-      headers: status === 401 ? { "WWW-Authenticate": "Bearer" } : undefined,
-      status,
-    }
+  jsonFailure(
+    status,
+    code,
+    message,
+    status === 401 ? { "WWW-Authenticate": "Bearer" } : {}
   );
 
 /** The body, parsed, or null when it isn't JSON at all. */
@@ -94,6 +84,6 @@ export const POST = async (request: Request): Promise<Response> => {
       throw error;
     }
 
-    return failure(STATUS[error.code], error.code, error.message);
+    return failure(STOCK_ERROR_STATUS[error.code], error.code, error.message);
   }
 };

@@ -63,6 +63,11 @@ export const saleInput = z.object({
       "Each product can appear only once on a sale."
     ),
   paymentMethod: z.enum(paymentMethodEnum.enumValues),
+  /**
+   * The total the till showed, in pesewas. Kept beside the real total so a
+   * shelf price changed while the sale sat in an offline queue shows up.
+   */
+  expectedTotal: z.int().nonnegative().optional(),
 });
 
 export type SaleRawInput = z.input<typeof saleInput>;
@@ -208,6 +213,7 @@ const writeSale = async (
           branchId: input.branchId,
           cashierId: source.cashierId,
           clientRef: input.clientRef,
+          expectedTotal: input.expectedTotal ?? null,
           number,
           paymentMethod: input.paymentMethod,
           tillId: source.tillId,

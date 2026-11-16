@@ -103,6 +103,14 @@ const SalePage = async ({ params }: PageProps<"/sales/[id]">) => {
             </dd>
           </div>
         </dl>
+        {found.expectedTotal === null ||
+        found.expectedTotal === found.total ? null : (
+          <p className="border-line text-warn mt-4 border-t pt-3 text-sm">
+            The till showed {formatCedis(found.expectedTotal)}. A shelf price
+            changed while this sale waited to reach Tally, so it was recorded at
+            the new price: check the cash against {formatCedis(found.total)}.
+          </p>
+        )}
         <p className="border-line text-ink-3 mt-4 border-t pt-3 font-mono text-xs">
           Till reference {found.clientRef}
         </p>

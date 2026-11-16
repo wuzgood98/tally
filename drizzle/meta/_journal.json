@@ -57,6 +57,13 @@
       "when": 1794813418170,
       "tag": "0007_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794842757483,
+      "tag": "0008_sale_expected_total",
+      "breakpoints": true
     }
   ]
 }
