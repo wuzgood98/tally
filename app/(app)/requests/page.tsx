@@ -2,21 +2,31 @@ import { Inbox } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import {
+  FilterBar,
+  ListFilters,
+  ListResults,
+  UrlSelect,
+} from "@/components/lists/list-filters";
 import { RequestStatusBadge } from "@/components/stock/request-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
-import { Select } from "@/components/ui/select";
 import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
-import { formatCount, formatDateTime, isoString } from "@/lib/format";
+import {
+  countLabel,
+  formatCount,
+  formatDateTime,
+  isoString,
+} from "@/lib/format";
 import { canRequestStock } from "@/lib/permissions";
 import { listStockRequests, REQUESTS_PAGE_SIZE } from "@/lib/queries/requests";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumParam, intParam, queryString } from "@/lib/search-params";
+import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import {
   STOCK_REQUEST_STATUS_LABELS,
@@ -26,6 +36,12 @@ import {
 export const metadata: Metadata = { title: "Stock requests" };
 
 const STATUSES = ["all", ...STOCK_REQUEST_STATUSES] as const;
+
+const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
+  defaultValue: "all",
+  param: "status",
+  values: STATUSES,
+};
 
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   all: "Any status",
@@ -39,7 +55,7 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
   ]);
 
   const page = intParam(params, "page", 1);
-  const status = enumParam(params, "status", STATUSES, "all");
+  const status = enumFilter(params, STATUS_FILTER);
 
   const [branches, scope] = await Promise.all([
     listBranches(),
@@ -74,104 +90,97 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
         title="Stock requests"
       />
 
-      <form
-        action="/requests"
-        className="mb-4 flex flex-wrap items-center gap-2"
-      >
-        <Field layout="inline">
-          <FieldLabel tone="quiet">Show</FieldLabel>
-          <Select
-            className="w-auto"
-            defaultValue={status}
-            name="status"
+      <ListFilters>
+        <FilterBar>
+          <UrlSelect
+            filter={STATUS_FILTER}
+            label="Show"
             options={labelledOptions(STATUSES, STATUS_OPTIONS)}
+            resets={["page"]}
+            visibleLabel
           />
-        </Field>
-        <button
-          className={buttonVariants({ size: "md", variant: "outline" })}
-          type="submit"
-        >
-          Apply
-        </button>
-      </form>
+        </FilterBar>
 
-      <Panel
-        flush
-        footer={
-          <Pagination
-            href={(target) =>
-              `/requests${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
+        <ListResults announce={countLabel(total, "request")}>
+          <Panel
+            flush
+            footer={
+              <Pagination
+                href={(target) =>
+                  `/requests${queryString({ page: target > 1 ? target : null, status: status === "all" ? null : status })}`
+                }
+                noun="requests"
+                page={page}
+                pageSize={REQUESTS_PAGE_SIZE}
+                total={total}
+              />
             }
-            noun="requests"
-            page={page}
-            pageSize={REQUESTS_PAGE_SIZE}
-            total={total}
-          />
-        }
-      >
-        {rows.length === 0 ? (
-          <ListEmpty
-            create={
-              canRequest
-                ? { href: "/requests/new", label: "Request stock" }
-                : undefined
-            }
-            filtered={status !== "all"}
-            firstPageHref={
-              page > 1 && total > 0
-                ? `/requests${queryString({ status: status === "all" ? null : status })}`
-                : undefined
-            }
-            listHref="/requests"
-            noMatchHint="No request here has that status. Try another."
-            tag="Requests"
-            title="No requests yet"
           >
-            Stores asking the warehouse for stock show here, newest first.
-          </ListEmpty>
-        ) : (
-          <Table>
-            <caption className="sr-only">Stock requests</caption>
-            <thead>
-              <tr>
-                <Th>Request</Th>
-                <Th>Store</Th>
-                <Th>Status</Th>
-                <Th numeric>Units</Th>
-                <Th>Asked by</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr className="hover:bg-surface-2/60" key={row.id}>
-                  <Td nowrap>
-                    <Link
-                      className="text-brand font-mono text-xs font-medium hover:underline"
-                      href={`/requests/${row.id}`}
-                    >
-                      {row.number}
-                    </Link>
-                    <time
-                      className="text-ink-3 tabular block text-xs"
-                      dateTime={isoString(row.createdAt)}
-                    >
-                      {formatDateTime(row.createdAt)}
-                    </time>
-                  </Td>
-                  <Td nowrap>{row.storeName}</Td>
-                  <Td nowrap>
-                    <RequestStatusBadge status={row.status} />
-                  </Td>
-                  <Td numeric>{formatCount(row.units)}</Td>
-                  <Td nowrap tone="muted">
-                    {row.requestedBy ?? "—"}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </Panel>
+            {rows.length === 0 ? (
+              <ListEmpty
+                create={
+                  canRequest
+                    ? { href: "/requests/new", label: "Request stock" }
+                    : undefined
+                }
+                filtered={status !== "all"}
+                firstPageHref={
+                  page > 1 && total > 0
+                    ? `/requests${queryString({ status: status === "all" ? null : status })}`
+                    : undefined
+                }
+                listHref="/requests"
+                noMatchHint="No request here has that status. Try another."
+                tag="Requests"
+                title="No requests yet"
+              >
+                Stores asking the warehouse for stock show here, newest first.
+              </ListEmpty>
+            ) : (
+              <Table>
+                <caption className="sr-only">Stock requests</caption>
+                <thead>
+                  <tr>
+                    <Th>Request</Th>
+                    <Th>Store</Th>
+                    <Th>Status</Th>
+                    <Th numeric>Units</Th>
+                    <Th>Asked by</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr className="hover:bg-surface-2/60" key={row.id}>
+                      <Td nowrap>
+                        <Link
+                          className="text-brand font-mono text-xs font-medium hover:underline"
+                          href={`/requests/${row.id}`}
+                        >
+                          {row.number}
+                        </Link>
+                        <time
+                          className="text-ink-3 tabular block text-xs"
+                          dateTime={isoString(row.createdAt)}
+                        >
+                          {formatDateTime(row.createdAt)}
+                        </time>
+                      </Td>
+                      <Td nowrap>{row.storeName}</Td>
+                      <Td nowrap>
+                        <RequestStatusBadge status={row.status} />
+                      </Td>
+                      <Td numeric>{formatCount(row.units)}</Td>
+                      <Td nowrap tone="muted">
+                        {row.requestedBy ?? "—"}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Panel>
+        </ListResults>
+      </ListFilters>
     </>
   );
 };

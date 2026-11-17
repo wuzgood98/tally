@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import {
+  FilterBar,
+  ListFilters,
+  ListResults,
+  UrlSelect,
+} from "@/components/lists/list-filters";
 import { MovementTable } from "@/components/stock/movement-table";
-import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Select } from "@/components/ui/select";
 import { labelledOptions } from "@/components/ui/select-options";
 import type { MovementKind } from "@/lib/db/schema";
+import { countLabel } from "@/lib/format";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct } from "@/lib/queries/products";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumParam, intParam, queryString } from "@/lib/search-params";
+import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Movements" };
@@ -31,6 +36,12 @@ const KINDS = [
   "opening",
 ] as const;
 
+const KIND_FILTER: EnumFilter<(typeof KINDS)[number]> = {
+  defaultValue: "all",
+  param: "kind",
+  values: KINDS,
+};
+
 const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   adjustment: "Adjustments",
   all: "Everything",
@@ -41,6 +52,15 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   transfer_in: "Transfers in",
   transfer_out: "Transfers out",
 };
+
+/**
+ * What a screen reader hears once the list updates. There's no total (the
+ * list pages by cursor), so it counts what's shown and says if there's more.
+ */
+const shownLabel = (shown: number, more: boolean): string =>
+  more
+    ? `${countLabel(shown, "movement")} shown, more older`
+    : countLabel(shown, "movement");
 
 /** What to try when the kind or product filter matches nothing. */
 const noMatchHint = (byKind: boolean, byProduct: boolean): string => {
@@ -61,7 +81,7 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
     searchParams,
   ]);
 
-  const kind = enumParam(params, "kind", KINDS, "all");
+  const kind = enumFilter(params, KIND_FILTER);
   const productId = intParam(params, "product", 0) || undefined;
   const before = intParam(params, "before", 0) || undefined;
 
@@ -94,92 +114,82 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
         title="Movements"
       />
 
-      <form
-        action="/movements"
-        className="mb-4 flex flex-wrap items-center gap-2"
-      >
-        {productId === undefined ? null : (
-          <input name="product" type="hidden" value={productId} />
-        )}
-        <Field layout="inline">
-          <FieldLabel tone="quiet">Show</FieldLabel>
-          <Select
-            className="w-auto"
-            defaultValue={kind}
-            name="kind"
+      <ListFilters>
+        <FilterBar>
+          <UrlSelect
+            filter={KIND_FILTER}
+            label="Show"
             options={labelledOptions(KINDS, KIND_LABELS)}
+            resets={["before"]}
+            visibleLabel
           />
-        </Field>
-        <button
-          className={buttonVariants({ size: "md", variant: "outline" })}
-          type="submit"
-        >
-          Apply
-        </button>
-        {item ? (
-          <p className="bg-surface-2 ml-1 flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-sm">
-            {item.name}
-            <Link
-              aria-label={`Stop filtering by ${item.name}`}
-              className="hover:bg-line rounded-full px-2 py-0.5"
-              href={`/movements${queryString({ kind: filters.kind })}`}
-            >
-              ×
-            </Link>
-          </p>
-        ) : null}
-      </form>
+          {item ? (
+            <p className="bg-surface-2 ml-1 flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-sm">
+              {item.name}
+              <Link
+                aria-label={`Stop filtering by ${item.name}`}
+                className="hover:bg-line rounded-full px-2 py-0.5"
+                href={`/movements${queryString({ kind: filters.kind })}`}
+              >
+                ×
+              </Link>
+            </p>
+          ) : null}
+        </FilterBar>
 
-      <Panel flush>
-        {page.length === 0 ? (
-          <ListEmpty
-            filtered={filters.kind !== null || productId !== undefined}
-            firstPageHref={
-              before === undefined
-                ? undefined
-                : `/movements${queryString(filters)}`
-            }
-            listHref="/movements"
-            noMatchHint={noMatchHint(
-              filters.kind !== null,
-              productId !== undefined
-            )}
-            tag="Movements"
-            title="No stock has moved yet"
-          >
-            Every receipt, sale, transfer and adjustment shows here.
-          </ListEmpty>
-        ) : (
-          <MovementTable
-            caption="Stock movements"
-            rows={page}
-            showBranch={branchId === undefined}
-            showProduct={productId === undefined}
-          />
-        )}
-        {before !== undefined || older !== undefined ? (
-          <div className="border-line flex justify-between gap-3 border-t px-4 py-3 text-sm">
-            {before === undefined ? (
-              <span />
+        <ListResults announce={shownLabel(page.length, older !== undefined)}>
+          <Panel flush>
+            {page.length === 0 ? (
+              <ListEmpty
+                filtered={filters.kind !== null || productId !== undefined}
+                firstPageHref={
+                  before === undefined
+                    ? undefined
+                    : `/movements${queryString(filters)}`
+                }
+                listHref="/movements"
+                noMatchHint={noMatchHint(
+                  filters.kind !== null,
+                  productId !== undefined
+                )}
+                tag="Movements"
+                title="No stock has moved yet"
+              >
+                Every receipt, sale, transfer and adjustment shows here.
+              </ListEmpty>
             ) : (
-              <Link
-                className="text-brand hover:underline"
-                href={`/movements${queryString(filters)}`}
-              >
-                Newest
-              </Link>
+              <MovementTable
+                caption="Stock movements"
+                rows={page}
+                showBranch={branchId === undefined}
+                showProduct={productId === undefined}
+              />
             )}
-            {older === undefined ? null : (
-              <Link
-                className="text-brand hover:underline"
-                href={`/movements${queryString({ ...filters, before: older })}`}
-              >
-                Older
-              </Link>
-            )}
-          </div>
-        ) : null}
-      </Panel>
+            {before !== undefined || older !== undefined ? (
+              <div className="border-line flex justify-between gap-3 border-t px-4 py-3 text-sm">
+                {before === undefined ? (
+                  <span />
+                ) : (
+                  <Link
+                    className="text-brand hover:underline"
+                    href={`/movements${queryString(filters)}`}
+                  >
+                    Newest
+                  </Link>
+                )}
+                {older === undefined ? null : (
+                  <Link
+                    className="text-brand hover:underline"
+                    href={`/movements${queryString({ ...filters, before: older })}`}
+                  >
+                    Older
+                  </Link>
+                )}
+              </div>
+            ) : null}
+          </Panel>
+        </ListResults>
+      </ListFilters>
     </>
   );
 };
