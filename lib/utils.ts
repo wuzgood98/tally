@@ -6,5 +6,10 @@ import { createCn } from "cn/config";
  * a colour and dropping it, and the `rounded-control` corner.
  */
 export const cn = createCn({
-  extend: { theme: { radius: ["control"], text: ["2xs", "md", "figure"] } },
+  extend: {
+    theme: {
+      radius: ["control", "control-inset"],
+      text: ["2xs", "md", "figure"],
+    },
+  },
 });

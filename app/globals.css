@@ -93,8 +93,10 @@
   --radius-xl: 10px;
   --radius-2xl: 14px;
   /* Every button, field and select trigger, except on printed paper: the
-     Frame tray's corners, so a control set beside a Frame matches it. */
-  --radius-control: var(--radius-2xl);
+     corners of the surface it sits on (`--control-radius`, set below). */
+  --radius-control: var(--control-radius);
+  /* A segment inside a control's 2px padding and 1px border, concentric. */
+  --radius-control-inset: calc(var(--control-radius) - 3px);
 }
 
 @theme {
@@ -665,6 +667,19 @@
 @layer base {
   * {
     @apply border-border outline-ring;
+  }
+
+  /*
+   * A control's corners match the surface it sits on: the Frame tray's 14px on
+   * the page (so filters line up with the list's Frame) and in a 14px dialog,
+   * a card panel's 10px inside a card. A 10px popover sets it on itself.
+   */
+  :root {
+    --control-radius: var(--radius-2xl);
+  }
+
+  [data-slot="frame-panel"] {
+    --control-radius: var(--radius-xl);
   }
 
   html {

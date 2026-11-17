@@ -88,12 +88,12 @@ export const SegmentedControl = ({
 }) => (
   <SegmentedControlPrimitive
     className={cn(
-      "bg-surface-2 relative isolate grid auto-cols-fr grid-flow-col gap-1 rounded-lg p-1",
+      "bg-surface-2 rounded-control relative isolate grid auto-cols-fr grid-flow-col gap-1 p-1",
       className
     )}
     {...props}
   >
-    <SegmentedControlIndicator className="bg-surface ease-in-out-strong absolute top-(--segmented-control-indicator-top) left-(--segmented-control-indicator-left) -z-10 h-(--segmented-control-indicator-height) w-(--segmented-control-indicator-width) rounded-md shadow-sm transition-[left,width] duration-200 motion-reduce:transition-none" />
+    <SegmentedControlIndicator className="bg-surface ease-in-out-strong absolute top-(--segmented-control-indicator-top) left-(--segmented-control-indicator-left) -z-10 h-(--segmented-control-indicator-height) w-(--segmented-control-indicator-width) rounded-[calc(var(--control-radius)-4px)] shadow-sm transition-[left,width] duration-200 motion-reduce:transition-none" />
     {children}
   </SegmentedControlPrimitive>
 );
@@ -106,7 +106,7 @@ export const SegmentedControlItem = ({
 }) => (
   <SegmentedControlItemPrimitive
     className={cn(
-      "press text-ink-2 data-checked:text-ink flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium data-disabled:cursor-not-allowed data-disabled:opacity-50",
+      "press text-ink-2 data-checked:text-ink flex items-center justify-center rounded-[calc(var(--control-radius)-4px)] px-3 py-1.5 text-sm font-medium data-disabled:cursor-not-allowed data-disabled:opacity-50",
       className
     )}
     {...props}

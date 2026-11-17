@@ -35,7 +35,7 @@ type SelectVariant = "field" | "chip" | "filter" | "filter-on";
 
 /** Each look's trigger. */
 const TRIGGER_CLASSES: Record<SelectVariant, string> = {
-  chip: "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-control border ps-2.5 pe-2 text-start text-sm",
+  chip: "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-lg border ps-2.5 pe-2 text-start text-sm",
   field: "field flex min-w-0 items-center justify-between gap-2 text-start",
   filter: `press ${FILTER_CHIP} border-line-strong text-ink-2 aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink border-dashed`,
   "filter-on": `press ${FILTER_CHIP_ON} pe-9`,

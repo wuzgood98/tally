@@ -25,13 +25,13 @@ export const ReportToolbar = ({
   <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
     <nav
       aria-label="Period"
-      className="border-line bg-surface inline-flex rounded-lg border p-0.5"
+      className="border-line bg-surface rounded-control inline-flex border p-0.5"
     >
       {REPORT_RANGES.map((days) => (
         <Link
           aria-current={days === range ? "page" : undefined}
           className={cn(
-            "press rounded-md px-3 py-1.5 text-sm",
+            "press rounded-control-inset px-3 py-1.5 text-sm",
             days === range
               ? "bg-brand-soft text-brand font-medium"
               : "text-ink-2 hover:text-ink"

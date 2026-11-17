@@ -172,7 +172,7 @@ export const ReasonPicker = ({
     >
       {reasons.map((reason) => (
         <label
-          className="border-line hover:border-line-strong has-data-checked:border-brand has-data-checked:bg-brand-soft/50 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+          className="border-line hover:border-line-strong has-data-checked:border-brand has-data-checked:bg-brand-soft/50 rounded-control flex cursor-pointer items-start gap-3 border p-3"
           key={reason}
         >
           <Radio className="mt-0.5" value={reason} />

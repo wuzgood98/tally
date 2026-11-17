@@ -34,7 +34,7 @@ export const SidebarAccount = ({ name, detail }: SidebarAccountProps) => (
       </span>
     </Link>
     <SignOutButton
-      className="press text-ink-3 hover:text-ink hover:bg-surface rounded-control grid size-7 place-items-center"
+      className="press text-ink-3 hover:text-ink hover:bg-surface grid size-7 place-items-center rounded-md"
       label={`Sign out ${name}`}
     >
       <LogOut aria-hidden="true" className="size-3.5" />

@@ -136,9 +136,10 @@ export const ConfirmDialog = ({
         </AlertDialogTrigger>
       )}
       <AlertDialogBackdrop className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs transition-opacity duration-200 data-ending-style:opacity-0 data-ending-style:duration-150 data-starting-style:opacity-0" />
-      {/* It renders in place, so it resets what a table cell passes down. */}
+      {/* It renders in place, so it resets what a table cell or card passes
+          down, its controls' corners included. */}
       <AlertDialogContent
-        className="border-line-strong bg-surface text-ink shadow-float ease-out-quick z-50 m-auto w-full max-w-md rounded-2xl border p-5 text-start font-sans font-normal tracking-normal whitespace-normal normal-nums transition-[opacity,scale,translate] duration-200 data-ending-style:translate-y-1 data-ending-style:scale-98 data-ending-style:opacity-0 data-ending-style:duration-150 data-starting-style:translate-y-2 data-starting-style:scale-96 data-starting-style:opacity-0 motion-reduce:data-ending-style:translate-none motion-reduce:data-ending-style:scale-none motion-reduce:data-starting-style:translate-none motion-reduce:data-starting-style:scale-none"
+        className="border-line-strong bg-surface text-ink shadow-float ease-out-quick z-50 m-auto w-full max-w-md rounded-2xl border p-5 text-start font-sans font-normal tracking-normal whitespace-normal normal-nums transition-[opacity,scale,translate] duration-200 [--control-radius:var(--radius-2xl)] data-ending-style:translate-y-1 data-ending-style:scale-98 data-ending-style:opacity-0 data-ending-style:duration-150 data-starting-style:translate-y-2 data-starting-style:scale-96 data-starting-style:opacity-0 motion-reduce:data-ending-style:translate-none motion-reduce:data-ending-style:scale-none motion-reduce:data-starting-style:translate-none motion-reduce:data-starting-style:scale-none"
         // Ask for the reason straight away; otherwise start on Cancel.
         initialFocus={
           reason === undefined ? undefined : () => noteInput.current
