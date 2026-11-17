@@ -5,15 +5,15 @@ import type { SubmitEvent } from "react";
 
 import { adjustAction } from "@/app/(app)/adjustments/actions";
 import type { AdjustState } from "@/app/(app)/adjustments/actions";
+import { lookupProducts } from "@/app/(app)/lookup-action";
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import {
   BalancePreview,
-  ChosenProduct,
   ModeToggle,
+  ProductChoice,
   ReasonPicker,
 } from "@/components/stock/adjust-parts";
 import type { ChangeReason, Mode } from "@/components/stock/adjust-parts";
-import { ProductPicker } from "@/components/stock/product-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Frame, FramePanel } from "@/components/ui/frame";
@@ -197,17 +197,13 @@ export const AdjustForm = ({
                 value={branchId}
               />
             </Field>
-            {product === null ? (
-              <ProductPicker autoFocus label="Product" onPick={setProduct} />
-            ) : (
-              <ChosenProduct
-                onClear={() => {
-                  setProduct(null);
-                }}
-                stockHere={draft.onHand}
-                product={product}
-              />
-            )}
+            <ProductChoice
+              initialProduct={initialProduct}
+              lookup={lookupProducts}
+              onChange={setProduct}
+              product={product}
+              stockHere={draft.onHand}
+            />
           </div>
         </FramePanel>
       </Frame>

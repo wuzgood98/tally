@@ -4,6 +4,7 @@ import { ScanBarcode } from "lucide-react";
 import { useState, useTransition } from "react";
 import type { SubmitEvent } from "react";
 
+import { lookupProducts } from "@/app/(app)/lookup-action";
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import { receiveAction } from "@/app/(app)/receipts/actions";
 import { ProductPicker } from "@/components/stock/product-picker";
@@ -236,6 +237,7 @@ export const ReceiveForm = ({
               <ProductPicker
                 autoFocus={initialProduct === null}
                 label="Add products"
+                lookup={lookupProducts}
                 onPick={addProduct}
               />
             </div>

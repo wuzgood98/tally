@@ -3,6 +3,8 @@
 import { X } from "lucide-react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
+import { ProductPicker } from "@/components/stock/product-picker";
+import type { ProductLookup } from "@/components/stock/product-picker";
 import {
   Radio,
   RadioGroup,
@@ -27,14 +29,17 @@ const REASON_HELP: Record<ChangeReason, string> = {
 };
 
 /** The product being adjusted, with what's on hand at the chosen branch. */
-export const ChosenProduct = ({
+const ChosenProduct = ({
   product,
   stockHere,
   onClear,
+  autoFocus = false,
 }: {
   readonly product: PickedProduct;
   readonly stockHere: number;
   readonly onClear: () => void;
+  /** Take focus on arrival, so a pick (keyboard or mouse) doesn't drop it on the page. */
+  readonly autoFocus?: boolean;
 }) => (
   <div className="border-line bg-paper flex items-start justify-between gap-3 rounded-lg border p-3">
     <div>
@@ -51,6 +56,9 @@ export const ChosenProduct = ({
       </p>
     </div>
     <button
+      // The picker it replaces had focus; keep it here, not on the page.
+      // oxlint-disable-next-line jsx-a11y/no-autofocus
+      autoFocus={autoFocus}
       className="press text-ink-2 hover:text-ink hover:bg-surface-2 flex items-center gap-1 rounded-md px-2 py-1 text-sm"
       onClick={onClear}
       type="button"
@@ -60,6 +68,42 @@ export const ChosenProduct = ({
     </button>
   </div>
 );
+
+/**
+ * The picker until a product is chosen, then its card; "Change" brings the
+ * picker back. A product picked here takes focus onto "Change"; the one the
+ * page opened with doesn't.
+ */
+export const ProductChoice = ({
+  product,
+  initialProduct,
+  stockHere,
+  lookup,
+  onChange,
+}: {
+  readonly product: PickedProduct | null;
+  readonly initialProduct: PickedProduct | null;
+  readonly stockHere: number;
+  readonly lookup: ProductLookup;
+  readonly onChange: (product: PickedProduct | null) => void;
+}) =>
+  product === null ? (
+    <ProductPicker
+      autoFocus
+      label="Product"
+      lookup={lookup}
+      onPick={onChange}
+    />
+  ) : (
+    <ChosenProduct
+      autoFocus={product !== initialProduct}
+      onClear={() => {
+        onChange(null);
+      }}
+      product={product}
+      stockHere={stockHere}
+    />
+  );
 
 const MODES = [
   ["change", "Write off or return"],
