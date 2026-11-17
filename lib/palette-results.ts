@@ -1,5 +1,6 @@
 import { parseDocumentQuery } from "@/lib/document-query";
 import type { PaletteDocument } from "@/lib/palette-documents";
+import { paletteScore } from "@/lib/palette-filter";
 import type { PaletteProduct } from "@/lib/palette-search";
 
 export interface PaletteResults {
@@ -32,10 +33,19 @@ const PRODUCT_SCORE = 0.5;
 const DOCUMENT_LAST_SCORE = 0.3;
 const SEE_ALL_SCORE = 0.1;
 
+/** The lowest any product or document result scores: See all, last. */
+export const LOWEST_RESULT_SCORE = SEE_ALL_SCORE;
+
 export const productValue = (id: number): string => `${PRODUCT_PREFIX}${id}`;
 
 export const documentValue = (number: string): string =>
   `${DOCUMENT_PREFIX}${number}`;
+
+/** The command value a result's row carries. */
+const hitValue = (hit: PaletteHit): string =>
+  hit.type === "product"
+    ? productValue(hit.product.id)
+    : documentValue(hit.document.number);
 
 export const hitsOf = (results: PaletteResults): PaletteHit[] => [
   ...results.products.map((product) => ({ product, type: "product" as const })),
@@ -64,10 +74,7 @@ export const resultHref = (
   }
 
   for (const hit of hits) {
-    if (
-      hit.type === "document" &&
-      documentValue(hit.document.number) === value
-    ) {
+    if (hit.type === "document" && hitValue(hit) === value) {
       return hit.document.href;
     }
   }
@@ -75,20 +82,22 @@ export const resultHref = (
   return null;
 };
 
-/**
- * Whether results that have just arrived take the highlight from this value:
- * from nothing, from "Ask Tally" (`askValue`) or from the last search's
- * results, but not from a page or action the person may be heading for.
- */
-export const takesResultHighlight = (
-  value: string | null,
-  askValue: string
-): boolean =>
-  value === null ||
-  value === askValue ||
+/** Whether a command value is a search result's row (See all included). */
+export const isResultValue = (value: string): boolean =>
   value === SEE_ALL_PRODUCTS ||
   value.startsWith(PRODUCT_PREFIX) ||
   value.startsWith(DOCUMENT_PREFIX);
+
+/**
+ * While the next search loads, whether a row from the last one stays: See
+ * all (it's for the text typed), or a row whose label still matches it.
+ * Rows for something else hide, so they can't be highlighted, opened or
+ * copied in the meantime; the rest stay, so the list doesn't flicker.
+ */
+export const keepsWhileLoading = (
+  row: { readonly value: string; readonly label: string },
+  text: string
+): boolean => row.value === SEE_ALL_PRODUCTS || paletteScore(row, text) > 0;
 
 /** The product a command value stands for, or null for anything else. */
 export const productOf = (
@@ -100,7 +109,7 @@ export const productOf = (
   }
 
   for (const hit of hits) {
-    if (hit.type === "product" && productValue(hit.product.id) === value) {
+    if (hit.type === "product" && hitValue(hit) === value) {
       return hit.product;
     }
   }
@@ -128,15 +137,10 @@ export const topResult = (
   let top: { value: string; score: number } | null = null;
 
   for (const hit of hits) {
-    const value =
-      hit.type === "product"
-        ? productValue(hit.product.id)
-        : documentValue(hit.document.number);
-
     const score = hitScore(hit, query);
 
     if (top === null || score > top.score) {
-      top = { score, value };
+      top = { score, value: hitValue(hit) };
     }
   }
 
@@ -157,12 +161,7 @@ export const resultScore = (
   }
 
   for (const hit of hits) {
-    const hitValue =
-      hit.type === "product"
-        ? productValue(hit.product.id)
-        : documentValue(hit.document.number);
-
-    if (hitValue === value) {
+    if (hitValue(hit) === value) {
       return hitScore(hit, query);
     }
   }

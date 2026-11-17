@@ -1,6 +1,7 @@
 "use client";
 
 import { useAsyncOptions } from "@ui-sdk/react/async-options";
+import type { AsyncOptionsStatus } from "@ui-sdk/react/async-options";
 import {
   Command,
   CommandEmpty,
@@ -70,6 +71,7 @@ import {
   askRowLabel,
   askScore,
   opensAsk,
+  takesResultHighlight,
 } from "@/lib/palette-ask";
 import { BRANCH_PAGE, scopeOf } from "@/lib/palette-branches";
 import type { PaletteBranch } from "@/lib/palette-branches";
@@ -78,11 +80,11 @@ import { paletteScore } from "@/lib/palette-filter";
 import {
   documentsFirst,
   hitsOf,
+  keepsWhileLoading,
   MIN_SEARCH_LENGTH,
   productOf,
   resultHref,
   resultScore,
-  takesResultHighlight,
   topResult,
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
@@ -97,12 +99,9 @@ import { cn } from "@/lib/utils";
 import { AskPanel } from "./ask-tally";
 import { AppearanceGroup } from "./palette-appearance";
 import { BranchGroup, BranchPage } from "./palette-branches";
+import { COPY_SKU_SHORTCUT, CopySkuShortcut } from "./palette-copy-sku";
 import { DocumentResults } from "./palette-documents";
-import {
-  COPY_SKU_SHORTCUT,
-  CopySkuShortcut,
-  ProductResults,
-} from "./palette-products";
+import { ProductResults } from "./palette-products";
 import {
   paletteGroupLabelClass,
   paletteIconClass,
@@ -113,9 +112,9 @@ import {
 import { ThemePage } from "./palette-theme";
 
 const SHORTCUT = "mod+k";
+const TITLE = "Search or jump to";
 
 const NO_HITS: readonly PaletteHit[] = [];
-const TITLE = "Search or jump to";
 
 const ICONS: Record<PaletteIcon, LucideIcon> = {
   adjustments: ClipboardList,
@@ -428,6 +427,68 @@ const PaletteListRows = ({
 const PaletteList = memo(PaletteListRows);
 
 /**
+ * The palette's own ranking: Ask Tally gives way to a search, results rank
+ * among the pages and actions, and those rank by their words. While the next
+ * search loads, the last one's rows that no longer match hide, so they can't
+ * take the highlight.
+ */
+const filterFor =
+  (status: AsyncOptionsStatus, hits: readonly PaletteHit[]) =>
+  (item: { readonly value: string; readonly label: string }, text: string) => {
+    if (item.value === ASK_VALUE) {
+      return askScore(text);
+    }
+
+    const score = resultScore(item.value, text, hits);
+
+    if (score === null) {
+      return paletteScore(item, text);
+    }
+
+    return status === "loading" && !keepsWhileLoading(item, text) ? 0 : score;
+  };
+
+/**
+ * The highlighted command. Controlled, because the footer names the
+ * highlighted product; ui-sdk then leaves arriving results unhighlighted, so
+ * handing the highlight to them is ours: from nothing, from "Ask Tally" or
+ * from the last search's results, never from a page or action that matched.
+ * Only once they've loaded, so a row from the last search can't take it.
+ */
+const useResultHighlight = (
+  query: string,
+  hits: readonly PaletteHit[],
+  status: AsyncOptionsStatus
+) => {
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const [handedTo, setHandedTo] = useState<string | null>(null);
+
+  if (status === "idle") {
+    const top = topResult(query, hits);
+
+    if (top !== handedTo) {
+      setHandedTo(top);
+
+      if (top !== null && takesResultHighlight(highlighted)) {
+        setHighlighted(top);
+      }
+    }
+  }
+
+  return {
+    highlighted,
+    /** Last time's highlight would keep this time's results from it. */
+    reset: () => {
+      if (highlighted !== null || handedTo !== null) {
+        setHighlighted(null);
+        setHandedTo(null);
+      }
+    },
+    handleChange: setHighlighted,
+  };
+};
+
+/**
  * Cmd/Ctrl+K from anywhere: pages, things to create, sign out. The commands
  * come from the server (`paletteCommands`), already cut to what this person
  * may use; the triggers below open the one dialog through its controller.
@@ -454,11 +515,6 @@ export const CommandPalette = ({
   const subPage = pages.at(-1);
   // Asking: the question to start with ("" for none). Null: the commands.
   const [asking, setAsking] = useState<string | null>(null);
-  // The highlighted command. Controlled, because the footer names the
-  // highlighted product; ui-sdk then leaves arriving results unhighlighted,
-  // so handing the highlight to them is ours (below).
-  const [highlighted, setHighlighted] = useState<string | null>(null);
-  const [handedTo, setHandedTo] = useState<string | null>(null);
   const content = useRef<HTMLDivElement>(null);
 
   const results = useAsyncOptions<PaletteHit>(
@@ -471,6 +527,7 @@ export const CommandPalette = ({
     subPage === undefined && query.trim().length >= MIN_SEARCH_LENGTH;
 
   const hits = searching ? results.items : NO_HITS;
+  const status = searching ? results.status : "idle";
 
   // Stable between results, so moving the highlight doesn't redraw the list.
   const products = useMemo(
@@ -484,17 +541,8 @@ export const CommandPalette = ({
     [hits]
   );
 
-  // New results take the highlight from nothing, from "Ask Tally" or from the
-  // last search's results; never from a page or action that matched.
-  const top = searching ? topResult(query, hits) : null;
-
-  if (top !== handedTo) {
-    setHandedTo(top);
-
-    if (top !== null && takesResultHighlight(highlighted, ASK_VALUE)) {
-      setHighlighted(top);
-    }
-  }
+  const highlight = useResultHighlight(query, hits, status);
+  const { highlighted } = highlight;
 
   // Not while asking: Ctrl+C there copies from the conversation.
   const highlightedProduct =
@@ -629,6 +677,10 @@ export const CommandPalette = ({
           if (open && asking !== null) {
             setAsking(null);
           }
+
+          if (open) {
+            highlight.reset();
+          }
         }}
         pendingAnnouncement="Working…"
         presentation="auto"
@@ -642,20 +694,17 @@ export const CommandPalette = ({
           keepMounted
           ref={content}
         >
-          <CopySkuShortcut layer={content} product={highlightedProduct} />
+          {highlightedProduct === null ? null : (
+            <CopySkuShortcut layer={content} sku={highlightedProduct.sku} />
+          )}
           <DialogTitle className="sr-only">
             {asking === null ? TITLE : "Ask Tally"}
           </DialogTitle>
           {asking === null || ask === null ? (
             <Command
               className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
-              onValueChange={setHighlighted}
-              filter={(item, text) =>
-                item.value === ASK_VALUE
-                  ? askScore(searching)
-                  : (resultScore(item.value, text, hits) ??
-                    paletteScore(item, text))
-              }
+              onValueChange={highlight.handleChange}
+              filter={filterFor(status, hits)}
               onAction={run}
               onPagesChange={setPages}
               onQueryChange={changeQuery}
@@ -663,7 +712,7 @@ export const CommandPalette = ({
               value={highlighted}
               pendingAnnouncement="Working…"
               query={query}
-              status={searching ? results.status : "idle"}
+              status={status}
             >
               <div className="border-line flex items-center gap-2.5 border-b px-4">
                 <Search

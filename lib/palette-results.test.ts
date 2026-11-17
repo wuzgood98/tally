@@ -6,12 +6,13 @@ import {
   documentsFirst,
   documentValue,
   hitsOf,
+  keepsWhileLoading,
   productOf,
   productValue,
   resultHref,
   resultScore,
+  LOWEST_RESULT_SCORE,
   SEE_ALL_PRODUCTS,
-  takesResultHighlight,
   topResult,
 } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
@@ -122,13 +123,29 @@ describe("topResult", () => {
   });
 });
 
-describe("takesResultHighlight", () => {
-  it("takes over from nothing, Ask and old results, not from a page", () => {
-    expect(takesResultHighlight(null, "ask")).toBe(true);
-    expect(takesResultHighlight("ask", "ask")).toBe(true);
-    expect(takesResultHighlight(productValue(9), "ask")).toBe(true);
-    expect(takesResultHighlight(documentValue(order.number), "ask")).toBe(true);
-    expect(takesResultHighlight(SEE_ALL_PRODUCTS, "ask")).toBe(true);
-    expect(takesResultHighlight("go:/low-stock", "ask")).toBe(false);
+describe("LOWEST_RESULT_SCORE", () => {
+  it("is See all's score, the lowest result's", () => {
+    expect(resultScore(SEE_ALL_PRODUCTS, "rice", hits)).toBe(
+      LOWEST_RESULT_SCORE
+    );
+  });
+});
+
+describe("keepsWhileLoading", () => {
+  it("keeps the last search's rows that still match, and See all", () => {
+    const riceRow = {
+      label: "Jasmine rice 5 kg GR-0001",
+      value: productValue(7),
+    };
+
+    expect(keepsWhileLoading(riceRow, "rice 5")).toBe(true);
+    expect(keepsWhileLoading(riceRow, "gr-00")).toBe(true);
+    expect(keepsWhileLoading(riceRow, "kettle")).toBe(false);
+    expect(
+      keepsWhileLoading(
+        { label: "See all results", value: SEE_ALL_PRODUCTS },
+        "kettle"
+      )
+    ).toBe(true);
   });
 });
