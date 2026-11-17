@@ -5,6 +5,7 @@ import { ScanBarcode } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import type { ReactNode, Ref, SubmitEvent } from "react";
 
+import { lookupProducts } from "@/app/(app)/lookup-action";
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import {
   CHARGE_SHORTCUT,
@@ -215,7 +216,11 @@ export const TillSample = ({
       }
       scan={
         <ScanArea storeId={defaultStoreId} stores={stores}>
-          <ProductPicker label="Scan items" onPick={unusedInSample} />
+          <ProductPicker
+            label="Scan items"
+            lookup={lookupProducts}
+            onPick={unusedInSample}
+          />
         </ScanArea>
       }
     />
