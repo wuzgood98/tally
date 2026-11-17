@@ -1,13 +1,6 @@
 "use client";
 
 import {
-  ScrollArea,
-  ScrollAreaContent,
-  ScrollAreaScrollbar,
-  ScrollAreaThumb,
-  ScrollAreaViewport,
-} from "@ui-sdk/react/scroll-area";
-import {
   Select as SelectPrimitive,
   SelectContent,
   SelectGroup,
@@ -21,6 +14,8 @@ import type { ListData } from "@ui-sdk/react/select";
 import { Check, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { FILTER_CHIP, FILTER_CHIP_ON } from "@/components/ui/filter-chip";
+import { ListScrollArea } from "@/components/ui/list-scroll-area";
 import { cn } from "@/lib/utils";
 
 export interface SelectOption {
@@ -38,16 +33,12 @@ export type SelectOptions = readonly (SelectOption | SelectOptionGroup)[];
 
 type SelectVariant = "field" | "chip" | "filter" | "filter-on";
 
-/** A filter pill's shape, shared by its two states. */
-const FILTER_PILL =
-  "press inline-flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-xl border px-3.5 text-start text-sm";
-
 /** Each look's trigger. */
 const TRIGGER_CLASSES: Record<SelectVariant, string> = {
-  chip: "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-lg border ps-2.5 pe-2 text-start text-sm",
+  chip: "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-control border ps-2.5 pe-2 text-start text-sm",
   field: "field flex min-w-0 items-center justify-between gap-2 text-start",
-  filter: `${FILTER_PILL} border-line-strong text-ink-2 aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink border-dashed`,
-  "filter-on": `${FILTER_PILL} border-brand/30 bg-brand-soft text-brand pe-9 font-medium`,
+  filter: `press ${FILTER_CHIP} border-line-strong text-ink-2 aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink border-dashed`,
+  "filter-on": `press ${FILTER_CHIP_ON} pe-9`,
 };
 
 interface SelectProps {
@@ -68,7 +59,7 @@ interface SelectProps {
   /**
    * `field` lines up with the form's other inputs. `chip` is a compact
    * control sized to its value, for a toolbar such as the header bar.
-   * `filter` is a list's filter pill: dashed while nothing is chosen,
+   * `filter` is a list's filter chip: dashed while nothing is chosen,
    * brand-tinted once something is (`filter-on`), with room at its end
    * for a clear button laid over it.
    */
@@ -154,33 +145,22 @@ export const Select = ({
       )}
     >
       {/* The list scrolls inside, so its scrollbar matches the app's. */}
-      <ScrollArea className="flex min-h-0 flex-col rounded-[inherit] border-0">
-        {/* The listbox owns the keyboard, so the viewport is no tab stop. */}
-        <ScrollAreaViewport
-          className="h-auto min-h-0 flex-1 scroll-py-1 overscroll-contain"
-          tabIndex={-1}
-        >
-          <ScrollAreaContent className="p-1">
-            {options.map((entry) =>
-              isGroup(entry) ? (
-                <SelectGroup key={`group:${entry.label}`}>
-                  <SelectGroupLabel className="text-ink-3 px-2 pt-2 pb-1 text-xs font-medium">
-                    {entry.label}
-                  </SelectGroupLabel>
-                  {entry.options.map((option) => (
-                    <OptionItem key={option.value} option={option} />
-                  ))}
-                </SelectGroup>
-              ) : (
-                <OptionItem key={entry.value} option={entry} />
-              )
-            )}
-          </ScrollAreaContent>
-        </ScrollAreaViewport>
-        <ScrollAreaScrollbar className="w-2 p-0.5">
-          <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
-        </ScrollAreaScrollbar>
-      </ScrollArea>
+      <ListScrollArea>
+        {options.map((entry) =>
+          isGroup(entry) ? (
+            <SelectGroup key={`group:${entry.label}`}>
+              <SelectGroupLabel className="text-ink-3 px-2 pt-2 pb-1 text-xs font-medium">
+                {entry.label}
+              </SelectGroupLabel>
+              {entry.options.map((option) => (
+                <OptionItem key={option.value} option={option} />
+              ))}
+            </SelectGroup>
+          ) : (
+            <OptionItem key={entry.value} option={entry} />
+          )
+        )}
+      </ListScrollArea>
     </SelectContent>
   </SelectPrimitive>
 );

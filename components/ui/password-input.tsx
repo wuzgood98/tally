@@ -41,7 +41,7 @@ export const PasswordInput = ({
     />
     <PasswordInputToggle
       aria-label="Show password"
-      className="press text-ink-3 hover:text-ink absolute inset-y-0 end-0 grid w-10 place-items-center rounded-e-md"
+      className="press text-ink-3 hover:text-ink rounded-e-control absolute inset-y-0 end-0 grid w-10 place-items-center"
     >
       <Eye aria-hidden="true" className="size-4 in-data-visible:hidden" />
       <EyeOff

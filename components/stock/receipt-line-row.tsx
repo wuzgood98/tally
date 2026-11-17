@@ -87,7 +87,7 @@ export const ReceiptLineRow = ({
       <td className="px-2 py-2 text-center">
         <button
           aria-label={`Remove ${product.name}`}
-          className="press text-ink-3 hover:text-danger hover:bg-danger-soft grid size-8 place-items-center rounded-md"
+          className="press text-ink-3 hover:text-danger hover:bg-danger-soft rounded-control grid size-8 place-items-center"
           onClick={() => {
             onRemove(product.id);
           }}

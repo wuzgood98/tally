@@ -71,7 +71,7 @@ export const Toaster = () => (
         </div>
         <ToastClose
           aria-label="Dismiss"
-          className="press text-ink-3 hover:text-ink hover:bg-surface -me-1 -mt-0.5 grid size-6 shrink-0 place-items-center rounded-md"
+          className="press text-ink-3 hover:text-ink hover:bg-surface rounded-control -me-1 -mt-0.5 grid size-6 shrink-0 place-items-center"
         >
           <X aria-hidden="true" className="size-3.5" />
         </ToastClose>

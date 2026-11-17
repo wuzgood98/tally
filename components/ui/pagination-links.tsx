@@ -22,10 +22,10 @@ interface PaginationLinksProps {
 }
 
 const stepClass =
-  "press text-ink-2 hover:bg-surface-2 hover:text-ink inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm data-disabled:pointer-events-none data-disabled:opacity-40";
+  "press text-ink-2 hover:bg-surface-2 hover:text-ink inline-flex h-8 items-center gap-1 rounded-control px-2 text-sm data-disabled:pointer-events-none data-disabled:opacity-40";
 
 const pageClass =
-  "press tabular text-ink-2 hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-brand-soft aria-[current=page]:text-brand inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm aria-[current=page]:font-medium";
+  "press tabular text-ink-2 hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-brand-soft aria-[current=page]:text-brand inline-flex h-8 min-w-8 items-center justify-center rounded-control px-2 text-sm aria-[current=page]:font-medium";
 
 // A step at either end loses its href, and Next's Link needs one.
 const routerLink: RenderProp = ({ href, children, ...props }) =>

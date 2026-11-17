@@ -21,13 +21,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@ui-sdk/react/dialog";
-import {
-  ScrollArea,
-  ScrollAreaContent,
-  ScrollAreaScrollbar,
-  ScrollAreaThumb,
-  ScrollAreaViewport,
-} from "@ui-sdk/react/scroll-area";
 import { useShortcut, useShortcutHint } from "@ui-sdk/react/shortcuts";
 import {
   ChartColumn,
@@ -58,6 +51,7 @@ import type { ReactNode } from "react";
 
 import { shellIconButton } from "@/components/shell/icon-button";
 import { Kbd } from "@/components/ui/kbd";
+import { ListScrollArea } from "@/components/ui/list-scroll-area";
 import { ACCOUNT_GROUP } from "@/lib/palette";
 import type {
   PaletteCommand,
@@ -368,59 +362,55 @@ const PaletteListRows = ({
   sidebar,
   theme,
 }: PaletteListProps) => (
-  <ScrollArea className="flex min-h-0 flex-col rounded-none border-0">
-    <ScrollAreaViewport
-      aria-label="Commands"
-      // Scroll padding as tall as the fades keeps the highlight clear of them.
-      className="h-auto min-h-0 flex-1 scroll-py-8 overscroll-contain"
-    >
-      <ScrollAreaContent className="p-0">
-        <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
-          <CommandPage>
-            {showAsk && query.trim() === "" ? <AskRow query={query} /> : null}
-            {groups.map((group) =>
-              group.label === ACCOUNT_GROUP ? null : (
-                <CommandGroupOf group={group} key={group.label} />
-              )
-            )}
-            <BranchGroup branches={branches} query={query} scope={scope} />
-            <AppearanceGroup sidebar={sidebar} theme={theme} />
-            {groups.map((group) =>
-              group.label === ACCOUNT_GROUP ? (
-                <CommandGroupOf group={group} key={group.label} />
-              ) : null
-            )}
-            {documentsFirst(query) ? (
-              <>
-                <DocumentResults documents={documents} />
-                <ProductResults products={products} query={query} />
-              </>
-            ) : (
-              <>
-                <ProductResults products={products} query={query} />
-                <DocumentResults documents={documents} />
-              </>
-            )}
-            {showAsk && query.trim() !== "" ? <AskRow query={query} /> : null}
-          </CommandPage>
-          <BranchPage branches={branches} scope={scope} />
-          <ThemePage theme={theme} />
-        </CommandList>
-      </ScrollAreaContent>
-    </ScrollAreaViewport>
-    {/* Grow in as the list scrolls past each edge, up to 2rem. */}
-    <div
-      aria-hidden="true"
-      className="from-surface pointer-events-none absolute inset-x-0 top-0 h-[min(2rem,var(--scroll-area-overflow-y-start))] bg-linear-to-b to-transparent [--scroll-area-overflow-y-start:inherit]"
-    />
-    <div
-      aria-hidden="true"
-      className="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-[min(2rem,var(--scroll-area-overflow-y-end))] bg-linear-to-t to-transparent [--scroll-area-overflow-y-end:inherit]"
-    />
-    <ScrollAreaScrollbar className="w-2 p-0.5">
-      <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
-    </ScrollAreaScrollbar>
-  </ScrollArea>
+  <ListScrollArea
+    aria-label="Commands"
+    overlay={
+      <>
+        {/* Grow in as the list scrolls past each edge, up to 2rem. */}
+        <div
+          aria-hidden="true"
+          className="from-surface pointer-events-none absolute inset-x-0 top-0 h-[min(2rem,var(--scroll-area-overflow-y-start))] bg-linear-to-b to-transparent [--scroll-area-overflow-y-start:inherit]"
+        />
+        <div
+          aria-hidden="true"
+          className="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-[min(2rem,var(--scroll-area-overflow-y-end))] bg-linear-to-t to-transparent [--scroll-area-overflow-y-end:inherit]"
+        />
+      </>
+    }
+    variant="flush"
+  >
+    <CommandList className="pb-safe max-h-none overflow-visible px-2 pt-2">
+      <CommandPage>
+        {showAsk && query.trim() === "" ? <AskRow query={query} /> : null}
+        {groups.map((group) =>
+          group.label === ACCOUNT_GROUP ? null : (
+            <CommandGroupOf group={group} key={group.label} />
+          )
+        )}
+        <BranchGroup branches={branches} query={query} scope={scope} />
+        <AppearanceGroup sidebar={sidebar} theme={theme} />
+        {groups.map((group) =>
+          group.label === ACCOUNT_GROUP ? (
+            <CommandGroupOf group={group} key={group.label} />
+          ) : null
+        )}
+        {documentsFirst(query) ? (
+          <>
+            <DocumentResults documents={documents} />
+            <ProductResults products={products} query={query} />
+          </>
+        ) : (
+          <>
+            <ProductResults products={products} query={query} />
+            <DocumentResults documents={documents} />
+          </>
+        )}
+        {showAsk && query.trim() !== "" ? <AskRow query={query} /> : null}
+      </CommandPage>
+      <BranchPage branches={branches} scope={scope} />
+      <ThemePage theme={theme} />
+    </CommandList>
+  </ListScrollArea>
 );
 
 // Memoised: moving the highlight re-renders the palette, not the list.
@@ -782,7 +772,7 @@ export const PaletteFieldTrigger = () => {
     <DialogTrigger
       aria-keyshortcuts={hint.ariaKeyshortcuts}
       aria-label={TITLE}
-      className="border-input bg-surface press text-ink-3 hover:text-ink-2 focus-visible:ring-ring/50 flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-start text-xs outline-none focus-visible:ring-3"
+      className="border-input bg-surface press text-ink-3 hover:text-ink-2 focus-visible:ring-ring/50 rounded-control flex h-8 w-full items-center gap-2 border px-2.5 text-start text-xs outline-none focus-visible:ring-3"
       controller={palette}
     >
       <Search aria-hidden="true" className="size-3.5 shrink-0" />

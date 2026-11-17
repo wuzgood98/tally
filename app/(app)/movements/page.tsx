@@ -12,6 +12,7 @@ import {
 import { tabOptions } from "@/components/lists/tab-options";
 import { MovementTable } from "@/components/stock/movement-table";
 import { ListEmpty } from "@/components/ui/empty-state";
+import { FILTER_CHIP_CLEAR, FILTER_CHIP_ON } from "@/components/ui/filter-chip";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import type { MovementKind } from "@/lib/db/schema";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/search-params";
 import type { EnumFilter, FilterParam } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Movements" };
 
@@ -187,12 +189,12 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
 
         {item ? (
           <FilterBar>
-            <p className="bg-brand-soft text-brand flex h-9 items-center gap-1 rounded-xl ps-3.5 pe-1.5 text-sm font-medium">
+            <p className={cn(FILTER_CHIP_ON, "gap-1 pe-1.5")}>
               <span className="text-brand/75 font-normal">Product:</span>
               {item.name}
               <Link
                 aria-label={`Stop filtering by ${item.name}`}
-                className="hover:bg-brand/15 grid size-6 place-items-center rounded-md"
+                className={FILTER_CHIP_CLEAR}
                 href={`/movements${queryString({ kind: filters.kind })}`}
               >
                 <X aria-hidden="true" className="size-3.5" />

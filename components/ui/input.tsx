@@ -26,8 +26,6 @@ const inputVariants = cva("", {
       line: "field-line",
       /** Written large on a printed rule, like the name on a staff badge. */
       display: "field-line-display",
-      /** The boxed field with a panel's corners, for a search above a table. */
-      panel: "field-panel",
     },
     size: {
       md: "",

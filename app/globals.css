@@ -92,6 +92,9 @@
   --radius-lg: 8px;
   --radius-xl: 10px;
   --radius-2xl: 14px;
+  /* Every button, field and select trigger, except on printed paper: the
+     Frame tray's corners, so a control set beside a Frame matches it. */
+  --radius-control: var(--radius-2xl);
 }
 
 @theme {
@@ -634,7 +637,7 @@
 
 /* Native form controls styled once, so forms stay plain HTML. */
 @utility field {
-  @apply border-input bg-surface text-ink placeholder:text-ink-3 h-9 w-full rounded-md border px-3 text-sm;
+  @apply border-input bg-surface text-ink placeholder:text-ink-3 rounded-control h-9 w-full border px-3 text-sm;
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease;
@@ -657,13 +660,6 @@
   &:disabled {
     @apply opacity-60;
   }
-}
-
-/* The boxed field with a panel's corners, for a search set above a table. */
-@utility field-panel {
-  @apply field;
-  /* A plain declaration, after the apply, so it wins over the field's corners. */
-  border-radius: var(--radius-xl);
 }
 
 @layer base {
