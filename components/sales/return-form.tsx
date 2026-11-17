@@ -9,6 +9,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { labelledOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import type { ReturnDisposition } from "@/lib/db/schema";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
@@ -238,7 +239,9 @@ export const ReturnForm = ({
               {error}
             </output>
             <Button disabled={pending} size="md" type="submit">
-              {pending ? "Recording…" : "Approve return"}
+              <PendingLabel label="Recording…" pending={pending}>
+                Approve return
+              </PendingLabel>
             </Button>
           </div>
         </div>

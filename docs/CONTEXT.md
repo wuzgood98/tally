@@ -323,6 +323,12 @@ Batches:
 - Changing the day on Earlier sales draws the skeleton from the rows on screen; a day with more sales still grows the panel. That's new content, not a loading shift.
 - Not skeletons, on purpose: submit buttons' "Saving…" labels (an action in progress), Ask Tally's status line ("Looking up stock at Spintex…", which says what it's doing; an answer has no knowable shape), and the palette's "Searching…" (its results render as list items elsewhere, in a number nobody knows ahead).
 
+**Loading motion** (November 2026): those first two move instead. Chosen from four prototypes (dots, shimmer, spinner, progress line), each applied to all three states; the prototype is on the local branch `prototype/loading-motion` (not on `main`), with the verdict in its commit message.
+
+- **Pending buttons get a spinner**: `PendingLabel` (`components/ui/spinner.tsx`) shows `Spinner` before the pending text ("Saving…") and the idle label otherwise, as one element so `justify-between` buttons (the till's Charge) keep their layout. Every form's pending ternary and `ConfirmDialog`'s `pendingLabel` use it; new pending buttons should too. The ring is `aria-hidden`, so a button's accessible name is just its words. `animate-spin-fast` (0.75s) is in `@theme`; the ring holds still under reduced motion.
+- **Ask Tally's status line shimmers**: the `text-shimmer` utility (`globals.css`), a lighter band sweeping across the words (fill transparent, so `currentColor` paints the gradient); plain text under reduced motion. It replaced `animate-pulse`.
+- The palette's "Searching…" stays still text: the user didn't pick a motion for it.
+
 ## Stack
 
 Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), React 19.3, TypeScript 5, Tailwind CSS v4, Drizzle ORM 0.45 on PostgreSQL, Better Auth 1.7 (email and password plus the admin plugin), zod 4, Vitest 5, Ultracite 8.2 (Oxlint + Oxfmt), pnpm, Windows. Versions are in `package.json`; read the bundled Next docs before using any Next API (see `AGENTS.md`).

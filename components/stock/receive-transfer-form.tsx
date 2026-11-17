@@ -7,6 +7,7 @@ import { receiveTransferAction } from "@/app/(app)/transfers/actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
+import { PendingLabel } from "@/components/ui/spinner";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
@@ -200,7 +201,9 @@ export const ReceiveTransferForm = ({
               {error}
             </output>
             <Button disabled={pending} size="md" type="submit">
-              {pending ? "Saving…" : "Receive transfer"}
+              <PendingLabel label="Saving…" pending={pending}>
+                Receive transfer
+              </PendingLabel>
             </Button>
           </div>
         </div>

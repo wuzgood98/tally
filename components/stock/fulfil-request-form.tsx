@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PendingLabel } from "@/components/ui/spinner";
 import { formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
@@ -184,7 +185,9 @@ export const FulfilRequestForm = ({
             {error}
           </output>
           <Button disabled={pending} size="md" type="submit">
-            {pending ? "Sending…" : "Send as a transfer"}
+            <PendingLabel label="Sending…" pending={pending}>
+              Send as a transfer
+            </PendingLabel>
           </Button>
         </div>
       </div>
@@ -270,7 +273,9 @@ export const CancelRequestForm = ({
           type="submit"
           variant="destructive"
         >
-          {pending ? "Cancelling…" : "Cancel the request"}
+          <PendingLabel label="Cancelling…" pending={pending}>
+            Cancel the request
+          </PendingLabel>
         </Button>
       </div>
     </form>

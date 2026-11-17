@@ -9,6 +9,7 @@ import type { LookupResult, PickedProduct } from "@/app/(app)/lookup-action";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PendingLabel } from "@/components/ui/spinner";
 import { isScanEnter } from "@/lib/scan-key";
 
 interface ProductPickerProps {
@@ -122,7 +123,9 @@ export const ProductPicker = ({
           type="button"
           variant="outline"
         >
-          {pending ? "Finding…" : "Find"}
+          <PendingLabel label="Finding…" pending={pending}>
+            Find
+          </PendingLabel>
         </Button>
       </div>
       <FieldDescription>

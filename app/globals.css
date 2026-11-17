@@ -95,6 +95,9 @@
 }
 
 @theme {
+  /* A pending button's spinner: a touch quicker than animate-spin. */
+  --animate-spin-fast: spin 0.75s linear infinite;
+
   /* Night shift runs a step denser than Tailwind's default scale. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -188,6 +191,38 @@
     --good: #5fd39a;
     --skullet-base: rgb(237 237 239 / 0.07);
     --skullet-highlight: rgb(255 255 255 / 0.06);
+  }
+}
+
+/*
+ * Work in progress, said in words (Ask Tally's status line): a lighter band
+ * sweeps across the text. The fill goes transparent, not the colour, so
+ * currentColor still paints the gradient. Plain text under reduced motion.
+ */
+@keyframes text-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@utility text-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklab, currentColor 45%, transparent) 40%,
+    currentColor 50%,
+    color-mix(in oklab, currentColor 45%, transparent) 60%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shimmer 1.8s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    -webkit-text-fill-color: currentColor;
   }
 }
 

@@ -9,6 +9,7 @@ import { Radio, RadioGroup } from "@/components/ui/choice";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { PendingLabel } from "@/components/ui/spinner";
 import type { PaymentMethod } from "@/lib/db/schema";
 import { formatCount } from "@/lib/format";
 import { PESEWAS_PER_CEDI, formatCedis, pesewasToCashInput } from "@/lib/money";
@@ -238,7 +239,9 @@ export const TillCheckout = ({
           type="submit"
           variant="ink"
         >
-          {pending ? "Recording…" : `Charge ${formatCedis(total)}`}
+          <PendingLabel label="Recording…" pending={pending}>
+            {`Charge ${formatCedis(total)}`}
+          </PendingLabel>
           <Kbd
             aria-hidden="true"
             className={cn("pointer-coarse:hidden", pending && "invisible")}

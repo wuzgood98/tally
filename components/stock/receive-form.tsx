@@ -16,6 +16,7 @@ import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import { formInt, formText } from "@/lib/form";
 import { formatCount } from "@/lib/format";
 import { formatCedis, parseCedis, pesewasToInput } from "@/lib/money";
@@ -327,7 +328,9 @@ export const ReceiveForm = ({
             {error}
           </output>
           <Button disabled={pending} size="md" type="submit">
-            {pending ? "Saving…" : "Receive goods"}
+            <PendingLabel label="Saving…" pending={pending}>
+              Receive goods
+            </PendingLabel>
           </Button>
         </div>
       </div>

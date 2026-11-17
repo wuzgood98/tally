@@ -20,6 +20,7 @@ import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
 import { NOTE_REQUIRED, REASON_DIRECTION } from "@/lib/stock/reasons";
@@ -275,7 +276,9 @@ export const AdjustForm = ({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending} size="md" type="submit">
-          {pending ? "Saving…" : "Save"}
+          <PendingLabel label="Saving…" pending={pending}>
+            Save
+          </PendingLabel>
         </Button>
         <output aria-live="polite" className="text-danger text-sm">
           {error}

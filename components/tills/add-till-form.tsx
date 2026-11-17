@@ -10,6 +10,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 interface AddTillFormProps {
@@ -102,7 +103,9 @@ export const AddTillForm = ({ stores }: AddTillFormProps) => {
         </Field>
         <div className="flex flex-wrap items-center gap-3">
           <Button disabled={pending} size="md" type="submit">
-            {pending ? "Creating…" : "Add till"}
+            <PendingLabel label="Creating…" pending={pending}>
+              Add till
+            </PendingLabel>
           </Button>
           <p aria-live="polite" className="text-danger text-sm">
             {state.error}

@@ -16,6 +16,7 @@ import type { ReactNode } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PendingLabel } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 type ButtonLook = VariantProps<typeof buttonVariants>;
@@ -194,7 +195,9 @@ export const ConfirmDialog = ({
                   )}
                   type="button"
                 >
-                  {state.pending ? pendingLabel : confirmLabel}
+                  <PendingLabel label={pendingLabel} pending={state.pending}>
+                    {confirmLabel}
+                  </PendingLabel>
                 </button>
               </div>
             </div>

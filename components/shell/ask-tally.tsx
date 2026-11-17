@@ -227,8 +227,10 @@ export const AskPanel = ({
                 )
               )}
               {showStatus ? (
-                <p className="text-ink-3 animate-pulse text-sm motion-reduce:animate-none">
-                  {askStatusLine(answering)}
+                <p className="text-ink-3 text-sm">
+                  <span className="text-shimmer">
+                    {askStatusLine(answering)}
+                  </span>
                 </p>
               ) : null}
               {failure === null ? null : (
