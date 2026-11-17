@@ -52,7 +52,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { createContext, memo, use, useMemo, useState } from "react";
+import { createContext, memo, use, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { shellIconButton } from "@/components/shell/icon-button";
@@ -79,8 +79,11 @@ import {
   documentsFirst,
   hitsOf,
   MIN_SEARCH_LENGTH,
+  productOf,
   resultHref,
   resultScore,
+  takesResultHighlight,
+  topResult,
 } from "@/lib/palette-results";
 import type { PaletteHit, PaletteSearch } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
@@ -88,13 +91,18 @@ import { SIDEBAR_COMMAND } from "@/lib/palette-sidebar";
 import { THEME_PAGE, themeOf } from "@/lib/palette-theme";
 import type { SidebarState } from "@/lib/sidebar";
 import type { Theme } from "@/lib/theme";
+import { splitForMiddleTruncation } from "@/lib/truncate";
 import { cn } from "@/lib/utils";
 
 import { AskPanel } from "./ask-tally";
 import { AppearanceGroup } from "./palette-appearance";
 import { BranchGroup, BranchPage } from "./palette-branches";
 import { DocumentResults } from "./palette-documents";
-import { ProductResults } from "./palette-products";
+import {
+  COPY_SKU_SHORTCUT,
+  CopySkuShortcut,
+  ProductResults,
+} from "./palette-products";
 import {
   paletteGroupLabelClass,
   paletteIconClass,
@@ -105,6 +113,8 @@ import {
 import { ThemePage } from "./palette-theme";
 
 const SHORTCUT = "mod+k";
+
+const NO_HITS: readonly PaletteHit[] = [];
 const TITLE = "Search or jump to";
 
 const ICONS: Record<PaletteIcon, LucideIcon> = {
@@ -182,39 +192,76 @@ const CommandShortcut = ({
   return null;
 };
 
+/**
+ * "Copy SKU of Long grain perf…rice 25 kg": a long name loses its middle,
+ * so the size or variant at its end stays readable.
+ */
+const CopyingLabel = ({ name }: { readonly name: string }) => {
+  const [head, tail] = splitForMiddleTruncation(name);
+
+  return (
+    <span className="flex min-w-0" title={name}>
+      <span className="shrink-0 whitespace-pre">Copy SKU of </span>
+      <span className="text-ink-2 truncate">{head}</span>
+      <span className="text-ink-2 shrink-0 whitespace-pre">{tail}</span>
+    </span>
+  );
+};
+
 const FooterKey = ({
   className,
   keys,
   label,
 }: {
   readonly keys: readonly string[];
-  readonly label: string;
+  readonly label: ReactNode;
   readonly className?: string;
 }) => (
   <span className={cn("flex items-center gap-1.5", className)}>
+    {label}
     <span className="flex gap-0.5">
       {keys.map((key) => (
         <Kbd key={key}>{key}</Kbd>
       ))}
     </span>
-    {label}
   </span>
 );
 
-/** How to drive the palette from the keyboard. Hidden on touch screens. */
-const PaletteFooter = ({ onSubPage }: { readonly onSubPage: boolean }) => {
+/**
+ * How to drive the palette from the keyboard. Hidden on touch screens. With
+ * a product highlighted, copying its SKU takes Close's place (Esc still
+ * closes), naming the product.
+ */
+const PaletteFooter = ({
+  copying,
+  onSubPage,
+}: {
+  readonly copying: PaletteProduct | null;
+  readonly onSubPage: boolean;
+}) => {
   const enter = useShortcutHint("enter");
   const backspace = useShortcutHint("backspace");
+  const copy = useShortcutHint(COPY_SKU_SHORTCUT);
 
   return (
     <div
       aria-hidden="true"
       className="border-line text-ink-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2.5 text-xs pointer-coarse:hidden"
     >
-      <FooterKey keys={[enter.text]} label="Open" />
+      <FooterKey keys={[enter.text]} label="Go to" />
       <FooterKey keys={["↑", "↓"]} label="Move" />
       {onSubPage ? <FooterKey keys={[backspace.text]} label="Back" /> : null}
-      <FooterKey className="ms-auto" keys={["Esc"]} label="Close" />
+      {copying === null ? (
+        <FooterKey className="ms-auto" keys={["Esc"]} label="Close" />
+      ) : (
+        <FooterKey
+          // Fills what's left of the line, cutting the name to fit; with less
+          // than 15rem left (a phone) it takes a line of its own instead.
+          className="ms-auto min-w-0 flex-1 basis-60 justify-end"
+          keys={[copy.text]}
+          label={<CopyingLabel name={copying.name} />}
+        />
+      )}
     </div>
   );
 };
@@ -311,7 +358,7 @@ interface PaletteListProps {
 }
 
 /** The commands, branches, appearance, search results and their pages. */
-const PaletteList = ({
+const PaletteListRows = ({
   branches,
   documents,
   groups,
@@ -377,6 +424,9 @@ const PaletteList = ({
   </ScrollArea>
 );
 
+// Memoised: moving the highlight re-renders the palette, not the list.
+const PaletteList = memo(PaletteListRows);
+
 /**
  * Cmd/Ctrl+K from anywhere: pages, things to create, sign out. The commands
  * come from the server (`paletteCommands`), already cut to what this person
@@ -404,6 +454,12 @@ export const CommandPalette = ({
   const subPage = pages.at(-1);
   // Asking: the question to start with ("" for none). Null: the commands.
   const [asking, setAsking] = useState<string | null>(null);
+  // The highlighted command. Controlled, because the footer names the
+  // highlighted product; ui-sdk then leaves arriving results unhighlighted,
+  // so handing the highlight to them is ours (below).
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const [handedTo, setHandedTo] = useState<string | null>(null);
+  const content = useRef<HTMLDivElement>(null);
 
   const results = useAsyncOptions<PaletteHit>(
     async (text) => hitsOf(await search(text)),
@@ -414,15 +470,35 @@ export const CommandPalette = ({
   const searching =
     subPage === undefined && query.trim().length >= MIN_SEARCH_LENGTH;
 
-  const hits = searching ? results.items : [];
+  const hits = searching ? results.items : NO_HITS;
 
-  const products = hits.flatMap((hit) =>
-    hit.type === "product" ? [hit.product] : []
+  // Stable between results, so moving the highlight doesn't redraw the list.
+  const products = useMemo(
+    () => hits.flatMap((hit) => (hit.type === "product" ? [hit.product] : [])),
+    [hits]
   );
 
-  const documents = hits.flatMap((hit) =>
-    hit.type === "document" ? [hit.document] : []
+  const documents = useMemo(
+    () =>
+      hits.flatMap((hit) => (hit.type === "document" ? [hit.document] : [])),
+    [hits]
   );
+
+  // New results take the highlight from nothing, from "Ask Tally" or from the
+  // last search's results; never from a page or action that matched.
+  const top = searching ? topResult(query, hits) : null;
+
+  if (top !== handedTo) {
+    setHandedTo(top);
+
+    if (top !== null && takesResultHighlight(highlighted, ASK_VALUE)) {
+      setHighlighted(top);
+    }
+  }
+
+  // Not while asking: Ctrl+C there copies from the conversation.
+  const highlightedProduct =
+    asking === null ? productOf(highlighted, hits) : null;
 
   const changeQuery = (text: string): void => {
     if (ask !== null && subPage === undefined && opensAsk(query, text)) {
@@ -564,16 +640,19 @@ export const CommandPalette = ({
         <DialogContent
           className="border-line-strong bg-surface text-ink shadow-float z-50 flex w-full flex-col gap-0 overflow-hidden border p-0 font-sans [view-transition-name:palette] data-[presentation=dialog]:mx-auto data-[presentation=dialog]:mt-[12vh] data-[presentation=dialog]:mb-auto data-[presentation=dialog]:max-h-[min(32rem,76vh)] data-[presentation=dialog]:w-[calc(100%-2rem)] data-[presentation=dialog]:max-w-xl data-[presentation=dialog]:rounded-2xl data-[presentation=dialog]:transition data-[presentation=dialog]:duration-150 data-[presentation=dialog]:data-ending-style:scale-98 data-[presentation=dialog]:data-ending-style:opacity-0 data-[presentation=sheet]:max-h-[min(80svh,calc(var(--visual-viewport-height,100svh)-0.5rem))] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 motion-reduce:data-[presentation=dialog]:transition-none"
           keepMounted
+          ref={content}
         >
+          <CopySkuShortcut layer={content} product={highlightedProduct} />
           <DialogTitle className="sr-only">
             {asking === null ? TITLE : "Ask Tally"}
           </DialogTitle>
           {asking === null || ask === null ? (
             <Command
               className="flex min-h-0 w-full max-w-none grow flex-col bg-transparent"
+              onValueChange={setHighlighted}
               filter={(item, text) =>
                 item.value === ASK_VALUE
-                  ? askScore()
+                  ? askScore(searching)
                   : (resultScore(item.value, text, hits) ??
                     paletteScore(item, text))
               }
@@ -581,6 +660,7 @@ export const CommandPalette = ({
               onPagesChange={setPages}
               onQueryChange={changeQuery}
               pages={pages}
+              value={highlighted}
               pendingAnnouncement="Working…"
               query={query}
               status={searching ? results.status : "idle"}
@@ -621,7 +701,10 @@ export const CommandPalette = ({
                 sidebar={sidebar}
                 theme={theme}
               />
-              <PaletteFooter onSubPage={subPage !== undefined} />
+              <PaletteFooter
+                copying={highlightedProduct}
+                onSubPage={subPage !== undefined}
+              />
             </Command>
           ) : (
             <AskPanel

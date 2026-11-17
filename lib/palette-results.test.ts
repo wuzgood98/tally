@@ -6,10 +6,13 @@ import {
   documentsFirst,
   documentValue,
   hitsOf,
+  productOf,
   productValue,
   resultHref,
   resultScore,
   SEE_ALL_PRODUCTS,
+  takesResultHighlight,
+  topResult,
 } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
 
@@ -91,5 +94,41 @@ describe("documentsFirst", () => {
     expect(documentsFirst("000042")).toBe(true);
     expect(documentsFirst("rice")).toBe(false);
     expect(documentsFirst("5012345678900")).toBe(false);
+  });
+});
+
+describe("productOf", () => {
+  it("finds the product a highlighted value stands for", () => {
+    expect(productOf(productValue(7), hits)).toBe(rice);
+    expect(productOf(productValue(8), hits)).toBeNull();
+    expect(productOf(documentValue(order.number), hits)).toBeNull();
+    expect(productOf(SEE_ALL_PRODUCTS, hits)).toBeNull();
+    expect(productOf(null, hits)).toBeNull();
+  });
+});
+
+describe("topResult", () => {
+  it("picks the highest-ranked result, or none", () => {
+    const exactOrder = hitsOf({
+      documents: [{ ...order, exact: true }],
+      products: [rice],
+    });
+
+    expect(topResult("rice", hits)).toBe(productValue(7));
+    expect(topResult("PO-SPX-000012", exactOrder)).toBe(
+      documentValue(order.number)
+    );
+    expect(topResult("rice", [])).toBeNull();
+  });
+});
+
+describe("takesResultHighlight", () => {
+  it("takes over from nothing, Ask and old results, not from a page", () => {
+    expect(takesResultHighlight(null, "ask")).toBe(true);
+    expect(takesResultHighlight("ask", "ask")).toBe(true);
+    expect(takesResultHighlight(productValue(9), "ask")).toBe(true);
+    expect(takesResultHighlight(documentValue(order.number), "ask")).toBe(true);
+    expect(takesResultHighlight(SEE_ALL_PRODUCTS, "ask")).toBe(true);
+    expect(takesResultHighlight("go:/low-stock", "ask")).toBe(false);
   });
 });

@@ -6,11 +6,69 @@ import {
   CommandItem,
   CommandItemIcon,
 } from "@ui-sdk/react/command";
+import { useShortcut } from "@ui-sdk/react/shortcuts";
+import { toast } from "@ui-sdk/react/toast";
 import { ArrowRight, Package } from "lucide-react";
+import type { RefObject } from "react";
 
 import { productValue, SEE_ALL_PRODUCTS } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
 import { cn } from "@/lib/utils";
+
+/** Copies the highlighted product's SKU, as Ctrl+C or ⌘C would copy text. */
+export const COPY_SKU_SHORTCUT = "mod+c";
+
+/** Text selected in the search box (or anywhere) keeps the browser's copy. */
+const hasSelectedText = (): boolean => {
+  const field = document.activeElement;
+
+  if (
+    field instanceof HTMLInputElement ||
+    field instanceof HTMLTextAreaElement
+  ) {
+    return field.selectionStart !== field.selectionEnd;
+  }
+
+  return !(window.getSelection()?.isCollapsed ?? true);
+};
+
+const copySku = async (sku: string): Promise<void> => {
+  try {
+    await navigator.clipboard.writeText(sku);
+    toast.success(`Copied ${sku}`);
+  } catch {
+    toast.error("Couldn't copy the SKU");
+  }
+};
+
+/**
+ * Ctrl/Cmd+C while a product is highlighted copies its SKU; the palette
+ * stays open. Belongs to the palette's layer, so it's off while it's closed.
+ */
+export const CopySkuShortcut = ({
+  layer,
+  product,
+}: {
+  readonly layer: RefObject<HTMLElement | null>;
+  readonly product: PaletteProduct | null;
+}) => {
+  useShortcut(
+    COPY_SKU_SHORTCUT,
+    () => {
+      if (product !== null) {
+        void copySku(product.sku);
+      }
+    },
+    {
+      allowInInput: true,
+      description: "Copy SKU",
+      layer,
+      when: () => product !== null && !hasSelectedText(),
+    }
+  );
+
+  return null;
+};
 
 const StockLabel = ({ units }: { readonly units: number | null }) =>
   units === null ? (

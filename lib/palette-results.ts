@@ -75,6 +75,39 @@ export const resultHref = (
   return null;
 };
 
+/**
+ * Whether results that have just arrived take the highlight from this value:
+ * from nothing, from "Ask Tally" (`askValue`) or from the last search's
+ * results, but not from a page or action the person may be heading for.
+ */
+export const takesResultHighlight = (
+  value: string | null,
+  askValue: string
+): boolean =>
+  value === null ||
+  value === askValue ||
+  value === SEE_ALL_PRODUCTS ||
+  value.startsWith(PRODUCT_PREFIX) ||
+  value.startsWith(DOCUMENT_PREFIX);
+
+/** The product a command value stands for, or null for anything else. */
+export const productOf = (
+  value: string | null,
+  hits: readonly PaletteHit[]
+): PaletteProduct | null => {
+  if (value === null || !value.startsWith(PRODUCT_PREFIX)) {
+    return null;
+  }
+
+  for (const hit of hits) {
+    if (hit.type === "product" && productValue(hit.product.id) === value) {
+      return hit.product;
+    }
+  }
+
+  return null;
+};
+
 const hitScore = (hit: PaletteHit, query: string): number => {
   if (hit.type === "product") {
     return hit.product.exact ? EXACT_PRODUCT_SCORE : PRODUCT_SCORE;
@@ -85,6 +118,29 @@ const hitScore = (hit: PaletteHit, query: string): number => {
   }
 
   return documentsFirst(query) ? DOCUMENT_FIRST_SCORE : DOCUMENT_LAST_SCORE;
+};
+
+/** The value of the result that ranks highest, or null when there's none. */
+export const topResult = (
+  query: string,
+  hits: readonly PaletteHit[]
+): string | null => {
+  let top: { value: string; score: number } | null = null;
+
+  for (const hit of hits) {
+    const value =
+      hit.type === "product"
+        ? productValue(hit.product.id)
+        : documentValue(hit.document.number);
+
+    const score = hitScore(hit, query);
+
+    if (top === null || score > top.score) {
+      top = { score, value };
+    }
+  }
+
+  return top?.value ?? null;
 };
 
 /**

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import "@/test/dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createAgent } from "@ui-sdk/react/agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Toaster } from "@/components/ui/toaster";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteDocument } from "@/lib/palette-documents";
 import type { PaletteResults } from "@/lib/palette-results";
@@ -15,6 +16,7 @@ import {
   PaletteFieldTrigger,
   PaletteIconTrigger,
 } from "./command-palette";
+import type { AskSettings } from "./command-palette";
 
 const push = vi.fn((_href: string) => {
   /* records where the palette navigated */
@@ -141,9 +143,10 @@ const GROUPS: PaletteGroup[] = [
   },
 ];
 
-const renderPalette = () =>
+const renderPalette = (ask: AskSettings | null = null) =>
   render(
     <CommandPalette
+      ask={ask}
       groups={GROUPS}
       onNavigate={push}
       onSignOut={signOut}
@@ -156,6 +159,7 @@ const renderPalette = () =>
     >
       <PaletteFieldTrigger />
       <PaletteIconTrigger />
+      <Toaster />
     </CommandPalette>
   );
 
@@ -168,6 +172,11 @@ beforeEach(() => {
   switchScope.mockClear();
   setTheme.mockClear();
 });
+
+/** The footer: its hints, which only it shows. */
+const footerText = (): string =>
+  screen.getByText("Go to", { selector: "span" }).closest("[aria-hidden]")
+    ?.textContent ?? "";
 
 const openAndType = async (text: string) => {
   const user = userEvent.setup();
@@ -247,8 +256,11 @@ describe("CommandPalette", () => {
 
     expect(overview?.querySelector("kbd")).toBeNull();
 
-    for (const label of ["Open", "Move", "Close"]) {
-      expect(screen.getByText(label)).toBeTruthy();
+    // "Close" is only in the footer; "Go to" is a group's name too.
+    const footer = screen.getByText("Close").parentElement ?? document.body;
+
+    for (const label of ["Go to", "Move", "Close"]) {
+      expect(within(footer).getByText(label)).toBeTruthy();
     }
 
     expect(screen.queryByText("Back")).toBeNull();
@@ -285,6 +297,68 @@ describe("CommandPalette", () => {
     await user.click(rice);
 
     expect(push).toHaveBeenCalledWith("/products/7");
+  });
+
+  it("copies the highlighted product's SKU with Ctrl+C, and says so in the footer", async () => {
+    const user = await openAndType("rice");
+
+    await screen.findByRole("option", { name: /Jasmine rice/u });
+
+    // Close gives way to the product being copied (Esc still closes).
+    await vi.waitFor(() => {
+      expect(footerText()).toContain("Copy SKU of Jasmine rice 5 kg");
+    });
+    expect(footerText()).not.toContain("Close");
+
+    await user.keyboard("{Control>}c{/Control}");
+
+    expect(await navigator.clipboard.readText()).toBe("GR-0001");
+    expect(await screen.findByText("Copied GR-0001")).toBeTruthy();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("highlights the top product over Ask Tally, so Ctrl+C copies it", async () => {
+    const user = userEvent.setup();
+    renderPalette({ suggestions: [] });
+
+    await user.keyboard("{Control>}k{/Control}");
+    await user.type(await screen.findByRole("combobox"), "rice");
+
+    const rice = await screen.findByRole("option", { name: /Jasmine rice/u });
+
+    await vi.waitFor(() => {
+      expect(Object.hasOwn(rice.dataset, "highlighted")).toBe(true);
+    });
+
+    expect(screen.getByRole("option", { name: /Ask Tally/u })).toBeTruthy();
+
+    await user.keyboard("{Control>}c{/Control}");
+
+    expect(await navigator.clipboard.readText()).toBe("GR-0001");
+  });
+
+  it("leaves Ctrl+C alone when text is selected or a product isn't highlighted", async () => {
+    const user = await openAndType("rice");
+
+    await screen.findByRole("option", { name: /Jasmine rice/u });
+    await navigator.clipboard.writeText("before");
+    await user.keyboard("{Control>}a{/Control}{Control>}c{/Control}");
+
+    expect(await navigator.clipboard.readText()).not.toBe("GR-0001");
+
+    // Down to "See all results", which has no SKU.
+    await user.keyboard("{ArrowRight}{ArrowDown}{Control>}c{/Control}");
+
+    expect(await navigator.clipboard.readText()).not.toBe("GR-0001");
+    expect(footerText()).toContain("Close");
+    expect(footerText()).not.toContain("Copy SKU");
+
+    await user.clear(screen.getByRole("combobox"));
+    await user.type(screen.getByRole("combobox"), "zzzz");
+    await screen.findByText("Nothing matches “zzzz”.");
+
+    expect(footerText()).not.toContain("Copy SKU");
   });
 
   it("tags discontinued products and says when one isn't stocked", async () => {
