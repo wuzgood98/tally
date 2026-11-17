@@ -7,7 +7,6 @@ import {
   FilterSummary,
   ListFilters,
   ListResults,
-  Term,
   UrlTabs,
 } from "@/components/lists/list-filters";
 import { tabOptions } from "@/components/lists/tab-options";
@@ -16,12 +15,17 @@ import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import type { MovementKind } from "@/lib/db/schema";
-import { countLabel, formatCount } from "@/lib/format";
+import { countLabel } from "@/lib/format";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct } from "@/lib/queries/products";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumFilter, intParam, queryString } from "@/lib/search-params";
-import type { EnumFilter } from "@/lib/search-params";
+import {
+  clearParams,
+  enumFilter,
+  intParam,
+  queryString,
+} from "@/lib/search-params";
+import type { EnumFilter, FilterParam } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Movements" };
@@ -68,8 +72,11 @@ const KIND_NOUNS: Record<(typeof KINDS)[number], readonly [string, string]> = {
   transfer_out: ["transfer out", "transfers out"],
 };
 
-/** Every filter param, and the cursor: what "Clear filters" clears. */
-const FILTER_PARAMS = ["kind", "product", "before"] as const;
+/** A product id; the empty default is every product. */
+const PRODUCT_FILTER: FilterParam = { defaultValue: "", param: "product" };
+
+/** What "Clear filters" clears: the filters and the cursor. */
+const CLEAR = clearParams([KIND_FILTER, PRODUCT_FILTER], ["before"]);
 
 /**
  * What a screen reader hears once the list updates. There's no total (the
@@ -109,19 +116,19 @@ const MovementsSummary = ({
   readonly filtered: boolean;
 }) => {
   const [one, many] = KIND_NOUNS[kind];
-  const noun = shown === 1 ? one : many;
 
   return (
-    <FilterSummary clear={filtered ? FILTER_PARAMS : undefined}>
-      {latest ? "Latest " : ""}
-      {formatCount(shown)} {kind === "all" ? noun : <Term>{noun}</Term>}
-      {productName === undefined ? null : (
-        <>
-          {" "}
-          of <Term>{productName}</Term>
-        </>
-      )}
-    </FilterSummary>
+    <FilterSummary
+      clear={filtered ? CLEAR : undefined}
+      count={shown}
+      noun={one}
+      nounIsFilter={kind !== "all"}
+      plural={many}
+      phrases={[
+        productName === undefined ? null : { lead: "of", term: productName },
+      ]}
+      prefix={latest ? "Latest" : undefined}
+    />
   );
 };
 
@@ -132,7 +139,7 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
   ]);
 
   const kind = enumFilter(params, KIND_FILTER);
-  const productId = intParam(params, "product", 0) || undefined;
+  const productId = intParam(params, PRODUCT_FILTER.param, 0) || undefined;
   const before = intParam(params, "before", 0) || undefined;
 
   const [branches, scope, item] = await Promise.all([
@@ -170,10 +177,10 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
           filter={KIND_FILTER}
           label="Kind of movement"
           options={tabOptions(
-            KINDS,
+            KIND_FILTER,
             KIND_LABELS,
             (value) =>
-              `/movements${queryString({ kind: value === "all" ? null : value, product: productId })}`
+              `/movements${queryString({ kind: value, product: productId })}`
           )}
           resets={["before"]}
         />

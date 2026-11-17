@@ -6,7 +6,6 @@ import {
   FilterSummary,
   ListFilters,
   ListResults,
-  Term,
   UrlChip,
   UrlSearch,
   UrlTabs,
@@ -32,7 +31,13 @@ import type { ProductListRow, StatusFilter } from "@/lib/queries/products";
 import { stockStatus } from "@/lib/queries/stock-status";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import type { Scope } from "@/lib/scope";
-import { enumFilter, intParam, param, queryString } from "@/lib/search-params";
+import {
+  clearParams,
+  enumFilter,
+  intParam,
+  param,
+  queryString,
+} from "@/lib/search-params";
 import type { EnumFilter, FilterParam } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 
@@ -64,8 +69,8 @@ const STATUS_TERMS: Record<StatusFilter, string | null> = {
   out: "out-of-stock",
 };
 
-/** Every filter param, and the page: what "Clear filters" clears. */
-const FILTER_PARAMS = ["q", "category", "status", "page"] as const;
+/** What "Clear filters" clears: the filters, the search and the page. */
+const CLEAR = clearParams([STATUS_FILTER, CATEGORY_FILTER], ["q", "page"]);
 
 const StatusCell = ({
   row,
@@ -127,7 +132,6 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
 
   const filtered = search !== "" || categoryId !== null || status !== "all";
   const categoryName = categories.find((item) => item.id === categoryId)?.name;
-  const statusTerm = STATUS_TERMS[status];
 
   return (
     <>
@@ -152,10 +156,10 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
           filter={STATUS_FILTER}
           label="Stock status"
           options={tabOptions(
-            STATUSES,
+            STATUS_FILTER,
             STATUS_LABELS,
             (value) =>
-              `/products${queryString({ category: categoryId, q: search, status: value === "all" ? null : value })}`
+              `/products${queryString({ category: categoryId, q: search, status: value })}`
           )}
           resets={["page"]}
         />
@@ -192,27 +196,20 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
 
         <ListResults announce={countLabel(total, "product")}>
           {rows.length === 0 ? null : (
-            <FilterSummary clear={filtered ? FILTER_PARAMS : undefined}>
-              {formatCount(total)}{" "}
-              {statusTerm === null ? null : (
-                <>
-                  <Term>{statusTerm}</Term>{" "}
-                </>
-              )}
-              {total === 1 ? "product" : "products"}
-              {categoryName === undefined ? null : (
-                <>
-                  {" "}
-                  in <Term>{categoryName}</Term>
-                </>
-              )}
-              {search === "" ? null : (
-                <>
-                  {" "}
-                  matching <Term>“{search}”</Term>
-                </>
-              )}
-            </FilterSummary>
+            <FilterSummary
+              adjective={STATUS_TERMS[status]}
+              clear={filtered ? CLEAR : undefined}
+              count={total}
+              noun="product"
+              phrases={[
+                categoryName === undefined
+                  ? null
+                  : { lead: "in", term: categoryName },
+                search === ""
+                  ? null
+                  : { lead: "matching", term: `“${search}”` },
+              ]}
+            />
           )}
           <Panel
             flush

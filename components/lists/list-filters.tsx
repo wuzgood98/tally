@@ -6,6 +6,7 @@ import { debounce, parseAsString, useQueryStates } from "nuqs";
 import type { Options, SetValues } from "nuqs";
 import {
   createContext,
+  Fragment,
   use,
   useEffect,
   useMemo,
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SelectOptions } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { formatCount, pluralNoun } from "@/lib/format";
 import type { FilterParam } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
 
@@ -398,32 +400,85 @@ const ClearFilters = ({ params }: { readonly params: readonly string[] }) => {
 };
 
 /** A filter's value inside a `FilterSummary`, such as "running low". */
-export const Term = ({ children }: { readonly children: ReactNode }) => (
+const Term = ({ children }: { readonly children: ReactNode }) => (
   <strong className="text-ink font-medium">{children}</strong>
 );
 
+/** A filter's words after the noun in a `FilterSummary`: "in Drinks". */
+export interface SummaryPhrase {
+  /** Plain words before the value, such as "in". */
+  readonly lead?: string;
+  /** The filter's value, shown bold, such as "Drinks". */
+  readonly term: string;
+}
+
+const NO_PHRASES: readonly (SummaryPhrase | null)[] = [];
+
+interface FilterSummaryProps {
+  /** Before the count, such as "Latest". */
+  readonly prefix?: string;
+  readonly count: number;
+  /** A filter's value before the noun, such as "running low"; null if off. */
+  readonly adjective?: string | null;
+  /** What's counted, in the singular; it takes an "s" for more than one. */
+  readonly noun: string;
+  /** The plural, when it isn't the noun plus "s" ("deliveries"). */
+  readonly plural?: string;
+  /** Bold the noun as well, when it names the filter ("sales"). */
+  readonly nounIsFilter?: boolean;
+  /** Filters after the noun, in order; null for one that's off. */
+  readonly phrases?: readonly (SummaryPhrase | null)[];
+  /**
+   * The params "Clear filters" clears (`clearParams`). Pass it only while a
+   * filter is on; without it there's no button.
+   */
+  readonly clear?: readonly string[];
+}
+
 /**
  * The sentence above a list saying what it shows, such as "77 running low
- * products in Rice". Pass `clear` (every filter param, and the page) while a
- * filter is on, for a "Clear filters" button after it.
+ * products in Rice · Clear filters". Filter values are bold.
  */
 export const FilterSummary = ({
-  children,
+  prefix,
+  count,
+  adjective = null,
+  noun,
+  plural,
+  nounIsFilter = false,
+  phrases = NO_PHRASES,
   clear,
-}: {
-  readonly children: ReactNode;
-  readonly clear?: readonly string[];
-}) => (
-  <p className="text-ink-2 mb-3 text-sm">
-    {children}
-    {clear === undefined ? null : (
-      <>
-        {" · "}
-        <ClearFilters params={clear} />
-      </>
-    )}
-  </p>
-);
+}: FilterSummaryProps) => {
+  const counted = pluralNoun(count, noun, plural);
+
+  return (
+    <p className="text-ink-2 mb-3 text-sm">
+      {prefix === undefined ? null : `${prefix} `}
+      {formatCount(count)}{" "}
+      {adjective === null ? null : (
+        <>
+          <Term>{adjective}</Term>{" "}
+        </>
+      )}
+      {nounIsFilter ? <Term>{counted}</Term> : counted}
+      {phrases.map((phrase) =>
+        phrase === null ? null : (
+          <Fragment key={`${phrase.lead ?? ""}:${phrase.term}`}>
+            {" "}
+            {phrase.lead === undefined ? null : `${phrase.lead} `}
+            <Term>{phrase.term}</Term>
+          </Fragment>
+        )
+      )}
+      {clear === undefined ? null : (
+        <>
+          {" · "}
+          <ClearFilters params={clear} />
+        </>
+      )}
+    </p>
+  );
+};
 
 interface UrlSearchProps {
   /** The search param it writes, such as "q". */

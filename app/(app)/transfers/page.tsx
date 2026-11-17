@@ -7,7 +7,6 @@ import {
   FilterSummary,
   ListFilters,
   ListResults,
-  Term,
   UrlChip,
   UrlTabs,
 } from "@/components/lists/list-filters";
@@ -21,6 +20,7 @@ import { Panel } from "@/components/ui/panel";
 import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
 import { transferStatusEnum } from "@/lib/db/schema";
+import type { TransferStatus } from "@/lib/db/schema";
 import {
   countLabel,
   formatCount,
@@ -31,7 +31,12 @@ import { formatCedis } from "@/lib/money";
 import { operableBranchIds } from "@/lib/permissions";
 import { listTransfers, TRANSFERS_PAGE_SIZE } from "@/lib/queries/transfers";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import {
+  clearParams,
+  enumFilter,
+  intParam,
+  queryString,
+} from "@/lib/search-params";
 import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import { TRANSFER_STATUS_LABELS } from "@/lib/stock/transfer-status";
@@ -53,9 +58,6 @@ const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   ...TRANSFER_STATUS_LABELS,
 };
 
-/** Every filter param, and the page: what "Clear filters" clears. */
-const FILTER_PARAMS = ["direction", "status", "page"] as const;
-
 /** A branch's choice of direction; the chip's × goes back to both. */
 const ONE_WAY = ["incoming", "outgoing"] as const;
 
@@ -71,6 +73,22 @@ const DIRECTION_LABELS: Record<TransferDirection, string> = {
   outgoing: "Outgoing",
 };
 
+/** What "Clear filters" clears. */
+const CLEAR = clearParams([DIRECTION_FILTER, STATUS_FILTER], ["page"]);
+
+/** How the summary sentence names a direction, before the noun: "3 incoming transfers". */
+const DIRECTION_TERMS: Record<(typeof ONE_WAY)[number], string> = {
+  incoming: "incoming",
+  outgoing: "outgoing",
+};
+
+/** How it names a status, after the noun: "3 transfers received". */
+const STATUS_TERMS: Record<TransferStatus, string> = {
+  cancelled: "cancelled",
+  in_transit: "in transit",
+  received: "received",
+};
+
 const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
   const [viewer, params] = await Promise.all([
     requireBackOffice(),
@@ -79,7 +97,6 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
 
   const page = intParam(params, "page", 1);
   const status = enumFilter(params, STATUS_FILTER);
-  const direction = enumFilter(params, DIRECTION_FILTER);
 
   const [branches, scope] = await Promise.all([
     listBranches(),
@@ -87,6 +104,10 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
   ]);
 
   const oneBranch = scope.kind === "branch";
+
+  // Direction only means something from one branch: across every branch
+  // each transfer is both, so the list ignores it and so must the rest.
+  const direction = oneBranch ? enumFilter(params, DIRECTION_FILTER) : "both";
 
   const { rows, total } = await listTransfers(
     scope,
@@ -104,6 +125,8 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
     direction: direction === "both" ? null : direction,
     status: status === "all" ? null : status,
   };
+
+  const filtered = filters.direction !== null || filters.status !== null;
 
   return (
     <>
@@ -128,10 +151,9 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
           filter={STATUS_FILTER}
           label="Status"
           options={tabOptions(
-            STATUSES,
+            STATUS_FILTER,
             STATUS_OPTIONS,
-            (value) =>
-              `/transfers${queryString({ ...filters, status: value === "all" ? null : value })}`
+            (value) => `/transfers${queryString({ ...filters, status: value })}`
           )}
           resets={["page"]}
         />
@@ -150,28 +172,20 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
         <ListResults announce={countLabel(total, "transfer")}>
           {rows.length === 0 ? null : (
             <FilterSummary
-              clear={
-                filters.direction === null && filters.status === null
-                  ? undefined
-                  : FILTER_PARAMS
+              adjective={
+                filters.direction === null
+                  ? null
+                  : DIRECTION_TERMS[filters.direction]
               }
-            >
-              {formatCount(total)}{" "}
-              {filters.direction === null ? null : (
-                <>
-                  <Term>
-                    {DIRECTION_LABELS[filters.direction].toLowerCase()}
-                  </Term>{" "}
-                </>
-              )}
-              {total === 1 ? "transfer" : "transfers"}
-              {filters.status === null ? null : (
-                <>
-                  {" "}
-                  <Term>{STATUS_OPTIONS[filters.status].toLowerCase()}</Term>
-                </>
-              )}
-            </FilterSummary>
+              clear={filtered ? CLEAR : undefined}
+              count={total}
+              noun="transfer"
+              phrases={[
+                filters.status === null
+                  ? null
+                  : { term: STATUS_TERMS[filters.status] },
+              ]}
+            />
           )}
           <Panel
             flush
@@ -194,7 +208,7 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
                     ? { href: "/transfers/new", label: "New transfer" }
                     : undefined
                 }
-                filtered={filters.status !== null || filters.direction !== null}
+                filtered={filtered}
                 firstPageHref={
                   page > 1 && total > 0
                     ? `/transfers${queryString(filters)}`

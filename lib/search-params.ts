@@ -53,6 +53,15 @@ export const enumFilter = <T extends string>(
   filter: EnumFilter<T>
 ): T => enumParam(params, filter.param, filter.values, filter.defaultValue);
 
+/**
+ * What a list's "Clear filters" clears: each filter's param, built from the
+ * same filters its controls use, then the rest (a search, the page).
+ */
+export const clearParams = (
+  filters: readonly FilterParam[],
+  others: readonly string[]
+): string[] => [...filters.map((filter) => filter.param), ...others];
+
 /** Builds a query string from the non-empty entries. */
 export const queryString = (
   entries: Record<string, string | number | null | undefined>

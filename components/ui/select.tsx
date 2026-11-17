@@ -29,6 +29,20 @@ export interface SelectOptionGroup {
 
 export type SelectOptions = readonly (SelectOption | SelectOptionGroup)[];
 
+type SelectVariant = "field" | "chip" | "filter" | "filter-on";
+
+/** A filter pill's shape, shared by its two states. */
+const FILTER_PILL =
+  "press inline-flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3.5 text-start text-sm";
+
+/** Each look's trigger. */
+const TRIGGER_CLASSES: Record<SelectVariant, string> = {
+  chip: "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-lg border ps-2.5 pe-2 text-start text-sm",
+  field: "field flex min-w-0 items-center justify-between gap-2 text-start",
+  filter: `${FILTER_PILL} border-line-strong text-ink-2 aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink border-dashed`,
+  "filter-on": `${FILTER_PILL} border-brand/30 bg-brand-soft text-brand pe-9 font-medium`,
+};
+
 interface SelectProps {
   readonly options: SelectOptions;
   readonly name?: string;
@@ -51,7 +65,7 @@ interface SelectProps {
    * brand-tinted once something is (`filter-on`), with room at its end
    * for a clear button laid over it.
    */
-  readonly variant?: "field" | "chip" | "filter" | "filter-on";
+  readonly variant?: SelectVariant;
   /** Shown inside the trigger before the value, such as a status dot. */
   readonly leading?: ReactNode;
   /** Width only; the look comes from `size`. */
@@ -109,17 +123,7 @@ export const Select = ({
     <SelectTrigger
       aria-label={ariaLabel}
       className={cn(
-        variant === "field" || variant === "chip"
-          ? null
-          : "press inline-flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3.5 text-start text-sm",
-        variant === "filter" &&
-          "border-line-strong text-ink-2 aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-ink border-dashed",
-        variant === "filter-on" &&
-          "border-brand/30 bg-brand-soft text-brand pe-9 font-medium",
-        variant === "chip" &&
-          "press border-line-strong bg-surface text-ink aria-expanded:bg-surface-2 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-surface-2 inline-flex h-7 max-w-full items-center gap-2 rounded-lg border ps-2.5 pe-2 text-start text-sm",
-        variant === "field" &&
-          "field flex min-w-0 items-center justify-between gap-2 text-start",
+        TRIGGER_CLASSES[variant],
         variant === "field" && size === "sm" && "h-8",
         className
       )}

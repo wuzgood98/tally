@@ -6,7 +6,6 @@ import {
   FilterSummary,
   ListFilters,
   ListResults,
-  Term,
   UrlTabs,
 } from "@/components/lists/list-filters";
 import { tabOptions } from "@/components/lists/tab-options";
@@ -17,6 +16,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
 import { Table, Td, Th } from "@/components/ui/table";
+import type { StockRequestStatus } from "@/lib/db/schema";
 import {
   countLabel,
   formatCount,
@@ -26,7 +26,12 @@ import {
 import { canRequestStock } from "@/lib/permissions";
 import { listStockRequests, REQUESTS_PAGE_SIZE } from "@/lib/queries/requests";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import {
+  clearParams,
+  enumFilter,
+  intParam,
+  queryString,
+} from "@/lib/search-params";
 import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import {
@@ -44,12 +49,19 @@ const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
   values: STATUSES,
 };
 
-/** Every filter param, and the page: what "Clear filters" clears. */
-const FILTER_PARAMS = ["status", "page"] as const;
+/** What "Clear filters" clears. */
+const CLEAR = clearParams([STATUS_FILTER], ["page"]);
 
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   all: "All",
   ...STOCK_REQUEST_STATUS_LABELS,
+};
+
+/** How the summary sentence names a status: "1 waiting request". */
+const STATUS_TERMS: Record<StockRequestStatus, string> = {
+  cancelled: "cancelled",
+  fulfilled: "sent",
+  requested: "waiting",
 };
 
 const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
@@ -99,25 +111,21 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
           filter={STATUS_FILTER}
           label="Status"
           options={tabOptions(
-            STATUSES,
+            STATUS_FILTER,
             STATUS_OPTIONS,
-            (value) =>
-              `/requests${queryString({ status: value === "all" ? null : value })}`
+            (value) => `/requests${queryString({ status: value })}`
           )}
           resets={["page"]}
         />
 
         <ListResults announce={countLabel(total, "request")}>
           {rows.length === 0 ? null : (
-            <FilterSummary clear={status === "all" ? undefined : FILTER_PARAMS}>
-              {formatCount(total)}{" "}
-              {status === "all" ? null : (
-                <>
-                  <Term>{STATUS_OPTIONS[status].toLowerCase()}</Term>{" "}
-                </>
-              )}
-              {total === 1 ? "request" : "requests"}
-            </FilterSummary>
+            <FilterSummary
+              adjective={status === "all" ? null : STATUS_TERMS[status]}
+              clear={status === "all" ? undefined : CLEAR}
+              count={total}
+              noun="request"
+            />
           )}
           <Panel
             flush

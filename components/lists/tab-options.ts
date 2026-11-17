@@ -1,3 +1,5 @@
+import type { EnumFilter } from "@/lib/search-params";
+
 /** One tab of a list's main filter (`UrlTabs`). */
 export interface TabOption {
   readonly value: string;
@@ -7,12 +9,17 @@ export interface TabOption {
 }
 
 /**
- * Tabs for a fixed set of values, each linking to the list filtered by it.
- * Kept out of the client file so server pages can call it.
+ * A tab per value of the filter, each linking to the list filtered by it.
+ * `href` gets null for the default, so its link drops the param. Kept out of
+ * the client file so server pages can call it.
  */
 export const tabOptions = <Value extends string>(
-  values: readonly Value[],
+  filter: EnumFilter<Value>,
   labels: Readonly<Record<Value, string>>,
-  href: (value: Value) => string
+  href: (value: Value | null) => string
 ): TabOption[] =>
-  values.map((value) => ({ href: href(value), label: labels[value], value }));
+  filter.values.map((value) => ({
+    href: href(value === filter.defaultValue ? null : value),
+    label: labels[value],
+    value,
+  }));

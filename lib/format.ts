@@ -56,9 +56,19 @@ export const formatDay = (day: string): string =>
 /** 12345 → "12,345" */
 export const formatCount = (value: number): string => count.format(value);
 
+/**
+ * "product" for one, "products" for anything else. Pass `many` when the
+ * plural isn't the noun plus "s" ("delivery", "deliveries").
+ */
+export const pluralNoun = (
+  value: number,
+  one: string,
+  many = `${one}s`
+): string => (value === 1 ? one : many);
+
 /** "1 product", "1,200 products": `noun` takes an "s" for anything but one. */
 export const countLabel = (value: number, noun: string): string =>
-  `${count.format(value)} ${value === 1 ? noun : `${noun}s`}`;
+  `${count.format(value)} ${pluralNoun(value, noun)}`;
 
 /** "1 unit", "1,200 units". */
 export const formatUnits = (value: number): string => countLabel(value, "unit");

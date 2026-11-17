@@ -301,7 +301,7 @@ describe("FilterSummary", () => {
 
     const { onUrlUpdate, queries } = renderAt(
       "?q=rice&status=low&page=2&variant=x",
-      <FilterSummary clear={["q", "status", "page"]}>3 products</FilterSummary>
+      <FilterSummary clear={["q", "status", "page"]} count={3} noun="product" />
     );
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
@@ -313,9 +313,52 @@ describe("FilterSummary", () => {
   });
 
   it("offers no clearing while nothing is filtered", () => {
-    renderAt("", <FilterSummary>3 products</FilterSummary>);
+    renderAt("", <FilterSummary count={3} noun="product" />);
 
     expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+  });
+
+  it("says what's shown, with the filters in bold", () => {
+    renderAt(
+      "",
+      <FilterSummary
+        adjective="running low"
+        count={1}
+        noun="product"
+        phrases={[
+          { lead: "in", term: "Drinks" },
+          null,
+          { lead: "matching", term: "“rice”" },
+        ]}
+      />
+    );
+
+    const sentence = screen.getByText(/^1 /u);
+
+    expect(sentence.textContent).toBe(
+      "1 running low product in Drinks matching “rice”"
+    );
+    expect(
+      [...sentence.querySelectorAll("strong")].map((term) => term.textContent)
+    ).toEqual(["running low", "Drinks", "“rice”"]);
+  });
+
+  it("makes the noun plural, and bolds it when it names the filter", () => {
+    renderAt(
+      "",
+      <FilterSummary
+        count={50}
+        noun="delivery"
+        nounIsFilter
+        plural="deliveries"
+        prefix="Latest"
+      />
+    );
+
+    const sentence = screen.getByText(/^Latest /u);
+
+    expect(sentence.textContent).toBe("Latest 50 deliveries");
+    expect(sentence.querySelector("strong")?.textContent).toBe("deliveries");
   });
 });
 
