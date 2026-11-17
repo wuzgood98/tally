@@ -38,6 +38,7 @@ export const ProductPicker = ({
 }: ProductPickerProps) => {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   const [text, setText] = useState("");
   const [matches, setMatches] = useState<readonly PickedProduct[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -76,6 +77,40 @@ export const ProductPicker = ({
     });
   };
 
+  /**
+   * Arrow keys move through the matches and back up into the box; Escape
+   * closes them. Each match is a real button, so Enter or Space picks it.
+   */
+  const onMatchKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const buttons = [
+      ...(list.current?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+    ];
+
+    const at = buttons.indexOf(event.currentTarget);
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = at + (event.key === "ArrowDown" ? 1 : -1);
+      (buttons[next] ?? (next < 0 ? input.current : buttons.at(-1)))?.focus();
+
+      return;
+    }
+
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      (event.key === "Home" ? buttons[0] : buttons.at(-1))?.focus();
+
+      return;
+    }
+
+    if (event.key === "Escape") {
+      // Close the list without also closing a dialog the picker sits in.
+      event.preventDefault();
+      setMatches([]);
+      input.current?.focus();
+    }
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     // Enter that confirms an input-method candidate (e.g. Chinese) isn't a search.
     if (event.nativeEvent.isComposing) {
@@ -88,7 +123,13 @@ export const ProductPicker = ({
       find();
     }
 
-    if (event.key === "Escape") {
+    if (event.key === "ArrowDown" && matches.length > 0) {
+      event.preventDefault();
+      list.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    }
+
+    if (event.key === "Escape" && matches.length > 0) {
+      event.preventDefault();
       setMatches([]);
     }
   };
@@ -139,6 +180,7 @@ export const ProductPicker = ({
           aria-label="Matching products"
           className="border-line bg-surface absolute inset-x-0 z-20 mt-1 max-h-80 overflow-y-auto rounded-lg border p-1 shadow-lg"
           id={`${id}-matches`}
+          ref={list}
         >
           {matches.map((match) => (
             <li key={match.id}>
@@ -147,6 +189,7 @@ export const ProductPicker = ({
                 onClick={() => {
                   pick(match);
                 }}
+                onKeyDown={onMatchKeyDown}
                 type="button"
               >
                 <span>{match.name}</span>

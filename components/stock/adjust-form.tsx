@@ -139,6 +139,8 @@ export const AdjustForm = ({
 }: AdjustFormProps) => {
   const [branchId, setBranchId] = useState(defaultBranchId);
   const [product, setProduct] = useState<PickedProduct | null>(initialProduct);
+  // A product picked here, not one the page opened with, takes focus.
+  const [picked, setPicked] = useState(false);
   const [mode, setMode] = useState<Mode>("change");
   const [reason, setReason] = useState<ChangeReason | "">("");
   const [amount, setAmount] = useState("");
@@ -198,9 +200,17 @@ export const AdjustForm = ({
               />
             </Field>
             {product === null ? (
-              <ProductPicker autoFocus label="Product" onPick={setProduct} />
+              <ProductPicker
+                autoFocus
+                label="Product"
+                onPick={(choice) => {
+                  setProduct(choice);
+                  setPicked(true);
+                }}
+              />
             ) : (
               <ChosenProduct
+                autoFocus={picked}
                 onClear={() => {
                   setProduct(null);
                 }}
