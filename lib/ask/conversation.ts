@@ -143,18 +143,29 @@ const TOOL_PHRASES: ReadonlyMap<string, string> = new Map(
 
 const branchInput = z.object({ branch: branchArgument });
 
-/**
- * The quiet line shown while an answer is on its way: what the tools are
- * doing ("Checking what's low at Kumasi…"), or "Thinking…" between them.
- */
-export const askStatusLine = (message: UIMessage | undefined): string => {
+/** The tool call still waiting for its answer, if any. */
+const runningToolPart = (message: UIMessage | undefined) => {
   const running = message?.parts.findLast(
     (part) =>
       part.type === "dynamic-tool" &&
       (part.state === "input-streaming" || part.state === "input-available")
   );
 
-  if (running?.type !== "dynamic-tool") {
+  return running?.type === "dynamic-tool" ? running : null;
+};
+
+/** The name of the tool at work, or null while Tally is thinking between tools. */
+export const askRunningTool = (message: UIMessage | undefined): string | null =>
+  runningToolPart(message)?.toolName ?? null;
+
+/**
+ * The quiet line shown while an answer is on its way: what the tools are
+ * doing ("Checking what's low at Kumasi…"), or "Thinking…" between them.
+ */
+export const askStatusLine = (message: UIMessage | undefined): string => {
+  const running = runningToolPart(message);
+
+  if (running === null) {
     return "Thinking…";
   }
 

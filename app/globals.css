@@ -196,33 +196,32 @@
 
 /*
  * Work in progress, said in words (Ask Tally's status line): a lighter band
- * sweeps across the text. The fill goes transparent, not the colour, so
- * currentColor still paints the gradient. Plain text under reduced motion.
+ * sweeps across everything inside, icons and text alike. A moving mask, not
+ * a text fill, so it reaches an icon's strokes too: the content shows at 45%
+ * except where the band passes. Plain under reduced motion.
  */
-@keyframes text-shimmer {
+@keyframes shimmer {
   from {
-    background-position: 100% 0;
+    mask-position: 100% 0;
   }
   to {
-    background-position: -100% 0;
+    mask-position: -100% 0;
   }
 }
 
-@utility text-shimmer {
-  background-image: linear-gradient(
+@utility shimmer {
+  mask-image: linear-gradient(
     90deg,
-    color-mix(in oklab, currentColor 45%, transparent) 40%,
-    currentColor 50%,
-    color-mix(in oklab, currentColor 45%, transparent) 60%
+    rgb(0 0 0 / 0.45) 40%,
+    #000 50%,
+    rgb(0 0 0 / 0.45) 60%
   );
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: text-shimmer 1.8s linear infinite;
+  mask-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    -webkit-text-fill-color: currentColor;
+    mask-image: none;
   }
 }
 
