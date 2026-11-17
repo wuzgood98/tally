@@ -6,10 +6,14 @@ import {
   documentsFirst,
   documentValue,
   hitsOf,
+  keepsWhileLoading,
+  productOf,
   productValue,
   resultHref,
   resultScore,
+  LOWEST_RESULT_SCORE,
   SEE_ALL_PRODUCTS,
+  topResult,
 } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
 
@@ -91,5 +95,57 @@ describe("documentsFirst", () => {
     expect(documentsFirst("000042")).toBe(true);
     expect(documentsFirst("rice")).toBe(false);
     expect(documentsFirst("5012345678900")).toBe(false);
+  });
+});
+
+describe("productOf", () => {
+  it("finds the product a highlighted value stands for", () => {
+    expect(productOf(productValue(7), hits)).toBe(rice);
+    expect(productOf(productValue(8), hits)).toBeNull();
+    expect(productOf(documentValue(order.number), hits)).toBeNull();
+    expect(productOf(SEE_ALL_PRODUCTS, hits)).toBeNull();
+    expect(productOf(null, hits)).toBeNull();
+  });
+});
+
+describe("topResult", () => {
+  it("picks the highest-ranked result, or none", () => {
+    const exactOrder = hitsOf({
+      documents: [{ ...order, exact: true }],
+      products: [rice],
+    });
+
+    expect(topResult("rice", hits)).toBe(productValue(7));
+    expect(topResult("PO-SPX-000012", exactOrder)).toBe(
+      documentValue(order.number)
+    );
+    expect(topResult("rice", [])).toBeNull();
+  });
+});
+
+describe("LOWEST_RESULT_SCORE", () => {
+  it("is See all's score, the lowest result's", () => {
+    expect(resultScore(SEE_ALL_PRODUCTS, "rice", hits)).toBe(
+      LOWEST_RESULT_SCORE
+    );
+  });
+});
+
+describe("keepsWhileLoading", () => {
+  it("keeps the last search's rows that still match, and See all", () => {
+    const riceRow = {
+      label: "Jasmine rice 5 kg GR-0001",
+      value: productValue(7),
+    };
+
+    expect(keepsWhileLoading(riceRow, "rice 5")).toBe(true);
+    expect(keepsWhileLoading(riceRow, "gr-00")).toBe(true);
+    expect(keepsWhileLoading(riceRow, "kettle")).toBe(false);
+    expect(
+      keepsWhileLoading(
+        { label: "See all results", value: SEE_ALL_PRODUCTS },
+        "kettle"
+      )
+    ).toBe(true);
   });
 });

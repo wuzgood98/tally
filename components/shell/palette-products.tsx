@@ -6,11 +6,14 @@ import {
   CommandItem,
   CommandItemIcon,
 } from "@ui-sdk/react/command";
+import { useShortcutHint } from "@ui-sdk/react/shortcuts";
 import { ArrowRight, Package } from "lucide-react";
 
 import { productValue, SEE_ALL_PRODUCTS } from "@/lib/palette-results";
 import type { PaletteProduct } from "@/lib/palette-search";
 import { cn } from "@/lib/utils";
+
+import { COPY_SKU_SHORTCUT } from "./palette-copy-sku";
 
 const StockLabel = ({ units }: { readonly units: number | null }) =>
   units === null ? (
@@ -30,6 +33,9 @@ interface ProductResultsProps {
 }
 
 export const ProductResults = ({ products, query }: ProductResultsProps) => {
+  // Each product row tells assistive tech that Ctrl/Cmd+C copies its SKU.
+  const copy = useShortcutHint(COPY_SKU_SHORTCUT);
+
   if (products.length === 0) {
     return null;
   }
@@ -41,6 +47,7 @@ export const ProductResults = ({ products, query }: ProductResultsProps) => {
       </CommandGroupLabel>
       {products.map((item) => (
         <CommandItem
+          aria-keyshortcuts={copy.ariaKeyshortcuts}
           className={itemClass}
           key={item.id}
           label={`${item.name} ${item.sku}`}
