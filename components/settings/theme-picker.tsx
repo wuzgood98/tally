@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
 import { Radio, RadioGroup } from "@/components/ui/choice";
+import { useHydrated } from "@/components/ui/use-hydrated";
 import { isTheme, THEME_PALETTES } from "@/lib/theme";
 import type { Theme } from "@/lib/theme";
 
@@ -143,10 +144,6 @@ const deviceIsDark = () => window.matchMedia(DEVICE_DARK).matches;
 /** Null on the server, where the device is unknown. */
 const noDevice = () => null;
 
-const subscribeNever = () => () => {
-  /* Nothing changes after hydration. */
-};
-
 const ThemeCard = ({
   option,
   deviceDark,
@@ -200,11 +197,7 @@ export const ThemePicker = () => {
   );
 
   // next-themes only knows the choice in the browser.
-  const hydrated = useSyncExternalStore(
-    subscribeNever,
-    () => true,
-    () => false
-  );
+  const hydrated = useHydrated();
 
   const value =
     hydrated && theme !== undefined && isTheme(theme) ? theme : null;
