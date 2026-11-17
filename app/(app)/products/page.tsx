@@ -28,12 +28,22 @@ import type { ProductListRow, StatusFilter } from "@/lib/queries/products";
 import { stockStatus } from "@/lib/queries/stock-status";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
 import type { Scope } from "@/lib/scope";
-import { enumParam, intParam, param, queryString } from "@/lib/search-params";
+import { enumFilter, intParam, param, queryString } from "@/lib/search-params";
+import type { EnumFilter, FilterParam } from "@/lib/search-params";
 import { requireViewer } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Products" };
 
 const STATUSES: readonly StatusFilter[] = ["all", "low", "out", "discontinued"];
+
+const STATUS_FILTER: EnumFilter<StatusFilter> = {
+  defaultValue: "all",
+  param: "status",
+  values: STATUSES,
+};
+
+/** A category id; the empty default is every category. */
+const CATEGORY_FILTER: FilterParam = { defaultValue: "", param: "category" };
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
   all: "All active",
@@ -84,8 +94,8 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
   ]);
 
   const search = param(params, "q").trim();
-  const categoryId = intParam(params, "category", 0) || null;
-  const status = enumParam(params, "status", STATUSES, "all");
+  const categoryId = intParam(params, CATEGORY_FILTER.param, 0) || null;
+  const status = enumFilter(params, STATUS_FILTER);
   const page = intParam(params, "page", 1);
 
   const { rows, total } = await listProducts(scope, {
@@ -120,7 +130,7 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
 
       <ListFilters>
         <search className="mb-4">
-          {/* Without JavaScript, Enter still searches through the form. */}
+          {/* Without JavaScript, Enter still searches through the form, keeping the selects. */}
           <form
             action="/products"
             className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_10rem]"
@@ -133,7 +143,7 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
               resets={["page"]}
             />
             <UrlSelect
-              defaultValue=""
+              filter={CATEGORY_FILTER}
               label="Category"
               options={[
                 { label: "All categories", value: "" },
@@ -142,14 +152,12 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
                   options: namedOptions(items),
                 })),
               ]}
-              param="category"
               resets={["page"]}
             />
             <UrlSelect
-              defaultValue="all"
+              filter={STATUS_FILTER}
               label="Stock status"
               options={labelledOptions(STATUSES, STATUS_LABELS)}
-              param="status"
               resets={["page"]}
             />
           </form>

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
+  FilterBar,
   ListFilters,
   ListResults,
   UrlSelect,
@@ -24,7 +25,8 @@ import {
 import { canRequestStock } from "@/lib/permissions";
 import { listStockRequests, REQUESTS_PAGE_SIZE } from "@/lib/queries/requests";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumParam, intParam, queryString } from "@/lib/search-params";
+import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import {
   STOCK_REQUEST_STATUS_LABELS,
@@ -34,6 +36,12 @@ import {
 export const metadata: Metadata = { title: "Stock requests" };
 
 const STATUSES = ["all", ...STOCK_REQUEST_STATUSES] as const;
+
+const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
+  defaultValue: "all",
+  param: "status",
+  values: STATUSES,
+};
 
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   all: "Any status",
@@ -47,7 +55,7 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
   ]);
 
   const page = intParam(params, "page", 1);
-  const status = enumParam(params, "status", STATUSES, "all");
+  const status = enumFilter(params, STATUS_FILTER);
 
   const [branches, scope] = await Promise.all([
     listBranches(),
@@ -83,17 +91,15 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
       />
 
       <ListFilters>
-        <search className="mb-4 flex flex-wrap items-center gap-2">
+        <FilterBar>
           <UrlSelect
-            className="w-auto"
-            defaultValue="all"
+            filter={STATUS_FILTER}
             label="Show"
             options={labelledOptions(STATUSES, STATUS_OPTIONS)}
-            param="status"
             resets={["page"]}
             visibleLabel
           />
-        </search>
+        </FilterBar>
 
         <ListResults announce={countLabel(total, "request")}>
           <Panel

@@ -32,6 +32,27 @@ export const enumParam = <T extends string>(
   return allowed.find((item) => item === value) ?? fallback;
 };
 
+/**
+ * A list filter's search param and the value meaning "no filter". The page
+ * reads it and its select writes it, so the two can't drift apart.
+ */
+export interface FilterParam {
+  readonly param: string;
+  readonly defaultValue: string;
+}
+
+/** A filter with a fixed set of values. */
+export interface EnumFilter<T extends string> extends FilterParam {
+  readonly values: readonly T[];
+  readonly defaultValue: T;
+}
+
+/** The filter's value from the URL, or its default. */
+export const enumFilter = <T extends string>(
+  params: RawParams,
+  filter: EnumFilter<T>
+): T => enumParam(params, filter.param, filter.values, filter.defaultValue);
+
 /** Builds a query string from the non-empty entries. */
 export const queryString = (
   entries: Record<string, string | number | null | undefined>

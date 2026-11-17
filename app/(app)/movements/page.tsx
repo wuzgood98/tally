@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
+  FilterBar,
   ListFilters,
   ListResults,
   UrlSelect,
@@ -12,10 +13,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { labelledOptions } from "@/components/ui/select-options";
 import type { MovementKind } from "@/lib/db/schema";
+import { countLabel } from "@/lib/format";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct } from "@/lib/queries/products";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumParam, intParam, queryString } from "@/lib/search-params";
+import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Movements" };
@@ -33,6 +36,12 @@ const KINDS = [
   "opening",
 ] as const;
 
+const KIND_FILTER: EnumFilter<(typeof KINDS)[number]> = {
+  defaultValue: "all",
+  param: "kind",
+  values: KINDS,
+};
+
 const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   adjustment: "Adjustments",
   all: "Everything",
@@ -43,6 +52,15 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   transfer_in: "Transfers in",
   transfer_out: "Transfers out",
 };
+
+/**
+ * What a screen reader hears once the list updates. There's no total (the
+ * list pages by cursor), so it counts what's shown and says if there's more.
+ */
+const shownLabel = (shown: number, more: boolean): string =>
+  more
+    ? `${countLabel(shown, "movement")} shown, more older`
+    : countLabel(shown, "movement");
 
 /** What to try when the kind or product filter matches nothing. */
 const noMatchHint = (byKind: boolean, byProduct: boolean): string => {
@@ -63,7 +81,7 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
     searchParams,
   ]);
 
-  const kind = enumParam(params, "kind", KINDS, "all");
+  const kind = enumFilter(params, KIND_FILTER);
   const productId = intParam(params, "product", 0) || undefined;
   const before = intParam(params, "before", 0) || undefined;
 
@@ -97,13 +115,11 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
       />
 
       <ListFilters>
-        <search className="mb-4 flex flex-wrap items-center gap-2">
+        <FilterBar>
           <UrlSelect
-            className="w-auto"
-            defaultValue="all"
+            filter={KIND_FILTER}
             label="Show"
             options={labelledOptions(KINDS, KIND_LABELS)}
-            param="kind"
             resets={["before"]}
             visibleLabel
           />
@@ -119,9 +135,9 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
               </Link>
             </p>
           ) : null}
-        </search>
+        </FilterBar>
 
-        <ListResults>
+        <ListResults announce={shownLabel(page.length, older !== undefined)}>
           <Panel flush>
             {page.length === 0 ? (
               <ListEmpty

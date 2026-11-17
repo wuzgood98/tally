@@ -332,15 +332,15 @@ Batches:
 
 **Live list filters** (November 2026): list filters apply as you go, with no Filter or Apply button. The URL state is handled by **nuqs** (`NuqsAdapter` in the app layout).
 
-- **Search box** (`UrlSearch`, `components/lists/list-filters.tsx`): searches after typing pauses for 300 ms (`SEARCH_DEBOUNCE_MS`). Enter searches at once, and emptying the box searches straight away too.
-- **Selects** (`UrlSelect`): apply as soon as something is chosen. Choosing the default value removes the param from the URL.
+- **Search box** (`UrlSearch`, `components/lists/list-filters.tsx`): searches after typing pauses for 300 ms (`SEARCH_DEBOUNCE_MS`). Enter searches at once, and emptying the box (or leaving only spaces) removes `q` straight away. An immediate write cancels the pending debounced one.
+- **Selects** (`UrlSelect`): apply as soon as something is chosen. Choosing the default value removes the param from the URL. Each takes a `filter` (`FilterParam`/`EnumFilter`, `lib/search-params.ts`): the param and its default, declared once per page and read by the server with `enumFilter`, so the two can't drift. `visibleLabel` selects size to their value; `FilterBar` is the row they sit in.
 - **Both:**
   - Write the URL with `history: "replace"` (no Back-button entry per keystroke) and `shallow: false`, so the server page re-renders and still validates every value with `lib/search-params.ts`. Nothing on the client parses the values beyond "a string".
   - Clear the params passed as `resets` (`page`, or `before` on movements), so a new filter starts on the first page.
-- **Pending results:** `ListFilters` holds one transition for the page. `ListResults` keeps the last results on show, dimmed and `aria-busy` after 150 ms, and reads the new count out through a live `<output>` ("7 products").
+- **Pending results:** `ListFilters` holds one transition for the page. `ListResults` keeps the last results on show, `aria-busy` at once and dimmed after 150 ms, and reads the new count out through a live `<output>` ("7 products"). A trailing no-break space toggles each time a change lands, so the same count is read out again. Movements has no total (cursor pages), so it reads what's shown ("50 movements shown, more older").
 - **Pages:** used on products (search, category, status), movements (kind; the product chip is still a link), purchase orders and requests (status), and transfers (direction, status).
 - **Not used here:** the report period links and the till's history filters (client-side, TanStack DB) are unchanged.
-- **Without JavaScript,** Enter in the products search still submits the GET form.
+- **Without JavaScript,** Enter in the products search still submits the GET form, with the category and status: `UrlSelect` keeps its `name`.
 
 ## Stack
 

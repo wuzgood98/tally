@@ -56,17 +56,15 @@ export const formatDay = (day: string): string =>
 /** 12345 → "12,345" */
 export const formatCount = (value: number): string => count.format(value);
 
-/** "1 unit", "1,200 units". */
-export const formatUnits = (value: number): string =>
-  `${count.format(value)} ${value === 1 ? "unit" : "units"}`;
-
-/** "1 sale", "1,200 sales". */
-export const formatSales = (value: number): string =>
-  `${count.format(value)} ${value === 1 ? "sale" : "sales"}`;
-
 /** "1 product", "1,200 products": `noun` takes an "s" for anything but one. */
 export const countLabel = (value: number, noun: string): string =>
   `${count.format(value)} ${value === 1 ? noun : `${noun}s`}`;
+
+/** "1 unit", "1,200 units". */
+export const formatUnits = (value: number): string => countLabel(value, "unit");
+
+/** "1 sale", "1,200 sales". */
+export const formatSales = (value: number): string => countLabel(value, "sale");
 
 /** +12 / −3, with a true minus sign. */
 export const formatSigned = (value: number): string =>

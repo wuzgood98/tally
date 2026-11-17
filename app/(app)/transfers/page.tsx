@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
+  FilterBar,
   ListFilters,
   ListResults,
   UrlSelect,
@@ -26,7 +27,8 @@ import { formatCedis } from "@/lib/money";
 import { operableBranchIds } from "@/lib/permissions";
 import { listTransfers, TRANSFERS_PAGE_SIZE } from "@/lib/queries/transfers";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumParam, intParam, queryString } from "@/lib/search-params";
+import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import { TRANSFER_STATUS_LABELS } from "@/lib/stock/transfer-status";
 import { TRANSFER_DIRECTIONS } from "@/lib/transfer-direction";
@@ -36,9 +38,21 @@ export const metadata: Metadata = { title: "Transfers" };
 
 const STATUSES = ["all", ...transferStatusEnum.enumValues] as const;
 
+const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
+  defaultValue: "all",
+  param: "status",
+  values: STATUSES,
+};
+
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   all: "Any status",
   ...TRANSFER_STATUS_LABELS,
+};
+
+const DIRECTION_FILTER: EnumFilter<TransferDirection> = {
+  defaultValue: "both",
+  param: "direction",
+  values: TRANSFER_DIRECTIONS,
 };
 
 const DIRECTION_LABELS: Record<TransferDirection, string> = {
@@ -54,8 +68,8 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
   ]);
 
   const page = intParam(params, "page", 1);
-  const status = enumParam(params, "status", STATUSES, "all");
-  const direction = enumParam(params, "direction", TRANSFER_DIRECTIONS, "both");
+  const status = enumFilter(params, STATUS_FILTER);
+  const direction = enumFilter(params, DIRECTION_FILTER);
 
   const [branches, scope] = await Promise.all([
     listBranches(),
@@ -100,28 +114,25 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
       />
 
       <ListFilters>
-        <search className="mb-4 flex flex-wrap items-center gap-2">
+        <FilterBar>
           {oneBranch ? (
             <UrlSelect
-              className="w-auto"
-              defaultValue="both"
+              filter={DIRECTION_FILTER}
               label="Show"
               options={labelledOptions(TRANSFER_DIRECTIONS, DIRECTION_LABELS)}
-              param="direction"
               resets={["page"]}
               visibleLabel
             />
           ) : null}
           <UrlSelect
             className="w-auto"
-            defaultValue="all"
+            filter={STATUS_FILTER}
             label="Status"
             options={labelledOptions(STATUSES, STATUS_OPTIONS)}
-            param="status"
             resets={["page"]}
             visibleLabel={!oneBranch}
           />
-        </search>
+        </FilterBar>
 
         <ListResults announce={countLabel(total, "transfer")}>
           <Panel

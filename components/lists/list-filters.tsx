@@ -1,8 +1,8 @@
 "use client";
 
 import { debounce, parseAsString, useQueryStates } from "nuqs";
-import type { Options } from "nuqs";
-import { createContext, use, useMemo, useTransition } from "react";
+import type { Options, SetValues } from "nuqs";
+import { createContext, use, useMemo, useState, useTransition } from "react";
 import type { ReactNode, TransitionStartFunction } from "react";
 
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SelectOptions } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import type { FilterParam } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
 
 /** How long typing must pause before the list searches. */
@@ -49,9 +50,43 @@ export const ListFilters = ({ children }: { readonly children: ReactNode }) => {
   );
 };
 
+/** The row of filters above a list. */
+export const FilterBar = ({ children }: { readonly children: ReactNode }) => (
+  <search className="mb-4 flex flex-wrap items-center gap-2">{children}</search>
+);
+
+/** A trailing no-break space: a live region only speaks when its text changes. */
+const REPEAT_MARK = "\u00A0";
+
 /**
- * The list under the filters: the last results stay on show, dimmed and
- * marked busy, until the new ones arrive.
+ * The announcement, changed by an invisible character each time a filter
+ * change lands, so the same count ("7 products" again) is still read out.
+ */
+const useAnnouncement = (
+  announce: string | undefined,
+  pending: boolean
+): string | undefined => {
+  const [wasPending, setWasPending] = useState(pending);
+  const [landed, setLanded] = useState(0);
+
+  if (pending !== wasPending) {
+    setWasPending(pending);
+
+    if (!pending) {
+      setLanded((count) => count + 1);
+    }
+  }
+
+  if (announce === undefined) {
+    return undefined;
+  }
+
+  return landed % 2 === 0 ? announce : `${announce}${REPEAT_MARK}`;
+};
+
+/**
+ * The list under the filters: the last results stay on show, marked busy at
+ * once and dimmed after 150 ms, until the new ones arrive.
  */
 export const ListResults = ({
   announce,
@@ -62,6 +97,7 @@ export const ListResults = ({
   readonly children: ReactNode;
 }) => {
   const { pending } = useListTransition();
+  const announcement = useAnnouncement(announce, pending);
 
   return (
     <div
@@ -71,8 +107,8 @@ export const ListResults = ({
         pending && "opacity-60 delay-150"
       )}
     >
-      {announce === undefined ? null : (
-        <output className="sr-only">{announce}</output>
+      {announcement === undefined ? null : (
+        <output className="sr-only">{announcement}</output>
       )}
       {children}
     </div>
@@ -81,25 +117,39 @@ export const ListResults = ({
 
 const NO_RESETS: readonly string[] = [];
 
+type UrlParsers = Record<string, typeof parseAsString>;
+
+interface UrlKeys {
+  readonly pending: boolean;
+  readonly values: Record<string, string | null>;
+  readonly setValues: SetValues<UrlParsers>;
+}
+
 /** One string per key; the server page validates every value itself. */
-const keysOf = (keys: readonly string[]) =>
+const keysOf = (keys: readonly string[]): UrlParsers =>
   Object.fromEntries(keys.map((key) => [key, parseAsString]));
 
 /**
- * The param and the ones it resets. Keyed on their text, so a fresh array
+ * The param and the ones it resets. Memoised on their JSON, so a fresh array
  * from a re-render doesn't rebuild the hook's parsers.
  */
-const useKeys = (param: string, resets: readonly string[]) => {
-  const text = [param, ...resets].join(",");
+const useKeys = (param: string, resets: readonly string[]): string[] => {
+  const keysJson = JSON.stringify([param, ...resets]);
 
-  return useMemo(() => text.split(","), [text]);
+  return useMemo((): string[] => {
+    const keys: unknown = JSON.parse(keysJson);
+
+    return Array.isArray(keys)
+      ? keys.filter((key): key is string => typeof key === "string")
+      : [];
+  }, [keysJson]);
 };
 
 /**
  * Filters update the URL in place (no new history entry per keystroke or
  * choice) and re-render the server page with it.
  */
-const useUrlKeys = (keys: readonly string[]) => {
+const useUrlKeys = (keys: readonly string[]): UrlKeys => {
   const { pending, startTransition } = useListTransition();
   const parsers = useMemo(() => keysOf(keys), [keys]);
 
@@ -113,7 +163,7 @@ const useUrlKeys = (keys: readonly string[]) => {
 };
 
 /** Every other key back to its default: a new filter starts at page one. */
-const cleared = (keys: readonly string[]) =>
+const cleared = (keys: readonly string[]): Record<string, null> =>
   Object.fromEntries(keys.map((key) => [key, null]));
 
 const flatValues = (options: SelectOptions): string[] =>
@@ -124,24 +174,31 @@ const flatValues = (options: SelectOptions): string[] =>
   );
 
 interface UrlSelectProps {
-  /** The search param it writes, such as "status". */
-  readonly param: string;
+  /**
+   * The search param it writes, such as "status", and the value meaning "no
+   * filter" (choosing it removes the param). The page reads the same one.
+   */
+  readonly filter: FilterParam;
   readonly options: SelectOptions;
-  /** The value meaning "no filter"; choosing it removes the param. */
-  readonly defaultValue: string;
   /** Params a new choice clears, such as the page or a cursor. */
   readonly resets?: readonly string[];
   readonly label: string;
-  /** Shows the label before the select; otherwise it names it for screen readers. */
+  /**
+   * Shows the label before a select sized to its value; otherwise the label
+   * names it for screen readers and the select fills its column.
+   */
   readonly visibleLabel?: boolean;
+  /** Width only, for a select without a visible label. */
   readonly className?: string;
 }
 
-/** A filter select that applies as soon as something is chosen. */
+/**
+ * A filter select that applies as soon as something is chosen. It keeps its
+ * `name`, so without JavaScript it still submits with a GET form around it.
+ */
 export const UrlSelect = ({
-  param,
+  filter: { param, defaultValue },
   options,
-  defaultValue,
   resets = NO_RESETS,
   label,
   visibleLabel = false,
@@ -156,6 +213,7 @@ export const UrlSelect = ({
   const choose = (next: string | null) => {
     const chosen = next === null || next === defaultValue ? null : next;
 
+    // Nothing to wait for: the page's transition shows the update pending.
     void setValues({ ...cleared(resets), [param]: chosen });
   };
 
@@ -164,6 +222,7 @@ export const UrlSelect = ({
       <Select
         aria-label={label}
         className={className}
+        name={param}
         onValueChange={choose}
         options={options}
         value={value}
@@ -175,7 +234,8 @@ export const UrlSelect = ({
     <Field layout="inline">
       <FieldLabel tone="quiet">{label}</FieldLabel>
       <Select
-        className={className}
+        className="w-auto"
+        name={param}
         onValueChange={choose}
         options={options}
         value={value}
@@ -210,10 +270,14 @@ export const UrlSearch = ({
   const { pending, values, setValues } = useUrlKeys(keys);
   const text = values[param] ?? "";
 
+  /** Blank (or only spaces) means no search, and shows everything at once. */
   const search = (next: string, options?: Options) => {
+    const blank = next.trim() === "";
+
+    // Nothing to wait for: the page's transition shows the update pending.
     void setValues(
-      { ...cleared(resets), [param]: next === "" ? null : next },
-      options
+      { ...cleared(resets), [param]: blank ? null : next },
+      blank ? undefined : options
     );
   };
 
@@ -226,14 +290,9 @@ export const UrlSearch = ({
           icon={icon}
           name={param}
           onChange={(event) => {
-            const next = event.currentTarget.value;
-
-            search(
-              next,
-              next.trim() === ""
-                ? undefined
-                : { limitUrlUpdates: debounce(SEARCH_DEBOUNCE_MS) }
-            );
+            search(event.currentTarget.value, {
+              limitUrlUpdates: debounce(SEARCH_DEBOUNCE_MS),
+            });
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.nativeEvent.isComposing) {
