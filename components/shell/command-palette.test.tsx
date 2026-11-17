@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@/test/dom";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createAgent } from "@ui-sdk/react/agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -218,6 +218,42 @@ describe("CommandPalette", () => {
     await user.keyboard("{Enter}");
 
     expect(push).toHaveBeenCalledWith("/low-stock");
+  });
+
+  it("highlights the first command every time it opens", async () => {
+    const user = userEvent.setup();
+    renderPalette();
+
+    await user.keyboard("{Control>}k{/Control}");
+    await screen.findByRole("combobox");
+
+    await waitFor(() => {
+      expect(
+        isHighlighted(screen.getByRole("option", { name: "Overview" }))
+      ).toBe(true);
+    });
+
+    await user.keyboard("{ArrowDown}{Escape}{Control>}k{/Control}");
+
+    await waitFor(() => {
+      expect(
+        isHighlighted(screen.getByRole("option", { name: "Overview" }))
+      ).toBe(true);
+    });
+  });
+
+  it("highlights Ask Tally first when it's on", async () => {
+    const user = userEvent.setup();
+    renderPalette({ suggestions: [] });
+
+    await user.keyboard("{Control>}k{/Control}");
+    await screen.findByRole("combobox");
+
+    await waitFor(() => {
+      expect(
+        isHighlighted(screen.getByRole("option", { name: /Ask Tally/u }))
+      ).toBe(true);
+    });
   });
 
   it("opens from either trigger and runs a create command by click", async () => {

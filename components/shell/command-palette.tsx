@@ -467,10 +467,17 @@ const useResultHighlight = (
 
   return {
     highlighted,
-    /** Last time's highlight would keep this time's results from it. */
-    reset: () => {
-      if (highlighted !== null || handedTo !== null) {
-        setHighlighted(null);
+    /**
+     * Last time's highlight would keep this time's results from it. Starts
+     * on the first row: a controlled highlight left at null stays empty
+     * until the query or the rows change.
+     */
+    reset: (first: string | null) => {
+      if (highlighted !== first) {
+        setHighlighted(first);
+      }
+
+      if (handedTo !== null) {
         setHandedTo(null);
       }
     },
@@ -565,6 +572,13 @@ export const CommandPalette = ({
       ),
     [groups]
   );
+
+  // The top row of an empty palette: Ask Tally, else the first page.
+  const firstRow =
+    ask === null
+      ? (groups.find((group) => group.label !== ACCOUNT_GROUP)?.commands[0]
+          ?.value ?? null)
+      : ASK_VALUE;
 
   useShortcut(
     SHORTCUT,
@@ -669,7 +683,7 @@ export const CommandPalette = ({
           }
 
           if (open) {
-            highlight.reset();
+            highlight.reset(firstRow);
           }
         }}
         pendingAnnouncement="Working…"
