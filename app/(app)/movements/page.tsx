@@ -1,19 +1,22 @@
+import { X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
   FilterBar,
+  FilterSummary,
   ListFilters,
   ListResults,
-  UrlSelect,
+  Term,
+  UrlTabs,
 } from "@/components/lists/list-filters";
+import { tabOptions } from "@/components/lists/tab-options";
 import { MovementTable } from "@/components/stock/movement-table";
 import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { labelledOptions } from "@/components/ui/select-options";
 import type { MovementKind } from "@/lib/db/schema";
-import { countLabel } from "@/lib/format";
+import { countLabel, formatCount } from "@/lib/format";
 import { listMovements } from "@/lib/queries/movements";
 import { getProduct } from "@/lib/queries/products";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
@@ -53,6 +56,21 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   transfer_out: "Transfers out",
 };
 
+/** How the summary sentence names what's shown: one, and more than one. */
+const KIND_NOUNS: Record<(typeof KINDS)[number], readonly [string, string]> = {
+  adjustment: ["adjustment", "adjustments"],
+  all: ["movement", "movements"],
+  opening: ["opening balance", "opening balances"],
+  receipt: ["delivery", "deliveries"],
+  sale: ["sale", "sales"],
+  sale_return: ["customer return", "customer returns"],
+  transfer_in: ["transfer in", "transfers in"],
+  transfer_out: ["transfer out", "transfers out"],
+};
+
+/** Every filter param, and the cursor: what "Clear filters" clears. */
+const FILTER_PARAMS = ["kind", "product", "before"] as const;
+
 /**
  * What a screen reader hears once the list updates. There's no total (the
  * list pages by cursor), so it counts what's shown and says if there's more.
@@ -73,6 +91,38 @@ const noMatchHint = (byKind: boolean, byProduct: boolean): string => {
   }
 
   return "Nothing of that kind has moved here. Try another kind.";
+};
+
+/** "Latest 50 sales of Jasmine rice 5 kg", above the list. */
+const MovementsSummary = ({
+  shown,
+  kind,
+  productName,
+  latest,
+  filtered,
+}: {
+  readonly shown: number;
+  readonly kind: (typeof KINDS)[number];
+  readonly productName: string | undefined;
+  /** The first page, with older movements after it. */
+  readonly latest: boolean;
+  readonly filtered: boolean;
+}) => {
+  const [one, many] = KIND_NOUNS[kind];
+  const noun = shown === 1 ? one : many;
+
+  return (
+    <FilterSummary clear={filtered ? FILTER_PARAMS : undefined}>
+      {latest ? "Latest " : ""}
+      {formatCount(shown)} {kind === "all" ? noun : <Term>{noun}</Term>}
+      {productName === undefined ? null : (
+        <>
+          {" "}
+          of <Term>{productName}</Term>
+        </>
+      )}
+    </FilterSummary>
+  );
 };
 
 const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
@@ -106,6 +156,7 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
   const page = rows.slice(0, PAGE);
   const older = rows.length > PAGE ? page.at(-1)?.id : undefined;
   const filters = { kind: kind === "all" ? null : kind, product: productId };
+  const filtered = filters.kind !== null || productId !== undefined;
 
   return (
     <>
@@ -115,33 +166,48 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
       />
 
       <ListFilters>
-        <FilterBar>
-          <UrlSelect
-            filter={KIND_FILTER}
-            label="Show"
-            options={labelledOptions(KINDS, KIND_LABELS)}
-            resets={["before"]}
-            visibleLabel
-          />
-          {item ? (
-            <p className="bg-surface-2 ml-1 flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-sm">
+        <UrlTabs
+          filter={KIND_FILTER}
+          label="Kind of movement"
+          options={tabOptions(
+            KINDS,
+            KIND_LABELS,
+            (value) =>
+              `/movements${queryString({ kind: value === "all" ? null : value, product: productId })}`
+          )}
+          resets={["before"]}
+        />
+
+        {item ? (
+          <FilterBar>
+            <p className="bg-brand-soft text-brand flex h-9 items-center gap-1 rounded-full ps-3.5 pe-1.5 text-sm font-medium">
+              <span className="text-brand/75 font-normal">Product:</span>
               {item.name}
               <Link
                 aria-label={`Stop filtering by ${item.name}`}
-                className="hover:bg-line rounded-full px-2 py-0.5"
+                className="hover:bg-brand/15 grid size-6 place-items-center rounded-full"
                 href={`/movements${queryString({ kind: filters.kind })}`}
               >
-                ×
+                <X aria-hidden="true" className="size-3.5" />
               </Link>
             </p>
-          ) : null}
-        </FilterBar>
+          </FilterBar>
+        ) : null}
 
         <ListResults announce={shownLabel(page.length, older !== undefined)}>
+          {page.length === 0 ? null : (
+            <MovementsSummary
+              filtered={filtered}
+              kind={kind}
+              latest={before === undefined && older !== undefined}
+              productName={item?.name}
+              shown={page.length}
+            />
+          )}
           <Panel flush>
             {page.length === 0 ? (
               <ListEmpty
-                filtered={filters.kind !== null || productId !== undefined}
+                filtered={filtered}
                 firstPageHref={
                   before === undefined
                     ? undefined

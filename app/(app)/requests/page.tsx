@@ -3,18 +3,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
-  FilterBar,
+  FilterSummary,
   ListFilters,
   ListResults,
-  UrlSelect,
+  Term,
+  UrlTabs,
 } from "@/components/lists/list-filters";
+import { tabOptions } from "@/components/lists/tab-options";
 import { RequestStatusBadge } from "@/components/stock/request-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
-import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
 import {
   countLabel,
@@ -43,8 +44,11 @@ const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
   values: STATUSES,
 };
 
+/** Every filter param, and the page: what "Clear filters" clears. */
+const FILTER_PARAMS = ["status", "page"] as const;
+
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
-  all: "Any status",
+  all: "All",
   ...STOCK_REQUEST_STATUS_LABELS,
 };
 
@@ -91,17 +95,30 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
       />
 
       <ListFilters>
-        <FilterBar>
-          <UrlSelect
-            filter={STATUS_FILTER}
-            label="Show"
-            options={labelledOptions(STATUSES, STATUS_OPTIONS)}
-            resets={["page"]}
-            visibleLabel
-          />
-        </FilterBar>
+        <UrlTabs
+          filter={STATUS_FILTER}
+          label="Status"
+          options={tabOptions(
+            STATUSES,
+            STATUS_OPTIONS,
+            (value) =>
+              `/requests${queryString({ status: value === "all" ? null : value })}`
+          )}
+          resets={["page"]}
+        />
 
         <ListResults announce={countLabel(total, "request")}>
+          {rows.length === 0 ? null : (
+            <FilterSummary clear={status === "all" ? undefined : FILTER_PARAMS}>
+              {formatCount(total)}{" "}
+              {status === "all" ? null : (
+                <>
+                  <Term>{STATUS_OPTIONS[status].toLowerCase()}</Term>{" "}
+                </>
+              )}
+              {total === 1 ? "request" : "requests"}
+            </FilterSummary>
+          )}
           <Panel
             flush
             footer={

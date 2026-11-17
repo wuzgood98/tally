@@ -4,10 +4,14 @@ import Link from "next/link";
 
 import {
   FilterBar,
+  FilterSummary,
   ListFilters,
   ListResults,
-  UrlSelect,
+  Term,
+  UrlChip,
+  UrlTabs,
 } from "@/components/lists/list-filters";
+import { tabOptions } from "@/components/lists/tab-options";
 import { TransferStatusBadge } from "@/components/stock/transfer-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
@@ -45,9 +49,15 @@ const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
 };
 
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
-  all: "Any status",
+  all: "All",
   ...TRANSFER_STATUS_LABELS,
 };
+
+/** Every filter param, and the page: what "Clear filters" clears. */
+const FILTER_PARAMS = ["direction", "status", "page"] as const;
+
+/** A branch's choice of direction; the chip's × goes back to both. */
+const ONE_WAY = ["incoming", "outgoing"] as const;
 
 const DIRECTION_FILTER: EnumFilter<TransferDirection> = {
   defaultValue: "both",
@@ -114,27 +124,55 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
       />
 
       <ListFilters>
-        <FilterBar>
-          {oneBranch ? (
-            <UrlSelect
+        <UrlTabs
+          filter={STATUS_FILTER}
+          label="Status"
+          options={tabOptions(
+            STATUSES,
+            STATUS_OPTIONS,
+            (value) =>
+              `/transfers${queryString({ ...filters, status: value === "all" ? null : value })}`
+          )}
+          resets={["page"]}
+        />
+
+        {oneBranch ? (
+          <FilterBar>
+            <UrlChip
               filter={DIRECTION_FILTER}
-              label="Show"
-              options={labelledOptions(TRANSFER_DIRECTIONS, DIRECTION_LABELS)}
+              label="Direction"
+              options={labelledOptions(ONE_WAY, DIRECTION_LABELS)}
               resets={["page"]}
-              visibleLabel
             />
-          ) : null}
-          <UrlSelect
-            className="w-auto"
-            filter={STATUS_FILTER}
-            label="Status"
-            options={labelledOptions(STATUSES, STATUS_OPTIONS)}
-            resets={["page"]}
-            visibleLabel={!oneBranch}
-          />
-        </FilterBar>
+          </FilterBar>
+        ) : null}
 
         <ListResults announce={countLabel(total, "transfer")}>
+          {rows.length === 0 ? null : (
+            <FilterSummary
+              clear={
+                filters.direction === null && filters.status === null
+                  ? undefined
+                  : FILTER_PARAMS
+              }
+            >
+              {formatCount(total)}{" "}
+              {filters.direction === null ? null : (
+                <>
+                  <Term>
+                    {DIRECTION_LABELS[filters.direction].toLowerCase()}
+                  </Term>{" "}
+                </>
+              )}
+              {total === 1 ? "transfer" : "transfers"}
+              {filters.status === null ? null : (
+                <>
+                  {" "}
+                  <Term>{STATUS_OPTIONS[filters.status].toLowerCase()}</Term>
+                </>
+              )}
+            </FilterSummary>
+          )}
           <Panel
             flush
             footer={

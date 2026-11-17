@@ -3,17 +3,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
+  FilterSummary,
   ListFilters,
   ListResults,
+  Term,
+  UrlChip,
   UrlSearch,
-  UrlSelect,
+  UrlTabs,
 } from "@/components/lists/list-filters";
+import { tabOptions } from "@/components/lists/tab-options";
 import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
-import { namedOptions, labelledOptions } from "@/components/ui/select-options";
+import { namedOptions } from "@/components/ui/select-options";
 import { StockBadge } from "@/components/ui/stock-badge";
 import { Table, Td, Th } from "@/components/ui/table";
 import { countLabel, formatCount } from "@/lib/format";
@@ -51,6 +55,17 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
   low: "Running low",
   out: "Out of stock",
 };
+
+/** How the summary sentence names a status: "77 running low products". */
+const STATUS_TERMS: Record<StatusFilter, string | null> = {
+  all: null,
+  discontinued: "discontinued",
+  low: "running low",
+  out: "out-of-stock",
+};
+
+/** Every filter param, and the page: what "Clear filters" clears. */
+const FILTER_PARAMS = ["q", "category", "status", "page"] as const;
 
 const StatusCell = ({
   row,
@@ -110,6 +125,10 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
   const hrefFor = (target: number) =>
     `/products${queryString({ category: categoryId, page: target > 1 ? target : null, q: search, status: status === "all" ? null : status })}`;
 
+  const filtered = search !== "" || categoryId !== null || status !== "all";
+  const categoryName = categories.find((item) => item.id === categoryId)?.name;
+  const statusTerm = STATUS_TERMS[status];
+
   return (
     <>
       <PageHeader
@@ -129,41 +148,72 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
       />
 
       <ListFilters>
-        <search className="mb-4">
-          {/* Without JavaScript, Enter still searches through the form, keeping the selects. */}
+        <UrlTabs
+          filter={STATUS_FILTER}
+          label="Stock status"
+          options={tabOptions(
+            STATUSES,
+            STATUS_LABELS,
+            (value) =>
+              `/products${queryString({ category: categoryId, q: search, status: value === "all" ? null : value })}`
+          )}
+          resets={["page"]}
+        />
+
+        <search className="mb-3">
+          {/* Without JavaScript, Enter still searches through the form, keeping the other filters. */}
           <form
             action="/products"
-            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_10rem]"
+            className="flex flex-wrap items-center gap-2"
           >
-            <UrlSearch
-              icon={<Search aria-hidden="true" />}
-              label="Search products"
-              param="q"
-              placeholder="Name, SKU or scan a barcode"
-              resets={["page"]}
-            />
-            <UrlSelect
+            <div className="min-w-60 grow sm:max-w-96">
+              <UrlSearch
+                icon={<Search aria-hidden="true" />}
+                label="Search products"
+                param="q"
+                placeholder="Name, SKU or scan a barcode"
+                resets={["page"]}
+              />
+            </div>
+            <UrlChip
               filter={CATEGORY_FILTER}
               label="Category"
-              options={[
-                { label: "All categories", value: "" },
-                ...[...departments].map(([department, items]) => ({
-                  label: department,
-                  options: namedOptions(items),
-                })),
-              ]}
+              options={[...departments].map(([department, items]) => ({
+                label: department,
+                options: namedOptions(items),
+              }))}
               resets={["page"]}
             />
-            <UrlSelect
-              filter={STATUS_FILTER}
-              label="Stock status"
-              options={labelledOptions(STATUSES, STATUS_LABELS)}
-              resets={["page"]}
-            />
+            {status === "all" ? null : (
+              <input name="status" type="hidden" value={status} />
+            )}
           </form>
         </search>
 
         <ListResults announce={countLabel(total, "product")}>
+          {rows.length === 0 ? null : (
+            <FilterSummary clear={filtered ? FILTER_PARAMS : undefined}>
+              {formatCount(total)}{" "}
+              {statusTerm === null ? null : (
+                <>
+                  <Term>{statusTerm}</Term>{" "}
+                </>
+              )}
+              {total === 1 ? "product" : "products"}
+              {categoryName === undefined ? null : (
+                <>
+                  {" "}
+                  in <Term>{categoryName}</Term>
+                </>
+              )}
+              {search === "" ? null : (
+                <>
+                  {" "}
+                  matching <Term>“{search}”</Term>
+                </>
+              )}
+            </FilterSummary>
+          )}
           <Panel
             flush
             footer={
@@ -183,9 +233,7 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
                     ? { href: "/products/new", label: "New product" }
                     : undefined
                 }
-                filtered={
-                  search !== "" || categoryId !== null || status !== "all"
-                }
+                filtered={filtered}
                 firstPageHref={page > 1 && total > 0 ? hrefFor(1) : undefined}
                 listHref="/products"
                 noMatchHint={
