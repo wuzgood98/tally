@@ -1,5 +1,6 @@
 "use client";
 
+import { ScanBarcode } from "lucide-react";
 import { useState, useTransition } from "react";
 import type { SubmitEvent } from "react";
 
@@ -9,6 +10,7 @@ import { ProductPicker } from "@/components/stock/product-picker";
 import { TransferLineRow } from "@/components/stock/transfer-line-row";
 import type { TransferDraftLine } from "@/components/stock/transfer-line-row";
 import { Button } from "@/components/ui/button";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Frame, FramePanel } from "@/components/ui/frame";
 import { Textarea } from "@/components/ui/input";
@@ -224,9 +226,9 @@ export const TransferForm = ({
             />
           </div>
           {lines.length === 0 ? (
-            <p className="text-ink-2 p-6 text-center text-sm">
-              Nothing on this transfer yet. Scan the first item.
-            </p>
+            <EmptyNote icon={ScanBarcode} title="Nothing on this transfer yet">
+              Scan or find the first product.
+            </EmptyNote>
           ) : (
             <div className="relative overflow-x-auto">
               <table className="w-full text-sm">

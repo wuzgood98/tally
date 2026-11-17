@@ -1,5 +1,7 @@
+import { TrendingUp } from "lucide-react";
 import Link from "next/link";
 
+import { EmptyNote } from "@/components/ui/empty-state";
 import { Panel } from "@/components/ui/panel";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatCount } from "@/lib/format";
@@ -39,7 +41,12 @@ export const BestSellersPanel = ({
     title={`Best sellers, last ${days} days`}
   >
     {rows.length === 0 ? (
-      <p className="text-ink-2 p-4 text-sm">Nothing sold in that time.</p>
+      <EmptyNote
+        icon={TrendingUp}
+        title={`Nothing sold in the last ${days} days`}
+      >
+        Best sellers show here once sales come in.
+      </EmptyNote>
     ) : (
       <Table>
         <caption className="sr-only">

@@ -1,4 +1,4 @@
-import { ClipboardList, PackagePlus, Pencil } from "lucide-react";
+import { ClipboardList, History, PackagePlus, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,6 +8,7 @@ import { StockSettingsForm } from "@/components/catalogue/stock-settings-form";
 import { BranchStockTable } from "@/components/stock/branch-stock-table";
 import { MovementTable } from "@/components/stock/movement-table";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
@@ -111,7 +112,9 @@ const HistoryPanel = async ({
       title={branchId === undefined ? "History" : "History at this branch"}
     >
       {history.length === 0 ? (
-        <p className="text-ink-2 p-4 text-sm">No stock has moved yet.</p>
+        <EmptyNote icon={History} title="No stock has moved yet">
+          Receipts, sales, transfers and adjustments of this product show here.
+        </EmptyNote>
       ) : (
         <MovementTable
           caption={`Stock movements for ${productName}`}

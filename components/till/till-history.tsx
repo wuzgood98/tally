@@ -1,11 +1,13 @@
 "use client";
 
 import { and, eq, gte, lt, useLiveQuery } from "@tanstack/react-db";
+import { SearchX } from "lucide-react";
 import { useState } from "react";
 
 import { SaleRow } from "@/components/till/sale-row";
 import { useTillData } from "@/components/till/till-data-provider";
 import { Button } from "@/components/ui/button";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Panel } from "@/components/ui/panel";
@@ -182,10 +184,13 @@ export const TillHistory = ({
             Tally couldn&apos;t load these sales. Check the connection.
           </p>
         ) : null}
-        {!isLoadingError && sales.length === 0 ? (
-          <p className="text-ink-2 p-4 text-sm">
-            {isLoading ? "Loading…" : "No sales match."}
-          </p>
+        {!isLoadingError && sales.length === 0 && isLoading ? (
+          <p className="text-ink-2 p-4 text-sm">Loading…</p>
+        ) : null}
+        {!isLoadingError && sales.length === 0 && !isLoading ? (
+          <EmptyNote icon={SearchX} title="No sales match">
+            Try another day or payment method.
+          </EmptyNote>
         ) : null}
         {sales.length > 0 ? (
           <ul>

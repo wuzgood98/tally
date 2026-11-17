@@ -2,6 +2,7 @@
 
 import {
   ArrowLeftRight,
+  Bell,
   Inbox,
   PackageX,
   ShoppingCart,
@@ -11,6 +12,7 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { EmptyNote } from "@/components/ui/empty-state";
 import type { NotificationKind } from "@/lib/db/schema";
 import type {
   NotificationDay,
@@ -94,10 +96,9 @@ interface ListProps {
 export const NotificationList = ({ days, onFollow }: ListProps) => {
   if (days.length === 0) {
     return (
-      <p className="text-ink-3 px-4 py-8 text-center text-sm">
-        Nothing in the last 30 days. You&rsquo;ll hear here when stock is sent
-        your way or an order changes.
-      </p>
+      <EmptyNote icon={Bell} title="Nothing in the last 30 days">
+        You&rsquo;ll hear here when stock is sent your way or an order changes.
+      </EmptyNote>
     );
   }
 

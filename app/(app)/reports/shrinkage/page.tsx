@@ -1,8 +1,10 @@
+import { Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ReportToolbar } from "@/components/reports/report-toolbar";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Stat, StatGroup } from "@/components/ui/stat";
@@ -268,9 +270,9 @@ const ShrinkagePage = async ({
 
         <Panel flush id="routes" title="Lost in transit, by route">
           {report.transit.length === 0 ? (
-            <p className="text-ink-2 p-6 text-center text-sm">
+            <EmptyNote good icon={Truck} title="Nothing lost in transit">
               Every transfer arrived in full.
-            </p>
+            </EmptyNote>
           ) : (
             <RouteTable names={names} routes={report.transit} />
           )}
