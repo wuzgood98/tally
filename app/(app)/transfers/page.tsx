@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { TransferStatusBadge } from "@/components/stock/transfer-status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyLabel } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -36,6 +37,39 @@ const DIRECTION_LABELS: Record<TransferDirection, string> = {
   both: "In and out",
   incoming: "Incoming",
   outgoing: "Outgoing",
+};
+
+const TransfersEmpty = ({
+  filtered,
+  canSend,
+}: {
+  readonly filtered: boolean;
+  readonly canSend: boolean;
+}) => {
+  if (filtered) {
+    return (
+      <EmptyLabel
+        action={{ href: "/transfers", label: "Clear the filters" }}
+        kind="noMatch"
+        tag="Transfers"
+        title="No transfers match"
+      >
+        Try another status or direction.
+      </EmptyLabel>
+    );
+  }
+
+  return (
+    <EmptyLabel
+      action={
+        canSend ? { href: "/transfers/new", label: "New transfer" } : undefined
+      }
+      tag="Transfers"
+      title="No transfers yet"
+    >
+      Stock sent between branches shows here, newest first.
+    </EmptyLabel>
+  );
 };
 
 const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
@@ -142,9 +176,10 @@ const TransfersPage = async ({ searchParams }: PageProps<"/transfers">) => {
         }
       >
         {rows.length === 0 ? (
-          <p className="text-ink-2 p-8 text-center text-sm">
-            No transfers match.
-          </p>
+          <TransfersEmpty
+            canSend={canSendSomewhere}
+            filtered={filters.status !== null || filters.direction !== null}
+          />
         ) : (
           <Table>
             <caption className="sr-only">Stock transfers</caption>

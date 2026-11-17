@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { MovementTable } from "@/components/stock/movement-table";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyLabel } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -40,6 +41,22 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   transfer_in: "Transfers in",
   transfer_out: "Transfers out",
 };
+
+const MovementsEmpty = ({ filtered }: { readonly filtered: boolean }) =>
+  filtered ? (
+    <EmptyLabel
+      action={{ href: "/movements", label: "Clear the filters" }}
+      kind="noMatch"
+      tag="Movements"
+      title="No movements match"
+    >
+      Nothing of that kind has moved here. Try another filter.
+    </EmptyLabel>
+  ) : (
+    <EmptyLabel tag="Movements" title="No stock has moved yet">
+      Every receipt, sale, transfer and adjustment shows here.
+    </EmptyLabel>
+  );
 
 const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
   const [viewer, params] = await Promise.all([
@@ -118,9 +135,9 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
 
       <Panel flush>
         {page.length === 0 ? (
-          <p className="text-ink-2 p-8 text-center text-sm">
-            No movements match.
-          </p>
+          <MovementsEmpty
+            filtered={filters.kind !== null || productId !== undefined}
+          />
         ) : (
           <MovementTable
             caption="Stock movements"

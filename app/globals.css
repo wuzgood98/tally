@@ -370,6 +370,7 @@
   --danger: #b42c1a;
   --warn: #9a5a00;
   --warn-soft: #f3e3c2;
+  --good: #1d7a4c;
   /* ui-sdk's tokens resolve at :root, so they're restated here in label ink. */
   --ui-background: transparent;
   --ui-foreground: var(--ink);

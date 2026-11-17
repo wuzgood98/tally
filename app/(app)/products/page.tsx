@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyLabel } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -68,6 +69,43 @@ const StatusCell = ({
   }
 
   return <StockBadge status="ok" />;
+};
+
+const ProductsEmpty = ({
+  filtered,
+  search,
+  canAdd,
+}: {
+  readonly filtered: boolean;
+  readonly search: string;
+  readonly canAdd: boolean;
+}) => {
+  if (filtered) {
+    return (
+      <EmptyLabel
+        action={{ href: "/products", label: "Clear the filters" }}
+        kind="noMatch"
+        tag="Products"
+        title="No products match"
+      >
+        {search === ""
+          ? "Nothing in that category has that status."
+          : `Nothing found for “${search}”. Check the spelling, or scan the barcode instead.`}
+      </EmptyLabel>
+    );
+  }
+
+  return (
+    <EmptyLabel
+      action={
+        canAdd ? { href: "/products/new", label: "New product" } : undefined
+      }
+      tag="Products"
+      title="No products yet"
+    >
+      Everything the company sells is listed here.
+    </EmptyLabel>
+  );
 };
 
 const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
@@ -170,15 +208,11 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
         }
       >
         {rows.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="font-medium">No products match.</p>
-            <p className="text-ink-2 mt-1 text-sm">
-              {search ? `Nothing found for “${search}”. ` : ""}
-              <Link className="text-brand hover:underline" href="/products">
-                Clear the filters
-              </Link>
-            </p>
-          </div>
+          <ProductsEmpty
+            canAdd={canManageCatalogue(viewer)}
+            filtered={search !== "" || categoryId !== null || status !== "all"}
+            search={search}
+          />
         ) : (
           <Table>
             <caption className="sr-only">
