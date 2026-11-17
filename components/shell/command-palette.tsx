@@ -417,6 +417,26 @@ const PaletteListRows = ({
 const PaletteList = memo(PaletteListRows);
 
 /**
+ * The top row `PaletteListRows` draws while nothing is typed: Ask Tally, else
+ * the first command outside Account (drawn last). Null only for a palette with
+ * no pages, which `paletteCommands` never builds ("Go to" always has Settings).
+ */
+const firstPaletteRow = (
+  groups: readonly PaletteGroup[],
+  showAsk: boolean
+): string | null => {
+  if (showAsk) {
+    return ASK_VALUE;
+  }
+
+  const first = groups.find(
+    (group) => group.label !== ACCOUNT_GROUP && group.commands.length > 0
+  );
+
+  return first?.commands[0]?.value ?? null;
+};
+
+/**
  * The palette's own ranking: Ask Tally gives way to a search, results rank
  * among the pages and actions, and those rank by their words. While the next
  * search loads, the last one's rows that no longer match hide, so they can't
@@ -468,11 +488,11 @@ const useResultHighlight = (
   return {
     highlighted,
     /**
-     * Last time's highlight would keep this time's results from it. Starts
-     * on the first row: a controlled highlight left at null stays empty
-     * until the query or the rows change.
+     * Back to the top row, forgetting the last search's results so this
+     * time's can take the highlight. Not null: ui-sdk leaves a controlled
+     * null highlight empty until the query or the rows change.
      */
-    reset: (first: string | null) => {
+    resetTo: (first: string | null) => {
       if (highlighted !== first) {
         setHighlighted(first);
       }
@@ -572,13 +592,6 @@ export const CommandPalette = ({
       ),
     [groups]
   );
-
-  // The top row of an empty palette: Ask Tally, else the first page.
-  const firstRow =
-    ask === null
-      ? (groups.find((group) => group.label !== ACCOUNT_GROUP)?.commands[0]
-          ?.value ?? null)
-      : ASK_VALUE;
 
   useShortcut(
     SHORTCUT,
@@ -683,7 +696,7 @@ export const CommandPalette = ({
           }
 
           if (open) {
-            highlight.reset(firstRow);
+            highlight.resetTo(firstPaletteRow(groups, ask !== null));
           }
         }}
         pendingAnnouncement="Working…"
