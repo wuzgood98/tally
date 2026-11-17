@@ -85,15 +85,27 @@ const SalesList = ({
     </ul>
   );
 
+/** Raises the limit by a page; shown while the last page came back full. */
+const ShowMore = ({ onMore }: { readonly onMore?: () => void }) => (
+  <div>
+    <Button onClick={onMore} size="md" type="button" variant="outline">
+      Show more
+    </Button>
+  </div>
+);
+
 /**
  * The panel while the till's data layer loads, from the first page the
- * server saw: only ever measured into its skeleton, so the real rows land
- * where their skeleton was.
+ * server saw: only ever measured into its skeleton, so the real rows, and
+ * "Show more" after a full page, land where their skeleton was.
  */
 const SalesSample = ({ sales }: { readonly sales: readonly TillSale[] }) => (
-  <Panel flush title="Sales">
-    <SalesList byPayment={false} sales={sales} />
-  </Panel>
+  <div className="grid grid-cols-1 gap-6">
+    <Panel flush title="Sales">
+      <SalesList byPayment={false} sales={sales} />
+    </Panel>
+    {sales.length >= HISTORY_PAGE ? <ShowMore /> : null}
+  </div>
 );
 
 /**
@@ -101,8 +113,8 @@ const SalesSample = ({ sales }: { readonly sales: readonly TillSale[] }) => (
  * sort are the live query; the collection turns them into one bounded
  * request to the server each time they change, and "Show more" only raises
  * the limit. Nothing here is downloaded ahead. While the panel has nothing
- * to show yet, Skullet draws its rows from the ones last shown, or from
- * `sample`.
+ * to show yet, Skullet draws its rows from the ones it last showed (it keeps
+ * them across filter changes), or the first time from `sample`.
  */
 const HistoryResults = ({
   filters: { storeId, day, payment, order, limit },
@@ -158,7 +170,7 @@ const HistoryResults = ({
   const waiting = isLoading && sales.length === 0;
 
   return (
-    <>
+    <div className="grid grid-cols-1 gap-6">
       <Panel flush title="Sales">
         {isLoadingError ? (
           <p className="text-danger p-4 text-sm">
@@ -175,14 +187,8 @@ const HistoryResults = ({
         )}
       </Panel>
 
-      {sales.length >= limit ? (
-        <div>
-          <Button onClick={onMore} size="md" type="button" variant="outline">
-            Show more
-          </Button>
-        </div>
-      ) : null}
-    </>
+      {sales.length >= limit ? <ShowMore onMore={onMore} /> : null}
+    </div>
   );
 };
 
@@ -207,6 +213,14 @@ export const TillHistory = ({
   const [payment, setPayment] = useState<Payment>("all");
   const [order, setOrder] = useState<Order>("newest");
   const [limit, setLimit] = useState(HISTORY_PAGE);
+
+  // The server's first page is a true sample only for the filters it was
+  // read with; for others, an empty day is as good a guess as any.
+  const asServerRead =
+    storeId === defaultStoreId &&
+    day === todayInAccra() &&
+    payment === "all" &&
+    order === "newest";
 
   // New filters start again from the first page.
   const refilter = (change: () => void) => {
@@ -282,7 +296,7 @@ export const TillHistory = ({
       >
         <HistoryResults
           filters={{ day, limit, order, payment, storeId }}
-          sample={firstPage}
+          sample={asServerRead ? firstPage : []}
           onMore={() => {
             setLimit((current) => current + HISTORY_PAGE);
           }}

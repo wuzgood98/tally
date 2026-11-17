@@ -65,14 +65,15 @@ const TillHistoryPage = async () => {
     stores[0]?.id ??
     "";
 
-  // Only shapes the loading skeleton: the page fetches its own sales.
+  // Only shapes the loading skeleton: the page fetches its own sales, so a
+  // failed read draws an empty day rather than an error page.
   const firstPage = await getSaleHistory(getDb(), viewer, {
     ...dayWindow(todayInAccra()),
     branchId: defaultStoreId,
     limit: HISTORY_PAGE,
     offset: 0,
     sort: { direction: "desc", field: "createdAt" },
-  });
+  }).catch(() => []);
 
   return (
     <>

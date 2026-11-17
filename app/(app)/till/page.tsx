@@ -16,12 +16,13 @@ export const metadata: Metadata = { title: "Till" };
 const TillPage = async () => {
   const viewer = await requireViewer();
 
-  // Today's sales only shape the loading skeleton: the till fetches its own.
+  // Today's sales only shape the loading skeleton: the till fetches its own,
+  // so a failed read draws an empty day rather than an error page.
   const [branches, scope, company, salesToday] = await Promise.all([
     listBranches(),
     getScope(viewer),
     getCompanySettings(),
-    getTillSales(getDb(), viewer),
+    getTillSales(getDb(), viewer).catch(() => []),
   ]);
 
   const allowed = new Set(

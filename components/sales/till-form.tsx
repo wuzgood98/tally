@@ -3,7 +3,7 @@
 import { useShortcut } from "@ui-sdk/react/shortcuts";
 import { ScanBarcode } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
-import type { ReactNode, SubmitEvent } from "react";
+import type { ReactNode, Ref, SubmitEvent } from "react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import {
@@ -140,7 +140,42 @@ const TillColumns = ({
   </div>
 );
 
-const ignore = (): void => {
+/** The store a till is at, by name, for the receipt. */
+const storeNameOf = (stores: readonly Option[], storeId: string): string =>
+  stores.find((store) => store.id === storeId)?.name ?? "";
+
+/** The store picker, for anyone with more than one store, above the scan box. */
+const ScanArea = ({
+  stores,
+  storeId,
+  onStore,
+  ref,
+  children,
+}: {
+  readonly stores: readonly Option[];
+  readonly storeId: string;
+  readonly onStore?: (storeId: string) => void;
+  readonly ref?: Ref<HTMLDivElement>;
+  readonly children: ReactNode;
+}) => (
+  <div className={SCAN_AREA} ref={ref}>
+    {stores.length > 1 ? (
+      <Field>
+        <FieldLabel>Till at</FieldLabel>
+        <Select
+          onValueChange={(value) => {
+            onStore?.(value ?? "");
+          }}
+          options={namedOptions(stores)}
+          value={storeId}
+        />
+      </Field>
+    ) : null}
+    {children}
+  </div>
+);
+
+const unusedInSample = (): void => {
   // The sample is only measured, never used.
 };
 
@@ -167,29 +202,21 @@ export const TillSample = ({
           error={null}
           footer={receiptFooter}
           lines={[]}
-          onPaymentMethod={ignore}
-          onReceived={ignore}
+          onPaymentMethod={unusedInSample}
+          onReceived={unusedInSample}
           paymentMethod={FRESH_PAYMENT.method}
           pending={false}
           received=""
-          storeName={
-            stores.find((store) => store.id === defaultStoreId)?.name ?? ""
-          }
+          storeName={storeNameOf(stores, defaultStoreId)}
           tender={NO_TENDER}
           total={0}
           units={0}
         />
       }
       scan={
-        <div className={SCAN_AREA}>
-          {stores.length > 1 ? (
-            <Field>
-              <FieldLabel>Till at</FieldLabel>
-              <Select options={namedOptions(stores)} value={defaultStoreId} />
-            </Field>
-          ) : null}
-          <ProductPicker label="Scan items" onPick={ignore} />
-        </div>
+        <ScanArea storeId={defaultStoreId} stores={stores}>
+          <ProductPicker label="Scan items" onPick={unusedInSample} />
+        </ScanArea>
       }
     />
     <TodayPanel
@@ -240,7 +267,7 @@ export const TillForm = ({
       ? readTender(payment.received, summary.total)
       : NO_TENDER;
 
-  const storeName = stores.find((store) => store.id === storeId)?.name ?? "";
+  const storeName = storeNameOf(stores, storeId);
 
   // Charge without leaving the scan box. It takes a modifier, so a barcode
   // scanner (plain characters and Enter) can never set it off.
@@ -441,26 +468,19 @@ export const TillForm = ({
           />
         }
         scan={
-          <div className={SCAN_AREA} ref={scanArea}>
-            {stores.length > 1 ? (
-              <Field>
-                <FieldLabel>Till at</FieldLabel>
-                <Select
-                  onValueChange={(value) => {
-                    setStoreId(value ?? "");
-                  }}
-                  options={namedOptions(stores)}
-                  value={storeId}
-                />
-              </Field>
-            ) : null}
+          <ScanArea
+            onStore={setStoreId}
+            ref={scanArea}
+            storeId={storeId}
+            stores={stores}
+          >
             <ProductPicker
               autoFocus
               label="Scan items"
               lookup={lookup}
               onPick={addProduct}
             />
-          </div>
+          </ScanArea>
         }
       />
 

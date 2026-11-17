@@ -47,8 +47,11 @@ export const useSavedCopy = (): SavedSnapshot | null => {
   );
 };
 
-/** Nothing to subscribe to: the data layer is made once per person and kept. */
-const subscribe = () => () => null;
+/**
+ * Nothing to subscribe to: the data layer is made once per person and kept,
+ * and there's no queue to watch before it exists.
+ */
+const noSubscription = () => () => null;
 
 /** What the screen looks like while the till loads, and how Skullet remembers it. */
 interface LoadingSkeleton {
@@ -63,7 +66,12 @@ interface LoadingSkeleton {
   readonly sample: ReactNode;
 }
 
-const noStatus = () => () => null;
+interface TillHealth {
+  /** A collection or the offline queue failed to load. */
+  readonly failed: boolean;
+  /** The data layer once everything's in; null while it loads. */
+  readonly loaded: TillData | null;
+}
 
 /**
  * Whether the catalogue and the shelf counts are in the browser and the
@@ -71,7 +79,7 @@ const noStatus = () => () => null;
  * server render, and the browser's first) as still loading, so the screen
  * keeps one tree, and one skeleton, from the server's HTML to the till.
  */
-const useTillHealth = (data: TillData | null) => {
+const useTillHealth = (data: TillData | null): TillHealth => {
   const products = useLiveQuery({
     query: (q) =>
       data === null
@@ -91,7 +99,7 @@ const useTillHealth = (data: TillData | null) => {
   });
 
   const status = useSyncExternalStore(
-    data?.sync.subscribe ?? noStatus,
+    data?.sync.subscribe ?? noSubscription,
     data?.sync.getStatus ?? (() => STARTING),
     () => STARTING
   );
@@ -101,7 +109,7 @@ const useTillHealth = (data: TillData | null) => {
       products.isLoadingError ||
       levels.isLoadingError ||
       status.problem !== null,
-    ready: data !== null && products.isReady && levels.isReady && status.ready,
+    loaded: products.isReady && levels.isReady && status.ready ? data : null,
   };
 };
 
@@ -144,26 +152,26 @@ export const TillDataProvider = ({
   readonly children: ReactNode;
 }) => {
   const data = useSyncExternalStore(
-    subscribe,
+    noSubscription,
     () => getTillData(userId),
     () => null
   );
 
-  const { failed, ready } = useTillHealth(data);
+  const { failed, loaded } = useTillHealth(data);
 
   if (data !== null && failed) {
     return <LoadFailed data={data} />;
   }
 
   return (
-    <Skeleton id={id} label={label} loading={!ready}>
-      {data !== null && ready ? (
-        <TillDataContext value={data}>
+    <Skeleton id={id} label={label} loading={loaded === null}>
+      {loaded === null ? (
+        sample
+      ) : (
+        <TillDataContext value={loaded}>
           {children}
           <StartOfflineTill />
         </TillDataContext>
-      ) : (
-        sample
       )}
     </Skeleton>
   );
