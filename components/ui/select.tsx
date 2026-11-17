@@ -1,6 +1,13 @@
 "use client";
 
 import {
+  ScrollArea,
+  ScrollAreaContent,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from "@ui-sdk/react/scroll-area";
+import {
   Select as SelectPrimitive,
   SelectContent,
   SelectGroup,
@@ -33,7 +40,7 @@ type SelectVariant = "field" | "chip" | "filter" | "filter-on";
 
 /** A filter pill's shape, shared by its two states. */
 const FILTER_PILL =
-  "press inline-flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3.5 text-start text-sm";
+  "press inline-flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-xl border px-3.5 text-start text-sm";
 
 /** Each look's trigger. */
 const TRIGGER_CLASSES: Record<SelectVariant, string> = {
@@ -141,25 +148,39 @@ export const Select = ({
     </SelectTrigger>
     <SelectContent
       className={cn(
-        "border-line-strong bg-surface-2 pop-in shadow-popover z-50 max-h-[min(20rem,var(--available-height))] min-w-(--anchor-width) overflow-y-auto rounded-xl border p-1",
+        "border-line-strong bg-surface-2 pop-in shadow-popover z-50 flex max-h-[min(20rem,var(--available-height))] min-w-(--anchor-width) flex-col overflow-hidden rounded-xl border p-0",
         // A chip is narrower than the names in its list.
         variant !== "field" && "min-w-56"
       )}
     >
-      {options.map((entry) =>
-        isGroup(entry) ? (
-          <SelectGroup key={`group:${entry.label}`}>
-            <SelectGroupLabel className="text-ink-3 px-2 pt-2 pb-1 text-xs font-medium">
-              {entry.label}
-            </SelectGroupLabel>
-            {entry.options.map((option) => (
-              <OptionItem key={option.value} option={option} />
-            ))}
-          </SelectGroup>
-        ) : (
-          <OptionItem key={entry.value} option={entry} />
-        )
-      )}
+      {/* The list scrolls inside, so its scrollbar matches the app's. */}
+      <ScrollArea className="flex min-h-0 flex-col rounded-[inherit] border-0">
+        {/* The listbox owns the keyboard, so the viewport is no tab stop. */}
+        <ScrollAreaViewport
+          className="h-auto min-h-0 flex-1 scroll-py-1 overscroll-contain"
+          tabIndex={-1}
+        >
+          <ScrollAreaContent className="p-1">
+            {options.map((entry) =>
+              isGroup(entry) ? (
+                <SelectGroup key={`group:${entry.label}`}>
+                  <SelectGroupLabel className="text-ink-3 px-2 pt-2 pb-1 text-xs font-medium">
+                    {entry.label}
+                  </SelectGroupLabel>
+                  {entry.options.map((option) => (
+                    <OptionItem key={option.value} option={option} />
+                  ))}
+                </SelectGroup>
+              ) : (
+                <OptionItem key={entry.value} option={entry} />
+              )
+            )}
+          </ScrollAreaContent>
+        </ScrollAreaViewport>
+        <ScrollAreaScrollbar className="w-2 p-0.5">
+          <ScrollAreaThumb className="bg-ink/20 data-dragging:bg-ink/35" />
+        </ScrollAreaScrollbar>
+      </ScrollArea>
     </SelectContent>
   </SelectPrimitive>
 );

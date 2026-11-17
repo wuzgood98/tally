@@ -659,6 +659,13 @@
   }
 }
 
+/* The boxed field with a panel's corners, for a search set above a table. */
+@utility field-panel {
+  @apply field;
+  /* A plain declaration, after the apply, so it wins over the field's corners. */
+  border-radius: var(--radius-xl);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;

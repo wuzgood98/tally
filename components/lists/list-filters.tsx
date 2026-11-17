@@ -367,7 +367,7 @@ export const UrlChip = ({
       {chosen ? (
         <button
           aria-label={`Clear ${label.toLowerCase()}`}
-          className="text-brand hover:bg-brand/15 absolute inset-y-0 end-1.5 my-auto grid size-6 place-items-center rounded-full"
+          className="text-brand hover:bg-brand/15 absolute inset-y-0 end-1.5 my-auto grid size-6 place-items-center rounded-md"
           onClick={() => {
             choose(null);
           }}
@@ -524,6 +524,7 @@ export const UrlSearch = ({
         <Input
           enterKeyHint="search"
           icon={icon}
+          look="panel"
           name={param}
           onChange={(event) => {
             search(event.currentTarget.value, {

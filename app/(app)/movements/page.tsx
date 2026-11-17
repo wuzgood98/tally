@@ -187,12 +187,12 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
 
         {item ? (
           <FilterBar>
-            <p className="bg-brand-soft text-brand flex h-9 items-center gap-1 rounded-full ps-3.5 pe-1.5 text-sm font-medium">
+            <p className="bg-brand-soft text-brand flex h-9 items-center gap-1 rounded-xl ps-3.5 pe-1.5 text-sm font-medium">
               <span className="text-brand/75 font-normal">Product:</span>
               {item.name}
               <Link
                 aria-label={`Stop filtering by ${item.name}`}
-                className="hover:bg-brand/15 grid size-6 place-items-center rounded-full"
+                className="hover:bg-brand/15 grid size-6 place-items-center rounded-md"
                 href={`/movements${queryString({ kind: filters.kind })}`}
               >
                 <X aria-hidden="true" className="size-3.5" />
