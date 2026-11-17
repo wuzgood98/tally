@@ -11,6 +11,7 @@ import { CommandPalette } from "@/components/shell/command-palette";
 import type { AskSettings } from "@/components/shell/command-palette";
 import { useIsDesktop, useSidebar } from "@/components/shell/sidebar";
 import { useSignOut } from "@/components/shell/sign-out-guard";
+import { useHydrated } from "@/components/ui/use-hydrated";
 import type { PaletteGroup } from "@/lib/palette";
 import type { PaletteBranch } from "@/lib/palette-branches";
 import { parseTheme } from "@/lib/theme";
@@ -34,6 +35,9 @@ export const CommandPaletteProvider = ({
   const router = useRouter();
   const sidebar = useSidebar();
   const { theme, setTheme } = useTheme();
+  // next-themes only knows the choice in the browser: until hydration, the
+  // palette shows the default, as the server did, or its icons won't match.
+  const hydrated = useHydrated();
 
   const desktop = useIsDesktop();
   const signOutSafely = useSignOut();
@@ -67,7 +71,7 @@ export const CommandPaletteProvider = ({
       }}
       scope={scope}
       sidebar={desktop ? sidebar : undefined}
-      theme={parseTheme(theme)}
+      theme={parseTheme(hydrated ? theme : undefined)}
       search={findPaletteResults}
     >
       {children}
