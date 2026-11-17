@@ -18,8 +18,8 @@ export const PopoverContent = ({
   <UiPopoverContent
     className={cn(
       "border-line-strong bg-surface text-ink shadow-float z-50 flex flex-col overflow-hidden border p-0 font-sans",
-      "data-[presentation=popover]:pop-in data-[presentation=popover]:rounded-xl",
-      "data-[presentation=sheet]:max-h-[80svh] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0",
+      "data-[presentation=popover]:pop-in data-[presentation=popover]:rounded-xl data-[presentation=popover]:[--control-radius:var(--radius-xl)]",
+      "data-[presentation=sheet]:max-h-[80svh] data-[presentation=sheet]:rounded-t-2xl data-[presentation=sheet]:border-b-0 data-[presentation=sheet]:[--control-radius:var(--radius-2xl)]",
       className
     )}
     {...props}

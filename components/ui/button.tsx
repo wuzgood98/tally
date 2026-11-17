@@ -16,10 +16,13 @@ const buttonClasses = cva(
       size: {
         default:
           "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pe-2 has-data-[icon=inline-start]:ps-2",
-        icon: "size-8",
-        "icon-lg": "size-9",
-        "icon-sm": "size-7",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
+        // Icon buttons keep their smaller corners: at this size a control's 14px
+        // looks nearly round.
+        icon: "size-8 rounded-lg",
+        "icon-lg": "size-9 rounded-lg",
+        "icon-sm": "size-7 rounded-[min(var(--radius-md),12px)]",
+        "icon-xs":
+          "size-6 rounded-[min(var(--radius-md),10px)] [&_svg:not([class*='size-'])]:size-3",
         // Tally's standard: a 36px control that lines up with form fields.
         md: "h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pe-3 has-data-[icon=inline-start]:ps-3",
         // The till's Charge: a full touch target, the one press per sale.

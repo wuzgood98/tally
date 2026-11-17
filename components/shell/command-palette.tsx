@@ -772,7 +772,7 @@ export const PaletteFieldTrigger = () => {
     <DialogTrigger
       aria-keyshortcuts={hint.ariaKeyshortcuts}
       aria-label={TITLE}
-      className="border-input bg-surface press text-ink-3 hover:text-ink-2 focus-visible:ring-ring/50 rounded-control flex h-8 w-full items-center gap-2 border px-2.5 text-start text-xs outline-none focus-visible:ring-3"
+      className="border-input bg-surface press text-ink-3 hover:text-ink-2 focus-visible:ring-ring/50 flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-start text-xs outline-none focus-visible:ring-3"
       controller={palette}
     >
       <Search aria-hidden="true" className="size-3.5 shrink-0" />
