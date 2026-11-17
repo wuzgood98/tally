@@ -24,6 +24,36 @@ const ageNote = (saved: SavedSnapshot | null): string =>
     ? ""
     : ` Prices and stock counts are from ${formatSavedAt(saved.savedAt, saved.seenAt)}.`;
 
+/** Why the till can't send, and when its sales will go. */
+interface CutOffReason {
+  readonly label: string;
+  readonly until: string;
+}
+
+const OFFLINE: CutOffReason = {
+  label: "Offline",
+  until: "the connection is back",
+};
+
+const NO_ANSWER: CutOffReason = {
+  label: "Can't reach Tally",
+  until: "Tally answers",
+};
+
+/** "Offline. Keep charging: …" or "Offline · 2 sales saved …", plus the copy's age. */
+const cutOff = (
+  { label, until }: CutOffReason,
+  queued: number,
+  saved: SavedSnapshot | null
+): StatusLine => ({
+  kind: "offline",
+  text:
+    queued === 0
+      ? `${label}. Keep charging: sales are saved on this till and sent when ${until}.${ageNote(saved)}`
+      : `${label} · ${formatSales(queued)} saved on this till, sent when ${until}.${ageNote(saved)}`,
+  tone: "warn",
+});
+
 /**
  * From most to least pressing. A browser that says it's online while the
  * till's data came from the saved copy means Tally itself can't be reached
@@ -41,28 +71,12 @@ export const statusLine = (
     };
   }
 
-  const age = ageNote(saved);
-
   if (!status.online) {
-    return {
-      kind: "offline",
-      text:
-        status.queued === 0
-          ? `Offline. Keep charging: sales are saved on this till and sent when the connection is back.${age}`
-          : `Offline · ${formatSales(status.queued)} saved on this till, sent when the connection is back.${age}`,
-      tone: "warn",
-    };
+    return cutOff(OFFLINE, status.queued, saved);
   }
 
   if (saved !== null) {
-    return {
-      kind: "offline",
-      text:
-        status.queued === 0
-          ? `Can't reach Tally. Keep charging: sales are saved on this till and sent when Tally answers.${age}`
-          : `Can't reach Tally · ${formatSales(status.queued)} saved on this till, sent when Tally answers.${age}`,
-      tone: "warn",
-    };
+    return cutOff(NO_ANSWER, status.queued, saved);
   }
 
   if (status.queued > 0) {

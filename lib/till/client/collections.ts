@@ -60,6 +60,11 @@ export const createTillCollections = (
       queryKey: ["till", "products"],
       schema: tillProduct,
       select: (reply) => reply.products,
+      // While the catalogue on screen is the saved copy, ask again every
+      // minute as the shelf counts do, so the status stops saying "Can't
+      // reach Tally" soon after Tally is back.
+      refetchInterval: () =>
+        savedCopies.isSaved("products") ? MINUTE_MS : false,
       // Prices change a few times a day; refreshed on focus after this.
       staleTime: 5 * MINUTE_MS,
     })

@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createSavedCopies,
   formatSavedAt,
-  SAVED_AT_HEADER,
   savedAtOf,
 } from "@/lib/till/client/saved-copy";
 import { statusLine } from "@/lib/till/client/status-text";
 import { STARTING } from "@/lib/till/client/sync";
 import type { SyncStatus } from "@/lib/till/client/sync";
+import { SAVED_AT_HEADER } from "@/lib/till/client/worker-contract";
 
 const NOW = new Date("2026-11-16T15:30:00Z");
 const MORNING = new Date("2026-11-16T09:14:00Z");
@@ -44,6 +44,19 @@ describe("the saved copies on screen", () => {
     copies.report("stockLevels", null, NOW);
     expect(copies.getSnapshot()).toBeNull();
     expect(listener).toHaveBeenCalledTimes(3);
+  });
+
+  it("knows which sources are showing the saved copy", () => {
+    const copies = createSavedCopies();
+
+    copies.report("products", MORNING, NOW);
+    copies.report("stockLevels", null, NOW);
+
+    expect(copies.isSaved("products")).toBe(true);
+    expect(copies.isSaved("stockLevels")).toBe(false);
+
+    copies.report("products", null, NOW);
+    expect(copies.isSaved("products")).toBe(false);
   });
 
   it("keeps the same snapshot, and stays quiet, when nothing changed that day", () => {

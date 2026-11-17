@@ -70,17 +70,17 @@ const failureFrom = async (response: Response): Promise<TillHttpError> => {
       );
 };
 
+export interface RequestJsonInit extends RequestInit {
+  /** Sees every good answer once it has parsed, e.g. to read a header. */
+  readonly onAnswer?: (response: Response) => void;
+}
+
 /**
  * Sends a request and parses the JSON answer with `schema`. Redirects are
  * errors: the endpoints never redirect, so one means something in between
  * (a sign-in page, a captive portal) answered instead, and that must never
  * look like success.
  */
-export interface RequestJsonInit extends RequestInit {
-  /** Sees every good answer before it's parsed, e.g. to read a header. */
-  readonly onAnswer?: (response: Response) => void;
-}
-
 export const requestJson = async <T>(
   url: string,
   schema: z.ZodType<T>,

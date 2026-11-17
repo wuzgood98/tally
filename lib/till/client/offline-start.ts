@@ -8,18 +8,18 @@
  * left by a production run on the same port instead.
  */
 
+import {
+  FORGET_MESSAGE,
+  TILL_CACHE_PREFIX,
+  TILL_DATA_URLS,
+  WARM_MESSAGE,
+} from "@/lib/till/client/worker-contract";
+
 const WORKER_URL = "/till-sw.js";
 const WORKER_SCOPE = "/till";
 
-/** Every cache the worker writes is named `tally-till-…`. */
-export const TILL_CACHE_PREFIX = "tally-till-";
-
-/** The till's data endpoints, warmed on the first visit. */
-const TILL_DATA_URLS = [
-  "/api/till/catalogue",
-  "/api/till/stock-levels",
-  "/api/till/sales",
-] as const;
+/** How long sign-out waits for the worker to say it has forgotten. */
+const FORGET_WAIT_MS = 2000;
 
 const STATIC_PREFIX = "/_next/static/";
 
@@ -46,8 +46,52 @@ export const warmUrls = (
   return [...new Set([pathname, ...TILL_DATA_URLS, ...statics])];
 };
 
-/** Deletes every saved copy of the till on this device. */
-export const forgetOfflineTill = async (): Promise<void> => {
+/**
+ * Tells the till's worker, if this browser has one, to stop saving and delete
+ * its copies, and waits (briefly) for it to say it has. Only the worker can
+ * stop a request it is still answering from saving the last person's data
+ * after the caches are gone.
+ */
+const askWorkerToForget = async (): Promise<void> => {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  const registration =
+    await navigator.serviceWorker.getRegistration(WORKER_SCOPE);
+
+  const tillWorker = registration?.active;
+
+  if (tillWorker === undefined || tillWorker === null) {
+    return;
+  }
+
+  const { port1, port2 } = new MessageChannel();
+  // True once the worker answers, false if it doesn't in time; either way
+  // the page goes on to delete the caches itself.
+  const { promise, resolve } = Promise.withResolvers<boolean>();
+
+  const timer = setTimeout(() => {
+    resolve(false);
+  }, FORGET_WAIT_MS);
+
+  port1.addEventListener("message", () => {
+    resolve(true);
+  });
+  port1.start();
+
+  try {
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- a service worker's postMessage takes no target origin
+    tillWorker.postMessage({ type: FORGET_MESSAGE }, [port2]);
+    await promise;
+  } finally {
+    clearTimeout(timer);
+    port1.close();
+  }
+};
+
+/** Deletes every `tally-till-…` cache from the page's side. */
+const deleteTillCaches = async (): Promise<void> => {
   if (!("caches" in globalThis)) {
     return;
   }
@@ -61,6 +105,18 @@ export const forgetOfflineTill = async (): Promise<void> => {
   }
 
   await Promise.all(deleting);
+};
+
+/**
+ * Deletes every saved copy of the till on this device, by two routes that
+ * back each other up: the worker forgets (and stops saving answers still on
+ * their way), and the page deletes the caches itself, which also covers a
+ * browser where the worker isn't running. One route failing doesn't stop the
+ * other, and this never rejects, so signing out never stalls on it; if both
+ * fail, the sign-in page runs it again before anyone else signs in.
+ */
+export const forgetOfflineTill = async (): Promise<void> => {
+  await Promise.allSettled([askWorkerToForget(), deleteTillCaches()]);
 };
 
 const removeWorker = async (): Promise<void> => {
@@ -137,7 +193,7 @@ export const startTillOffline = async (): Promise<void> => {
     .map((entry) => entry.name);
 
   const warm = {
-    type: "tally-till-warm",
+    type: WARM_MESSAGE,
     urls: warmUrls(location.pathname, location.origin, resources),
   };
 

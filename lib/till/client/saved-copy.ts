@@ -7,9 +7,7 @@
  */
 
 import { formatDateTime, formatTime } from "@/lib/format";
-
-/** Set by the service worker on every copy it keeps. */
-export const SAVED_AT_HEADER = "X-Tally-Saved-At";
+import { SAVED_AT_HEADER } from "@/lib/till/client/worker-contract";
 
 /** What the till shows from a saved copy when Tally can't be reached. */
 export type SavedSource = "products" | "stockLevels";
@@ -41,6 +39,8 @@ export interface SavedSnapshot {
 export interface SavedCopies {
   /** Records the latest answer for `source`: its stamp, or null when it was live. */
   report: (source: SavedSource, savedAt: Date | null, seenAt?: Date) => void;
+  /** Whether `source`'s latest answer came from the saved copy. */
+  isSaved: (source: SavedSource) => boolean;
   subscribe: (listener: () => void) => () => void;
   /**
    * The oldest copy on screen, or null when everything came from Tally.
@@ -80,6 +80,7 @@ export const createSavedCopies = (): SavedCopies => {
 
   return {
     getSnapshot: () => snapshot,
+    isSaved: (source) => stamps.has(source),
     report: (source, savedAt, seenAt = new Date()) => {
       if (savedAt === null) {
         stamps.delete(source);

@@ -19,10 +19,11 @@ type RequestSignOut = () => Promise<void>;
 
 /**
  * The saved till belongs to whoever opened it last, so it goes with them.
- * Their queued sales stay in their own outbox.
+ * Their queued sales stay in their own outbox. `forgetOfflineTill` never
+ * rejects, so a failure to clear can't keep anyone signed in.
  */
 const signOutAndForget = async (): Promise<void> => {
-  await forgetOfflineTill().catch(() => null);
+  await forgetOfflineTill();
   await signOut();
 };
 

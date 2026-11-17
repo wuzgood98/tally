@@ -3,12 +3,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { DemoAccounts } from "@/components/auth/demo-accounts";
-import { ForgetOfflineTill } from "@/components/auth/forget-offline-till";
 import { LabelBarcode } from "@/components/auth/label-barcode";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { StockBins } from "@/components/auth/stock-bins";
 import { TallyMark } from "@/components/brand/tally-mark";
 import { JsonLd } from "@/components/seo/json-ld";
+import { ForgetOfflineTill } from "@/components/till/offline-till";
 import { BRANCHES } from "@/lib/db/seed-data";
 import { isDemo } from "@/lib/demo";
 import { PRIVACY_PATH, TERMS_PATH } from "@/lib/legal";

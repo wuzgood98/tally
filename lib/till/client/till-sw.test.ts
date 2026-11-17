@@ -4,11 +4,19 @@ import { runInNewContext } from "node:vm";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { warmUrls } from "@/lib/till/client/offline-start";
+import {
+  FORGET_MESSAGE,
+  SAVED_AT_HEADER,
+  TILL_CACHE_PREFIX,
+  TILL_DATA_URLS,
+  WARM_MESSAGE,
+} from "@/lib/till/client/worker-contract";
 
 /**
  * Runs `public/till-sw.js` as it is, against an in-memory Cache Storage, a
- * stubbed `fetch` and fake events.
+ * stubbed `fetch` and fake events. The worker can't import
+ * `worker-contract.ts`, so the test drives it with those values: a copy in
+ * the worker that drifts from them fails here.
  */
 
 const ORIGIN = "https://tally.test";
@@ -86,22 +94,23 @@ const fakeCacheStorage = (): FakeCacheStorage => {
   };
 };
 
-interface FetchEvent {
+interface FakeFetchEvent {
   readonly request: Request;
   respondWith: (answer: Promise<Response>) => void;
   waitUntil: (work: Promise<unknown>) => void;
 }
 
-interface MessageEvent {
-  readonly data: { readonly type: string; readonly urls: readonly string[] };
+interface FakeMessageEvent {
+  readonly data: { readonly type: string; readonly urls?: readonly string[] };
+  readonly ports: readonly Pick<MessagePort, "postMessage">[];
   waitUntil: (work: Promise<unknown>) => void;
 }
 
 interface Listeners {
   install?: () => void;
-  activate?: (event: Pick<FetchEvent, "waitUntil">) => void;
-  fetch?: (event: FetchEvent) => void;
-  message?: (event: MessageEvent) => void;
+  activate?: (event: Pick<FakeFetchEvent, "waitUntil">) => void;
+  fetch?: (event: FakeFetchEvent) => void;
+  message?: (event: FakeMessageEvent) => void;
 }
 
 type FetchStub = ReturnType<
@@ -113,7 +122,7 @@ interface Answered {
   response: Promise<Response> | null;
 }
 
-interface Worker {
+interface FakeWorker {
   readonly caches: FakeCacheStorage;
   readonly fetch: FetchStub;
   /** What the worker answered, or null when it left the request alone. */
@@ -121,10 +130,12 @@ interface Worker {
   /** Everything the worker started in the background, settled. */
   settle: () => Promise<void>;
   warm: (urls: readonly string[]) => Promise<void>;
+  /** Sends the sign-out message; resolves with what the worker replied. */
+  forget: () => Promise<string>;
   activate: () => Promise<void>;
 }
 
-const startWorker = (): Worker => {
+const startWorker = (): FakeWorker => {
   const listeners: Listeners = {};
   const background: Promise<unknown>[] = [];
   const caches = fakeCacheStorage();
@@ -179,6 +190,23 @@ const startWorker = (): Worker => {
     },
     caches,
     fetch: fetchStub,
+    forget: async () => {
+      const reply = Promise.withResolvers<string>();
+
+      listeners.message?.({
+        data: { type: FORGET_MESSAGE },
+        ports: [
+          {
+            postMessage: (message: string) => {
+              reply.resolve(message);
+            },
+          },
+        ],
+        waitUntil,
+      });
+
+      return await reply.promise;
+    },
     request: async (url, init) => {
       const answered: Answered = { response: null };
 
@@ -195,7 +223,8 @@ const startWorker = (): Worker => {
     settle,
     warm: async (urls) => {
       listeners.message?.({
-        data: { type: "tally-till-warm", urls },
+        data: { type: WARM_MESSAGE, urls },
+        ports: [],
         waitUntil,
       });
       await settle();
@@ -209,8 +238,16 @@ const offline = async (): Promise<Response> =>
 const bodyOf = async (response: Response | null): Promise<string> =>
   (await response?.text()) ?? "no answer";
 
+/** The static files the worker holds, sorted. */
+const staticKeys = (worker: FakeWorker): string[] =>
+  [
+    ...(worker.caches.stores
+      .get(`${TILL_CACHE_PREFIX}static-v1`)
+      ?.entries.keys() ?? []),
+  ].toSorted();
+
 describe("the till's service worker", () => {
-  let worker: Worker;
+  let worker: FakeWorker;
 
   beforeEach(() => {
     worker = startWorker();
@@ -234,7 +271,7 @@ describe("the till's service worker", () => {
 
     expect(await bodyOf(page)).toBe("<p>Till</p>");
     expect(await bodyOf(catalogue)).toBe('{"products":[{"id":1}]}');
-    expect(catalogue?.headers.get("X-Tally-Saved-At")).not.toBeNull();
+    expect(catalogue?.headers.get(SAVED_AT_HEADER)).not.toBeNull();
   });
 
   it("fails as the browser would when nothing was saved", async () => {
@@ -283,7 +320,7 @@ describe("the till's service worker", () => {
     vi.setSystemTime(new Date("2026-11-16T08:00:00Z"));
     const nextDay = await worker.request("/api/till/sales");
     expect(await bodyOf(nextDay)).toBe('{"sales":[]}');
-    expect(nextDay?.headers.get("X-Tally-Saved-At")).toBe(
+    expect(nextDay?.headers.get(SAVED_AT_HEADER)).toBe(
       "2026-11-15T20:00:00.000Z"
     );
   });
@@ -374,43 +411,95 @@ describe("the till's service worker", () => {
     await worker.request("/_next/static/chunks/recent.js");
     await worker.warm([`${ORIGIN}/_next/static/chunks/kept.js`]);
 
-    const statics = worker.caches.stores.get("tally-till-static-v1");
-    expect([...(statics?.entries.keys() ?? [])].toSorted()).toEqual([
+    expect(staticKeys(worker)).toEqual([
       `${ORIGIN}/_next/static/chunks/kept.js`,
       `${ORIGIN}/_next/static/chunks/recent.js`,
     ]);
   });
 
+  it("keeps a script /till still uses when /till/history warms with its own list", async () => {
+    vi.useFakeTimers({
+      now: new Date("2026-10-01T00:00:00Z"),
+      toFake: ["Date"],
+    });
+    worker.fetch.mockImplementation(
+      async () => await Promise.resolve(html("x"))
+    );
+    await worker.request("/_next/static/chunks/till.js");
+
+    // /till loads it from the copy a few days before the history page warms.
+    vi.setSystemTime(new Date("2026-11-10T00:00:00Z"));
+    await worker.request("/_next/static/chunks/till.js");
+    await worker.settle();
+
+    vi.setSystemTime(new Date("2026-11-16T00:00:00Z"));
+    await worker.warm([`${ORIGIN}/_next/static/chunks/history.js`]);
+
+    expect(staticKeys(worker)).toEqual([
+      `${ORIGIN}/_next/static/chunks/history.js`,
+      `${ORIGIN}/_next/static/chunks/till.js`,
+    ]);
+    expect(worker.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("saves the copy of every data endpoint the page names", async () => {
+    worker.fetch.mockImplementation(
+      async () => await Promise.resolve(json({ products: [] }))
+    );
+
+    await Promise.all(
+      TILL_DATA_URLS.map(async (url) => await worker.request(url))
+    );
+
+    await worker.settle();
+
+    const data = worker.caches.stores.get(`${TILL_CACHE_PREFIX}data-v1`);
+    expect([...(data?.entries.keys() ?? [])].toSorted()).toEqual(
+      TILL_DATA_URLS.map((url) => `${ORIGIN}${url}`).toSorted()
+    );
+  });
+
+  it("forgets at sign-out: deletes every copy and answers when it's done", async () => {
+    worker.fetch.mockResolvedValueOnce(json({ products: [{ id: 1 }] }));
+    await worker.request("/api/till/catalogue");
+    await worker.settle();
+    await worker.caches.open("something-else");
+
+    expect(await worker.forget()).toBe("forgotten");
+    expect([...worker.caches.stores.keys()]).toEqual(["something-else"]);
+  });
+
+  it("doesn't save the last person's answer when it lands after sign-out", async () => {
+    const late = Promise.withResolvers<Response>();
+    worker.fetch.mockReturnValueOnce(late.promise);
+    const pending = worker.request("/api/till/catalogue");
+
+    await worker.forget();
+    late.resolve(json({ products: [{ id: 1 }] }));
+    await pending;
+    await worker.settle();
+
+    expect([...worker.caches.stores.keys()]).toEqual([]);
+
+    // What the next person's till asks for is saved as usual.
+    worker.fetch.mockResolvedValueOnce(json({ products: [{ id: 2 }] }));
+    await worker.request("/api/till/catalogue");
+    await worker.settle();
+    expect([...worker.caches.stores.keys()]).toEqual([
+      `${TILL_CACHE_PREFIX}data-v1`,
+    ]);
+  });
+
   it("clears out caches from older versions when it takes over", async () => {
-    await worker.caches.open("tally-till-pages-v0");
-    await worker.caches.open("tally-till-data-v1");
+    await worker.caches.open(`${TILL_CACHE_PREFIX}pages-v0`);
+    await worker.caches.open(`${TILL_CACHE_PREFIX}data-v1`);
     await worker.caches.open("something-else");
 
     await worker.activate();
 
     expect([...worker.caches.stores.keys()].toSorted()).toEqual([
       "something-else",
-      "tally-till-data-v1",
-    ]);
-  });
-});
-
-describe("warmUrls", () => {
-  it("lists the page, the till's data and this site's static files, once each", () => {
-    expect(
-      warmUrls("/till", ORIGIN, [
-        `${ORIGIN}/_next/static/chunks/a.js`,
-        `${ORIGIN}/_next/static/chunks/a.js`,
-        `${ORIGIN}/api/till/catalogue`,
-        "https://elsewhere.test/_next/static/b.js",
-        "not a url",
-      ])
-    ).toEqual([
-      "/till",
-      "/api/till/catalogue",
-      "/api/till/stock-levels",
-      "/api/till/sales",
-      `${ORIGIN}/_next/static/chunks/a.js`,
+      `${TILL_CACHE_PREFIX}data-v1`,
     ]);
   });
 });
