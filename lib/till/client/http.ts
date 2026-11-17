@@ -70,6 +70,11 @@ const failureFrom = async (response: Response): Promise<TillHttpError> => {
       );
 };
 
+export interface RequestJsonInit extends RequestInit {
+  /** Sees every good answer once it has parsed, e.g. to read a header. */
+  readonly onAnswer?: (response: Response) => void;
+}
+
 /**
  * Sends a request and parses the JSON answer with `schema`. Redirects are
  * errors: the endpoints never redirect, so one means something in between
@@ -79,7 +84,7 @@ const failureFrom = async (response: Response): Promise<TillHttpError> => {
 export const requestJson = async <T>(
   url: string,
   schema: z.ZodType<T>,
-  init: RequestInit = {}
+  { onAnswer, ...init }: RequestJsonInit = {}
 ): Promise<T> => {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -114,6 +119,8 @@ export const requestJson = async <T>(
       "Tally sent an answer the till doesn't understand. Reload the page."
     );
   }
+
+  onAnswer?.(response);
 
   return parsed.data;
 };

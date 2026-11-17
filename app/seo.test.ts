@@ -88,13 +88,15 @@ describe("proxy", () => {
       "/api/ask",
       "/api/notifications",
       "/api/till/sales",
+      // The till's service worker, re-checked by the browser for updates.
+      "/till-sw.js",
     ]) {
       expect(pattern.test(path), path).toBe(false);
     }
   });
 
   it("still guards the staff screens", () => {
-    for (const path of ["/", "/reports", "/products/12"]) {
+    for (const path of ["/", "/reports", "/products/12", "/till", "/tills"]) {
       expect(pattern.test(path), path).toBe(true);
     }
   });

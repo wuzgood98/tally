@@ -31,7 +31,8 @@ export const config = {
     // Public: sign-in, Terms and Privacy, auth and till APIs (the POS one and the till's own), Ask Tally's and the bell's APIs (which
     // answer 401 themselves), and the files browsers and crawlers fetch without a
     // session (icons, manifest, robots, sitemap, the social card and
-    // security.txt).
-    "/((?!login|terms|privacy|api/auth|api/v1|api/till|api/ask|api/notifications|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icons/|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|\\.well-known/).*)",
+    // security.txt), and the till's service worker, which the browser checks
+    // for updates even after the session has ended.
+    "/((?!login|terms|privacy|api/auth|api/v1|api/till|api/ask|api/notifications|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icons/|manifest.webmanifest|till-sw.js|robots.txt|sitemap.xml|opengraph-image|\\.well-known/).*)",
   ],
 };

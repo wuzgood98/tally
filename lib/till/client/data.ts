@@ -57,7 +57,10 @@ export const getTillData = (userId: string): TillData => {
   }
 
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: 2 } },
+    // "offlineFirst": a request still goes out when the browser says it's
+    // offline, so the service worker can answer from its saved copy
+    // (public/till-sw.js); only retries wait for the connection.
+    defaultOptions: { queries: { networkMode: "offlineFirst", retry: 2 } },
   });
 
   const collections = createTillCollections(queryClient);

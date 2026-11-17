@@ -4,9 +4,11 @@ import { useLiveQuery } from "@tanstack/react-db";
 import { createContext, use, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
+import { StartOfflineTill } from "@/components/till/offline-till";
 import { Button } from "@/components/ui/button";
 import { getTillData } from "@/lib/till/client/data";
 import type { TillData } from "@/lib/till/client/data";
+import type { SavedSnapshot } from "@/lib/till/client/saved-copy";
 import { STARTING } from "@/lib/till/client/sync";
 import type { SyncStatus } from "@/lib/till/client/sync";
 
@@ -28,6 +30,20 @@ export const useSyncStatus = (): SyncStatus => {
   const { sync } = useTillData();
 
   return useSyncExternalStore(sync.subscribe, sync.getStatus, () => STARTING);
+};
+
+/**
+ * The oldest saved copy on screen (the catalogue or the shelf counts) and
+ * when the till last heard about it, or null while everything came from Tally.
+ */
+export const useSavedCopy = (): SavedSnapshot | null => {
+  const { savedCopies } = useTillData();
+
+  return useSyncExternalStore(
+    savedCopies.subscribe,
+    savedCopies.getSnapshot,
+    () => null
+  );
 };
 
 /** Nothing to subscribe to: the data layer is made once per person and kept. */
@@ -101,7 +117,12 @@ const WhenLoaded = ({
     return <Waiting>Loading the till…</Waiting>;
   }
 
-  return <TillDataContext value={data}>{children}</TillDataContext>;
+  return (
+    <TillDataContext value={data}>
+      {children}
+      <StartOfflineTill />
+    </TillDataContext>
+  );
 };
 
 /**

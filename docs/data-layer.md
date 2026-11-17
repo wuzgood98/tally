@@ -12,8 +12,10 @@ Everything here is **client-side and scoped to the till** (`/till`, `/till/histo
 | Endpoints | `app/api/till/*`, `lib/till/api.ts`, `lib/till/caller.ts` | Route handlers (not server actions) over session auth. Logic takes `(db, actor, input)` so tests pass an in-memory database. |
 | Collections | `lib/till/client/collections.ts`, `history.ts`, `attention.ts` | Eager `products`, `stockLevels`, `sales`; on-demand `history`; local `attention`. |
 | Mutations | `lib/till/client/charge.ts`, `sync.ts` | The optimistic step, the request, the confirmation; the offline queue around them. |
-| One per person | `lib/till/client/data.ts` | Builds the QueryClient, collections and queue once, on `globalThis`. |
-| React | `components/till/*` | `TillDataProvider` (client only, waits for data and queue), live-query hooks and panels. |
+| One per person | `lib/till/client/data.ts` | Builds the QueryClient (`networkMode: "offlineFirst"`, so the service worker can answer offline), collections and queue once, on `globalThis`. |
+| Offline start | `public/till-sw.js`, `lib/till/client/offline-start.ts`, `worker-contract.ts` | The service worker (scope `/till`): network first for the pages and eager data with a saved copy as fallback, cache first for `/_next/static/`. Registering, warming, and forgetting at sign-out; the names both sides share. |
+| Copy age | `lib/till/client/saved-copy.ts`, `status-text.ts` | Which answers came from the worker's copy (`X-Tally-Saved-At`) and how old it is; the status line's wording. |
+| React | `components/till/*` | `TillDataProvider` (client only, waits for data and queue), live-query hooks and panels; `offline-till.tsx` starts and forgets the offline till. |
 
 Versions are pinned exactly in `package.json` (`@tanstack/db` and `@tanstack/react-db` are release candidates). The skill docs shipped inside the packages (`node_modules/@tanstack/*/skills/`) are older than the code in places: check the `.d.ts` files before trusting them.
 
@@ -226,6 +228,6 @@ Vitest runs in Node, with no IndexedDB, Web Locks or real network, and that's en
 
 ## Not done
 
-- **Opening `/till` from cold without a connection.** There's no service worker, so the page itself won't load. Next's bundled `progressive-web-apps.md` points to Serwist. With it, browser SQLite persistence (`@tanstack/browser-db-sqlite-persistence`, OPFS) for the catalogue would let a reload work offline. Both need CSP changes (`worker-src`, `'wasm-unsafe-eval'`).
+- **Browser SQLite for the catalogue.** `public/till-sw.js` lets `/till` open from cold without a connection and the status line says how old the saved copy is (see `docs/CONTEXT.md`, "Till offline start"). Browser SQLite (`@tanstack/browser-db-sqlite-persistence`) stays an option if the catalogue outgrows a cached JSON reply; it would need `'wasm-unsafe-eval'` in the CSP.
 - **SSR of collections.** The rc has `DbProvider` / `HydrationBoundary`; the till renders a loading line on the server instead.
 - **Other screens.** Products, low stock and transfers are still server-rendered.

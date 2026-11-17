@@ -59,3 +59,45 @@ describe("telling a refusal from a failure worth retrying", () => {
     expect(error.refused).toBe(false);
   });
 });
+
+describe("seeing the answer", () => {
+  it("shows a good answer to onAnswer before handing back the data", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async () =>
+        await Promise.resolve(
+          Response.json(
+            { sales: [] },
+            { headers: { "X-Tally-Saved-At": "2026-11-16T09:14:00.000Z" } }
+          )
+        )
+    );
+    const stamps: (string | null)[] = [];
+
+    const data = await requestJson(
+      "/api/till/sales",
+      z.object({ sales: z.array(z.never()) }),
+      {
+        onAnswer: (response) => {
+          stamps.push(response.headers.get("X-Tally-Saved-At"));
+        },
+      }
+    );
+
+    expect(data).toEqual({ sales: [] });
+    expect(stamps).toEqual(["2026-11-16T09:14:00.000Z"]);
+  });
+
+  it("doesn't show it a failure", async () => {
+    const onAnswer = vi.fn<(response: Response) => void>();
+    vi.stubGlobal(
+      "fetch",
+      async () => await Promise.resolve(new Response("down", { status: 503 }))
+    );
+
+    await expect(
+      requestJson("/api/till/sales", z.object({}), { onAnswer })
+    ).rejects.toThrow(TillHttpError);
+    expect(onAnswer).not.toHaveBeenCalled();
+  });
+});
