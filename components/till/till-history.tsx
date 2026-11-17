@@ -1,7 +1,7 @@
 "use client";
 
 import { and, eq, gte, lt, useLiveQuery } from "@tanstack/react-db";
-import { SearchX } from "lucide-react";
+import { CalendarX, SearchX } from "lucide-react";
 import { useState } from "react";
 
 import { SaleRow } from "@/components/till/sale-row";
@@ -52,6 +52,33 @@ interface Option {
   readonly id: string;
   readonly name: string;
 }
+
+/** The sales panel with no rows: still loading, or none for this day. */
+const NoSales = ({
+  loading,
+  byPayment,
+}: {
+  readonly loading: boolean;
+  readonly byPayment: boolean;
+}) => {
+  if (loading) {
+    return <p className="text-ink-2 p-4 text-sm">Loading…</p>;
+  }
+
+  if (byPayment) {
+    return (
+      <EmptyNote icon={SearchX} title="No sales match">
+        Try another day or payment method.
+      </EmptyNote>
+    );
+  }
+
+  return (
+    <EmptyNote icon={CalendarX} title="No sales on this day">
+      Pick another day to see its sales.
+    </EmptyNote>
+  );
+};
 
 /**
  * A store's recorded sales for one day, from the on-demand history
@@ -184,13 +211,8 @@ export const TillHistory = ({
             Tally couldn&apos;t load these sales. Check the connection.
           </p>
         ) : null}
-        {!isLoadingError && sales.length === 0 && isLoading ? (
-          <p className="text-ink-2 p-4 text-sm">Loading…</p>
-        ) : null}
-        {!isLoadingError && sales.length === 0 && !isLoading ? (
-          <EmptyNote icon={SearchX} title="No sales match">
-            Try another day or payment method.
-          </EmptyNote>
+        {!isLoadingError && sales.length === 0 ? (
+          <NoSales byPayment={payment !== "all"} loading={isLoading} />
         ) : null}
         {sales.length > 0 ? (
           <ul>

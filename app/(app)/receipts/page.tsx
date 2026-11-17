@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
-import { EmptyLabel } from "@/components/ui/empty-state";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
@@ -71,17 +71,19 @@ const ReceiptsPage = async ({ searchParams }: PageProps<"/receipts">) => {
         }
       >
         {rows.length === 0 ? (
-          <EmptyLabel
-            action={
+          <ListEmpty
+            create={
               canReceiveSomewhere
                 ? { href: "/receipts/new", label: "Receive goods" }
                 : undefined
             }
+            firstPageHref={page > 1 && total > 0 ? "/receipts" : undefined}
+            listHref="/receipts"
             tag="Receipts"
             title="No deliveries yet"
           >
             Goods received from suppliers show here, newest first.
-          </EmptyLabel>
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">Goods received notes</caption>

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { MovementTable } from "@/components/stock/movement-table";
 import { buttonVariants } from "@/components/ui/button";
-import { EmptyLabel } from "@/components/ui/empty-state";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -42,21 +42,18 @@ const KIND_LABELS: Record<(typeof KINDS)[number], string> = {
   transfer_out: "Transfers out",
 };
 
-const MovementsEmpty = ({ filtered }: { readonly filtered: boolean }) =>
-  filtered ? (
-    <EmptyLabel
-      action={{ href: "/movements", label: "Clear the filters" }}
-      kind="noMatch"
-      tag="Movements"
-      title="No movements match"
-    >
-      Nothing of that kind has moved here. Try another filter.
-    </EmptyLabel>
-  ) : (
-    <EmptyLabel tag="Movements" title="No stock has moved yet">
-      Every receipt, sale, transfer and adjustment shows here.
-    </EmptyLabel>
-  );
+/** What to try when the kind or product filter matches nothing. */
+const noMatchHint = (byKind: boolean, byProduct: boolean): string => {
+  if (byKind && byProduct) {
+    return "This product has had no movements of that kind here. Try another kind.";
+  }
+
+  if (byProduct) {
+    return "This product hasn't moved here yet.";
+  }
+
+  return "Nothing of that kind has moved here. Try another kind.";
+};
 
 const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
   const [viewer, params] = await Promise.all([
@@ -135,9 +132,23 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
 
       <Panel flush>
         {page.length === 0 ? (
-          <MovementsEmpty
+          <ListEmpty
             filtered={filters.kind !== null || productId !== undefined}
-          />
+            firstPageHref={
+              before === undefined
+                ? undefined
+                : `/movements${queryString(filters)}`
+            }
+            listHref="/movements"
+            noMatchHint={noMatchHint(
+              filters.kind !== null,
+              productId !== undefined
+            )}
+            tag="Movements"
+            title="No stock has moved yet"
+          >
+            Every receipt, sale, transfer and adjustment shows here.
+          </ListEmpty>
         ) : (
           <MovementTable
             caption="Stock movements"

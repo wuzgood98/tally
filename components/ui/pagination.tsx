@@ -31,6 +31,24 @@ const reachableHrefs = (
   );
 };
 
+/** "21–40 of 95 sales"; a page past the end gives just the count. */
+const rangeLabel = (
+  first: number,
+  last: number,
+  total: number,
+  noun: string
+): string => {
+  if (total === 0) {
+    return `No ${noun}`;
+  }
+
+  if (first > total) {
+    return `${formatCount(total)} ${noun}`;
+  }
+
+  return `${formatCount(first)}–${formatCount(last)} of ${formatCount(total)} ${noun}`;
+};
+
 export const Pagination = ({
   page,
   pageSize,
@@ -45,9 +63,7 @@ export const Pagination = ({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
       <p className="text-ink-2 tabular">
-        {total === 0
-          ? `No ${noun}`
-          : `${formatCount(first)}–${formatCount(last)} of ${formatCount(total)} ${noun}`}
+        {rangeLabel(first, last, total, noun)}
       </p>
       {pageCount > 1 ? (
         <PaginationLinks

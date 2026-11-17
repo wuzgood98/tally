@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { PurchaseOrderStatusBadge } from "@/components/purchasing/purchase-order-status-badge";
 import { buttonVariants } from "@/components/ui/button";
-import { EmptyLabel } from "@/components/ui/empty-state";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -34,41 +34,6 @@ const STATUSES = ["all", ...PURCHASE_ORDER_STATUSES] as const;
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   all: "Any status",
   ...PURCHASE_ORDER_STATUS_LABELS,
-};
-
-const OrdersEmpty = ({
-  filtered,
-  canDraft,
-}: {
-  readonly filtered: boolean;
-  readonly canDraft: boolean;
-}) => {
-  if (filtered) {
-    return (
-      <EmptyLabel
-        action={{ href: "/purchase-orders", label: "Clear the filters" }}
-        kind="noMatch"
-        tag="Orders"
-        title="No orders match"
-      >
-        No order here has that status. Try another.
-      </EmptyLabel>
-    );
-  }
-
-  return (
-    <EmptyLabel
-      action={
-        canDraft
-          ? { href: "/purchase-orders/new", label: "New order" }
-          : undefined
-      }
-      tag="Orders"
-      title="No purchase orders yet"
-    >
-      Orders to suppliers show here, newest first.
-    </EmptyLabel>
-  );
 };
 
 const PurchaseOrdersPage = async ({
@@ -151,7 +116,25 @@ const PurchaseOrdersPage = async ({
         }
       >
         {rows.length === 0 ? (
-          <OrdersEmpty canDraft={canDraft} filtered={status !== "all"} />
+          <ListEmpty
+            create={
+              canDraft
+                ? { href: "/purchase-orders/new", label: "New order" }
+                : undefined
+            }
+            filtered={status !== "all"}
+            firstPageHref={
+              page > 1 && total > 0
+                ? `/purchase-orders${queryString({ status: status === "all" ? null : status })}`
+                : undefined
+            }
+            listHref="/purchase-orders"
+            noMatchHint="No order here has that status. Try another."
+            tag="Orders"
+            title="No purchase orders yet"
+          >
+            Orders to suppliers show here, newest first.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">Purchase orders</caption>

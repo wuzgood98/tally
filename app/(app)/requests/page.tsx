@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { RequestStatusBadge } from "@/components/stock/request-status-badge";
 import { buttonVariants } from "@/components/ui/button";
-import { EmptyLabel } from "@/components/ui/empty-state";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -30,41 +30,6 @@ const STATUSES = ["all", ...STOCK_REQUEST_STATUSES] as const;
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
   all: "Any status",
   ...STOCK_REQUEST_STATUS_LABELS,
-};
-
-const RequestsEmpty = ({
-  filtered,
-  canRequest,
-}: {
-  readonly filtered: boolean;
-  readonly canRequest: boolean;
-}) => {
-  if (filtered) {
-    return (
-      <EmptyLabel
-        action={{ href: "/requests", label: "Clear the filters" }}
-        kind="noMatch"
-        tag="Requests"
-        title="No requests match"
-      >
-        No request here has that status. Try another.
-      </EmptyLabel>
-    );
-  }
-
-  return (
-    <EmptyLabel
-      action={
-        canRequest
-          ? { href: "/requests/new", label: "Request stock" }
-          : undefined
-      }
-      tag="Requests"
-      title="No requests yet"
-    >
-      Stores asking the warehouse for stock show here, newest first.
-    </EmptyLabel>
-  );
 };
 
 const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
@@ -145,7 +110,25 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
         }
       >
         {rows.length === 0 ? (
-          <RequestsEmpty canRequest={canRequest} filtered={status !== "all"} />
+          <ListEmpty
+            create={
+              canRequest
+                ? { href: "/requests/new", label: "Request stock" }
+                : undefined
+            }
+            filtered={status !== "all"}
+            firstPageHref={
+              page > 1 && total > 0
+                ? `/requests${queryString({ status: status === "all" ? null : status })}`
+                : undefined
+            }
+            listHref="/requests"
+            noMatchHint="No request here has that status. Try another."
+            tag="Requests"
+            title="No requests yet"
+          >
+            Stores asking the warehouse for stock show here, newest first.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">Stock requests</caption>

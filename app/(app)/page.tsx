@@ -1,4 +1,4 @@
-import { PackageCheck } from "lucide-react";
+import { History, PackageCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -207,11 +207,18 @@ const OverviewPage = async () => {
           id="recent"
           title="Latest stock movements"
         >
-          <MovementTable
-            caption="Latest stock movements"
-            rows={movements}
-            showBranch={allBranches}
-          />
+          {movements.length === 0 ? (
+            <EmptyNote icon={History} title="No stock has moved yet">
+              Receipts, sales, transfers and adjustments show here as they
+              happen.
+            </EmptyNote>
+          ) : (
+            <MovementTable
+              caption="Latest stock movements"
+              rows={movements}
+              showBranch={allBranches}
+            />
+          )}
         </Panel>
       </div>
     </>

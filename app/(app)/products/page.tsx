@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
-import { EmptyLabel } from "@/components/ui/empty-state";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -69,43 +69,6 @@ const StatusCell = ({
   }
 
   return <StockBadge status="ok" />;
-};
-
-const ProductsEmpty = ({
-  filtered,
-  search,
-  canAdd,
-}: {
-  readonly filtered: boolean;
-  readonly search: string;
-  readonly canAdd: boolean;
-}) => {
-  if (filtered) {
-    return (
-      <EmptyLabel
-        action={{ href: "/products", label: "Clear the filters" }}
-        kind="noMatch"
-        tag="Products"
-        title="No products match"
-      >
-        {search === ""
-          ? "Nothing in that category has that status."
-          : `Nothing found for “${search}”. Check the spelling, or scan the barcode instead.`}
-      </EmptyLabel>
-    );
-  }
-
-  return (
-    <EmptyLabel
-      action={
-        canAdd ? { href: "/products/new", label: "New product" } : undefined
-      }
-      tag="Products"
-      title="No products yet"
-    >
-      Everything the company sells is listed here.
-    </EmptyLabel>
-  );
 };
 
 const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
@@ -208,11 +171,25 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
         }
       >
         {rows.length === 0 ? (
-          <ProductsEmpty
-            canAdd={canManageCatalogue(viewer)}
+          <ListEmpty
+            create={
+              canManageCatalogue(viewer)
+                ? { href: "/products/new", label: "New product" }
+                : undefined
+            }
             filtered={search !== "" || categoryId !== null || status !== "all"}
-            search={search}
-          />
+            firstPageHref={page > 1 && total > 0 ? hrefFor(1) : undefined}
+            listHref="/products"
+            noMatchHint={
+              search === ""
+                ? "Nothing in that category has that status."
+                : `Nothing found for “${search}”. Check the spelling, or scan the barcode instead.`
+            }
+            tag="Products"
+            title="No products yet"
+          >
+            Everything the company sells is listed here.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">

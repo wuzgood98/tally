@@ -7,18 +7,22 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** The one next step an empty place offers, such as "Open till". */
-export interface EmptyAction {
+interface EmptyAction {
   readonly href: string;
   readonly label: string;
 }
 
 /** Why a list is empty, printed in the label's corner. */
-export type EmptyKind = "empty" | "noMatch" | "clear";
+type EmptyKind = "empty" | "noMatch" | "pastEnd" | "clear";
 
-const CORNER: Record<EmptyKind, string> = {
-  clear: "All clear",
-  empty: "Empty",
-  noMatch: "No match",
+const CORNER: Record<
+  EmptyKind,
+  { readonly label: string; readonly good: boolean }
+> = {
+  clear: { good: true, label: "All clear" },
+  empty: { good: false, label: "Empty" },
+  noMatch: { good: false, label: "No match" },
+  pastEnd: { good: false, label: "End of list" },
 };
 
 /** Bar widths of the label's stand-in barcode, each with an id for its key. */
@@ -69,13 +73,13 @@ export const EmptyLabel = ({
           <span
             className={cn(
               "flex items-center gap-1",
-              kind === "clear" ? "text-good" : null
+              CORNER[kind].good ? "text-good" : null
             )}
           >
-            {kind === "clear" ? (
+            {CORNER[kind].good ? (
               <Check aria-hidden="true" className="size-3" />
             ) : null}
-            {CORNER[kind]}
+            {CORNER[kind].label}
           </span>
         </p>
         <p className="text-md mt-1.5 font-semibold tracking-tight text-balance">
@@ -108,10 +112,8 @@ interface EmptyNoteProps {
   readonly icon: LucideIcon;
   readonly title: string;
   readonly children?: ReactNode;
-  readonly action?: EmptyAction;
   /** Empty because all is well, such as nothing running low. */
   readonly good?: boolean;
-  readonly className?: string;
 }
 
 /**
@@ -123,16 +125,9 @@ export const EmptyNote = ({
   icon: Icon,
   title,
   children,
-  action,
   good = false,
-  className,
 }: EmptyNoteProps) => (
-  <div
-    className={cn(
-      "flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5",
-      className
-    )}
-  >
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5">
     <span
       className={cn(
         "grid size-8 shrink-0 place-items-center rounded-md ring-1 ring-inset",
@@ -149,13 +144,74 @@ export const EmptyNote = ({
         <p className="text-ink-2 text-xs text-pretty">{children}</p>
       )}
     </div>
-    {action === undefined ? null : (
-      <Link
-        className={buttonVariants({ size: "sm", variant: "outline" })}
-        href={action.href}
-      >
-        {action.label}
-      </Link>
-    )}
   </div>
 );
+
+interface ListEmptyProps {
+  /** The place, printed small at the top: "Transfers". */
+  readonly tag: string;
+  /** The bare list, with no filters and on its first page. */
+  readonly listHref: string;
+  /** Said when the list has nothing at all: "No transfers yet". */
+  readonly title: string;
+  /** What will show here once there is something. */
+  readonly children?: ReactNode;
+  /** The page's own create action, only for people who can use it. */
+  readonly create?: EmptyAction;
+  /** Any filter or search is on. */
+  readonly filtered?: boolean;
+  /** What to try when the filters match nothing. */
+  readonly noMatchHint?: ReactNode;
+  /**
+   * The first page with the filters kept, set only on a later page or an
+   * older cursor, where an empty result means past the end, not none at all.
+   */
+  readonly firstPageHref?: string;
+}
+
+/**
+ * An empty list page. It tells three cases apart: past the last page, a
+ * filter that matches nothing, and a list with nothing in it yet.
+ */
+export const ListEmpty = ({
+  tag,
+  listHref,
+  title,
+  children,
+  create,
+  filtered = false,
+  noMatchHint = "Try another filter.",
+  firstPageHref,
+}: ListEmptyProps) => {
+  if (firstPageHref !== undefined) {
+    return (
+      <EmptyLabel
+        action={{ href: firstPageHref, label: "Back to the first page" }}
+        kind="pastEnd"
+        tag={tag}
+        title="Nothing on this page"
+      >
+        This page is past the end of the list.
+      </EmptyLabel>
+    );
+  }
+
+  if (filtered) {
+    return (
+      <EmptyLabel
+        action={{ href: listHref, label: "Clear the filters" }}
+        kind="noMatch"
+        tag={tag}
+        title={`No ${tag.toLowerCase()} match`}
+      >
+        {noMatchHint}
+      </EmptyLabel>
+    );
+  }
+
+  return (
+    <EmptyLabel action={create} tag={tag} title={title}>
+      {children}
+    </EmptyLabel>
+  );
+};
