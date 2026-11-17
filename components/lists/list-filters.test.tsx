@@ -10,11 +10,13 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  FilterSummary,
   ListFilters,
   ListResults,
   SEARCH_DEBOUNCE_MS,
+  UrlChip,
   UrlSearch,
-  UrlSelect,
+  UrlTabs,
 } from "./list-filters";
 
 const STATUSES = [
@@ -68,14 +70,40 @@ const searchBox = (
   />
 );
 
-const statusSelect = (
-  <UrlSelect
+const statusTabs = (
+  <UrlTabs
     filter={{ defaultValue: "all", param: "status" }}
     label="Stock status"
-    options={STATUSES}
+    options={STATUSES.map((status) => ({
+      ...status,
+      href: `/products?status=${status.value}`,
+    }))}
     resets={["page"]}
   />
 );
+
+const categoryChip = (
+  <UrlChip
+    filter={{ defaultValue: "", param: "category" }}
+    label="Category"
+    options={[
+      {
+        label: "Grains",
+        options: [
+          { label: "Rice", value: "3" },
+          { label: "Beans", value: "4" },
+        ],
+      },
+    ]}
+    resets={["page"]}
+  />
+);
+
+const currentTab = (): string | null =>
+  screen
+    .getAllByRole("link")
+    .find((link) => link.getAttribute("aria-current") === "true")
+    ?.textContent ?? null;
 
 /** Long enough for any debounced write to have landed. */
 const PAST_DEBOUNCE_MS = SEARCH_DEBOUNCE_MS * 2;
@@ -168,29 +196,29 @@ describe("UrlSearch", () => {
   });
 });
 
-describe("UrlSelect", () => {
-  it("applies a choice at once and goes back to page one", async () => {
+describe("UrlTabs", () => {
+  it("filters in place on a click and goes back to page one", async () => {
     const user = userEvent.setup();
-    const { onUrlUpdate, queries } = renderAt("?q=rice&page=4", statusSelect);
+    const { onUrlUpdate, queries } = renderAt("?q=rice&page=4", statusTabs);
 
-    await user.click(screen.getByRole("combobox", { name: "Stock status" }));
-    await user.click(screen.getByRole("option", { name: "Running low" }));
+    expect(currentTab()).toBe("All active");
+
+    await user.click(screen.getByRole("link", { name: "Running low" }));
 
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalledOnce();
     });
     expect(queries()).toEqual(["?q=rice&status=low"]);
+    expect(currentTab()).toBe("Running low");
   });
 
-  it("drops the param when the default is chosen again", async () => {
+  it("drops the param when the default tab is chosen again", async () => {
     const user = userEvent.setup();
-    const { onUrlUpdate, queries } = renderAt("?status=out", statusSelect);
-    const trigger = screen.getByRole("combobox", { name: "Stock status" });
+    const { onUrlUpdate, queries } = renderAt("?status=out", statusTabs);
 
-    expect(trigger.textContent).toContain("Out of stock");
+    expect(currentTab()).toBe("Out of stock");
 
-    await user.click(trigger);
-    await user.click(screen.getByRole("option", { name: "All active" }));
+    await user.click(screen.getByRole("link", { name: "All active" }));
 
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalledOnce();
@@ -198,8 +226,58 @@ describe("UrlSelect", () => {
     expect(queries()).toEqual([""]);
   });
 
+  it("links each tab to its list, for a new tab or without JavaScript", () => {
+    renderAt("", statusTabs);
+
+    expect(
+      screen.getByRole("link", { name: "Out of stock" }).getAttribute("href")
+    ).toBe("/products?status=out");
+  });
+
+  it("marks the default for a value the list doesn't offer", () => {
+    renderAt("?status=bogus", statusTabs);
+
+    expect(currentTab()).toBe("All active");
+  });
+});
+
+describe("UrlChip", () => {
+  it("applies a choice at once and goes back to page one", async () => {
+    const user = userEvent.setup();
+    const { onUrlUpdate, queries } = renderAt("?q=rice&page=4", categoryChip);
+
+    await user.click(screen.getByRole("combobox", { name: "Category" }));
+    await user.click(screen.getByRole("option", { name: "Rice" }));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalledOnce();
+    });
+    expect(queries()).toEqual(["?q=rice&category=3"]);
+  });
+
+  it("names the choice and clears it with its ×", async () => {
+    const user = userEvent.setup();
+
+    const { onUrlUpdate, queries } = renderAt(
+      "?category=4&page=2",
+      categoryChip
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Category" }).textContent
+    ).toContain("Category:Beans");
+
+    await user.click(screen.getByRole("button", { name: "Clear category" }));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalledOnce();
+    });
+    expect(queries()).toEqual([""]);
+    expect(screen.queryByRole("button", { name: "Clear category" })).toBeNull();
+  });
+
   it("keeps its name, so a form without JavaScript still submits it", () => {
-    renderAt("?status=low", <form aria-label="Filters">{statusSelect}</form>);
+    renderAt("?category=3", <form aria-label="Filters">{categoryChip}</form>);
 
     const form = screen.getByRole("form", { name: "Filters" });
 
@@ -207,31 +285,95 @@ describe("UrlSelect", () => {
       throw new TypeError("Expected a form");
     }
 
-    expect(new FormData(form).get("status")).toBe("low");
+    expect(new FormData(form).get("category")).toBe("3");
   });
 
-  it("shows the default for a value the list doesn't offer", () => {
-    renderAt("?status=bogus", statusSelect);
+  it("shows nothing chosen for a value the list doesn't offer", () => {
+    renderAt("?category=99", categoryChip);
 
+    expect(screen.queryByRole("button", { name: "Clear category" })).toBeNull();
+  });
+});
+
+describe("FilterSummary", () => {
+  it("clears every filter it's given at once, and only those", async () => {
+    const user = userEvent.setup();
+
+    const { onUrlUpdate, queries } = renderAt(
+      "?q=rice&status=low&page=2&variant=x",
+      <FilterSummary clear={["q", "status", "page"]} count={3} noun="product" />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalledOnce();
+    });
+    expect(queries()).toEqual(["?variant=x"]);
+  });
+
+  it("offers no clearing while nothing is filtered", () => {
+    renderAt("", <FilterSummary count={3} noun="product" />);
+
+    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+  });
+
+  it("says what's shown, with the filters in bold", () => {
+    renderAt(
+      "",
+      <FilterSummary
+        adjective="running low"
+        count={1}
+        noun="product"
+        phrases={[
+          { lead: "in", term: "Drinks" },
+          null,
+          { lead: "matching", term: "“rice”" },
+        ]}
+      />
+    );
+
+    const sentence = screen.getByText(/^1 /u);
+
+    expect(sentence.textContent).toBe(
+      "1 running low product in Drinks matching “rice”"
+    );
     expect(
-      screen.getByRole("combobox", { name: "Stock status" }).textContent
-    ).toContain("All active");
+      [...sentence.querySelectorAll("strong")].map((term) => term.textContent)
+    ).toEqual(["running low", "Drinks", "“rice”"]);
+  });
+
+  it("makes the noun plural, and bolds it when it names the filter", () => {
+    renderAt(
+      "",
+      <FilterSummary
+        count={50}
+        noun="delivery"
+        nounIsFilter
+        plural="deliveries"
+        prefix="Latest"
+      />
+    );
+
+    const sentence = screen.getByText(/^Latest /u);
+
+    expect(sentence.textContent).toBe("Latest 50 deliveries");
+    expect(sentence.querySelector("strong")?.textContent).toBe("deliveries");
   });
 });
 
 describe("ListResults", () => {
   it("announces the results through a live region", () => {
-    renderAt("", statusSelect);
+    renderAt("", statusTabs);
 
     expect(screen.getByRole("status").textContent).toBe("3 products");
   });
 
   it("reads the count out again when a change lands on the same count", async () => {
     const user = userEvent.setup();
-    renderAt("", statusSelect);
+    renderAt("", statusTabs);
 
-    await user.click(screen.getByRole("combobox", { name: "Stock status" }));
-    await user.click(screen.getByRole("option", { name: "Running low" }));
+    await user.click(screen.getByRole("link", { name: "Running low" }));
 
     await waitFor(() => {
       expect(screen.getByRole("status").textContent).toBe("3 products ");

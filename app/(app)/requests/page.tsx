@@ -3,19 +3,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
-  FilterBar,
+  FilterSummary,
   ListFilters,
   ListResults,
-  UrlSelect,
+  UrlTabs,
 } from "@/components/lists/list-filters";
+import { tabOptions } from "@/components/lists/tab-options";
 import { RequestStatusBadge } from "@/components/stock/request-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
-import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
+import type { StockRequestStatus } from "@/lib/db/schema";
 import {
   countLabel,
   formatCount,
@@ -25,7 +26,12 @@ import {
 import { canRequestStock } from "@/lib/permissions";
 import { listStockRequests, REQUESTS_PAGE_SIZE } from "@/lib/queries/requests";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import {
+  clearParams,
+  enumFilter,
+  intParam,
+  queryString,
+} from "@/lib/search-params";
 import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import {
@@ -43,9 +49,19 @@ const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
   values: STATUSES,
 };
 
+/** What "Clear filters" clears. */
+const CLEAR = clearParams([STATUS_FILTER], ["page"]);
+
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
-  all: "Any status",
+  all: "All",
   ...STOCK_REQUEST_STATUS_LABELS,
+};
+
+/** How the summary sentence names a status: "1 waiting request". */
+const STATUS_TERMS: Record<StockRequestStatus, string> = {
+  cancelled: "cancelled",
+  fulfilled: "sent",
+  requested: "waiting",
 };
 
 const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
@@ -91,17 +107,26 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
       />
 
       <ListFilters>
-        <FilterBar>
-          <UrlSelect
-            filter={STATUS_FILTER}
-            label="Show"
-            options={labelledOptions(STATUSES, STATUS_OPTIONS)}
-            resets={["page"]}
-            visibleLabel
-          />
-        </FilterBar>
+        <UrlTabs
+          filter={STATUS_FILTER}
+          label="Status"
+          options={tabOptions(
+            STATUS_FILTER,
+            STATUS_OPTIONS,
+            (value) => `/requests${queryString({ status: value })}`
+          )}
+          resets={["page"]}
+        />
 
         <ListResults announce={countLabel(total, "request")}>
+          {rows.length === 0 ? null : (
+            <FilterSummary
+              adjective={status === "all" ? null : STATUS_TERMS[status]}
+              clear={status === "all" ? undefined : CLEAR}
+              count={total}
+              noun="request"
+            />
+          )}
           <Panel
             flush
             footer={

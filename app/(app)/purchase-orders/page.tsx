@@ -3,19 +3,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
-  FilterBar,
+  FilterSummary,
   ListFilters,
   ListResults,
-  UrlSelect,
+  UrlTabs,
 } from "@/components/lists/list-filters";
+import type { SummaryPhrase } from "@/components/lists/list-filters";
+import { tabOptions } from "@/components/lists/tab-options";
 import { PurchaseOrderStatusBadge } from "@/components/purchasing/purchase-order-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
-import { labelledOptions } from "@/components/ui/select-options";
 import { Table, Td, Th } from "@/components/ui/table";
+import type { PurchaseOrderStatus } from "@/lib/db/schema";
 import { countLabel, formatCount, formatDate, isoString } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
 import { canDraftPurchaseOrder } from "@/lib/permissions";
@@ -24,7 +26,12 @@ import {
   PURCHASE_ORDERS_PAGE_SIZE,
 } from "@/lib/queries/purchase-orders";
 import { getScope, listBranches, scopeLabel } from "@/lib/scope";
-import { enumFilter, intParam, queryString } from "@/lib/search-params";
+import {
+  clearParams,
+  enumFilter,
+  intParam,
+  queryString,
+} from "@/lib/search-params";
 import type { EnumFilter } from "@/lib/search-params";
 import { requireBackOffice } from "@/lib/session";
 import {
@@ -42,9 +49,22 @@ const STATUS_FILTER: EnumFilter<(typeof STATUSES)[number]> = {
   values: STATUSES,
 };
 
+/** What "Clear filters" clears. */
+const CLEAR = clearParams([STATUS_FILTER], ["page"]);
+
 const STATUS_OPTIONS: Record<(typeof STATUSES)[number], string> = {
-  all: "Any status",
+  all: "All",
   ...PURCHASE_ORDER_STATUS_LABELS,
+};
+
+/** How the summary sentence names a status, after the noun: "2 orders part delivered". */
+const STATUS_PHRASES: Record<PurchaseOrderStatus, SummaryPhrase> = {
+  approved: { term: "approved" },
+  cancelled: { term: "cancelled" },
+  closed: { term: "closed short" },
+  draft: { lead: "in", term: "draft" },
+  partly_received: { term: "part delivered" },
+  received: { term: "received" },
 };
 
 const PurchaseOrdersPage = async ({
@@ -92,17 +112,26 @@ const PurchaseOrdersPage = async ({
       />
 
       <ListFilters>
-        <FilterBar>
-          <UrlSelect
-            filter={STATUS_FILTER}
-            label="Show"
-            options={labelledOptions(STATUSES, STATUS_OPTIONS)}
-            resets={["page"]}
-            visibleLabel
-          />
-        </FilterBar>
+        <UrlTabs
+          filter={STATUS_FILTER}
+          label="Status"
+          options={tabOptions(
+            STATUS_FILTER,
+            STATUS_OPTIONS,
+            (value) => `/purchase-orders${queryString({ status: value })}`
+          )}
+          resets={["page"]}
+        />
 
         <ListResults announce={countLabel(total, "order")}>
+          {rows.length === 0 ? null : (
+            <FilterSummary
+              clear={status === "all" ? undefined : CLEAR}
+              count={total}
+              noun="order"
+              phrases={[status === "all" ? null : STATUS_PHRASES[status]]}
+            />
+          )}
           <Panel
             flush
             footer={
