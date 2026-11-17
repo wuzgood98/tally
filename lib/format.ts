@@ -64,6 +64,10 @@ export const formatUnits = (value: number): string =>
 export const formatSales = (value: number): string =>
   `${count.format(value)} ${value === 1 ? "sale" : "sales"}`;
 
+/** "1 product", "1,200 products": `noun` takes an "s" for anything but one. */
+export const countLabel = (value: number, noun: string): string =>
+  `${count.format(value)} ${value === 1 ? noun : `${noun}s`}`;
+
 /** +12 / −3, with a true minus sign. */
 export const formatSigned = (value: number): string =>
   value > 0 ? `+${count.format(value)}` : `−${count.format(Math.abs(value))}`;

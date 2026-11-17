@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import {
+  ListFilters,
+  ListResults,
+  UrlSelect,
+} from "@/components/lists/list-filters";
 import { MovementTable } from "@/components/stock/movement-table";
-import { buttonVariants } from "@/components/ui/button";
 import { ListEmpty } from "@/components/ui/empty-state";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Select } from "@/components/ui/select";
 import { labelledOptions } from "@/components/ui/select-options";
 import type { MovementKind } from "@/lib/db/schema";
 import { listMovements } from "@/lib/queries/movements";
@@ -94,92 +96,84 @@ const MovementsPage = async ({ searchParams }: PageProps<"/movements">) => {
         title="Movements"
       />
 
-      <form
-        action="/movements"
-        className="mb-4 flex flex-wrap items-center gap-2"
-      >
-        {productId === undefined ? null : (
-          <input name="product" type="hidden" value={productId} />
-        )}
-        <Field layout="inline">
-          <FieldLabel tone="quiet">Show</FieldLabel>
-          <Select
+      <ListFilters>
+        <search className="mb-4 flex flex-wrap items-center gap-2">
+          <UrlSelect
             className="w-auto"
-            defaultValue={kind}
-            name="kind"
+            defaultValue="all"
+            label="Show"
             options={labelledOptions(KINDS, KIND_LABELS)}
+            param="kind"
+            resets={["before"]}
+            visibleLabel
           />
-        </Field>
-        <button
-          className={buttonVariants({ size: "md", variant: "outline" })}
-          type="submit"
-        >
-          Apply
-        </button>
-        {item ? (
-          <p className="bg-surface-2 ml-1 flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-sm">
-            {item.name}
-            <Link
-              aria-label={`Stop filtering by ${item.name}`}
-              className="hover:bg-line rounded-full px-2 py-0.5"
-              href={`/movements${queryString({ kind: filters.kind })}`}
-            >
-              ×
-            </Link>
-          </p>
-        ) : null}
-      </form>
+          {item ? (
+            <p className="bg-surface-2 ml-1 flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-sm">
+              {item.name}
+              <Link
+                aria-label={`Stop filtering by ${item.name}`}
+                className="hover:bg-line rounded-full px-2 py-0.5"
+                href={`/movements${queryString({ kind: filters.kind })}`}
+              >
+                ×
+              </Link>
+            </p>
+          ) : null}
+        </search>
 
-      <Panel flush>
-        {page.length === 0 ? (
-          <ListEmpty
-            filtered={filters.kind !== null || productId !== undefined}
-            firstPageHref={
-              before === undefined
-                ? undefined
-                : `/movements${queryString(filters)}`
-            }
-            listHref="/movements"
-            noMatchHint={noMatchHint(
-              filters.kind !== null,
-              productId !== undefined
-            )}
-            tag="Movements"
-            title="No stock has moved yet"
-          >
-            Every receipt, sale, transfer and adjustment shows here.
-          </ListEmpty>
-        ) : (
-          <MovementTable
-            caption="Stock movements"
-            rows={page}
-            showBranch={branchId === undefined}
-            showProduct={productId === undefined}
-          />
-        )}
-        {before !== undefined || older !== undefined ? (
-          <div className="border-line flex justify-between gap-3 border-t px-4 py-3 text-sm">
-            {before === undefined ? (
-              <span />
+        <ListResults>
+          <Panel flush>
+            {page.length === 0 ? (
+              <ListEmpty
+                filtered={filters.kind !== null || productId !== undefined}
+                firstPageHref={
+                  before === undefined
+                    ? undefined
+                    : `/movements${queryString(filters)}`
+                }
+                listHref="/movements"
+                noMatchHint={noMatchHint(
+                  filters.kind !== null,
+                  productId !== undefined
+                )}
+                tag="Movements"
+                title="No stock has moved yet"
+              >
+                Every receipt, sale, transfer and adjustment shows here.
+              </ListEmpty>
             ) : (
-              <Link
-                className="text-brand hover:underline"
-                href={`/movements${queryString(filters)}`}
-              >
-                Newest
-              </Link>
+              <MovementTable
+                caption="Stock movements"
+                rows={page}
+                showBranch={branchId === undefined}
+                showProduct={productId === undefined}
+              />
             )}
-            {older === undefined ? null : (
-              <Link
-                className="text-brand hover:underline"
-                href={`/movements${queryString({ ...filters, before: older })}`}
-              >
-                Older
-              </Link>
-            )}
-          </div>
-        ) : null}
-      </Panel>
+            {before !== undefined || older !== undefined ? (
+              <div className="border-line flex justify-between gap-3 border-t px-4 py-3 text-sm">
+                {before === undefined ? (
+                  <span />
+                ) : (
+                  <Link
+                    className="text-brand hover:underline"
+                    href={`/movements${queryString(filters)}`}
+                  >
+                    Newest
+                  </Link>
+                )}
+                {older === undefined ? null : (
+                  <Link
+                    className="text-brand hover:underline"
+                    href={`/movements${queryString({ ...filters, before: older })}`}
+                  >
+                    Older
+                  </Link>
+                )}
+              </div>
+            ) : null}
+          </Panel>
+        </ListResults>
+      </ListFilters>
     </>
   );
 };

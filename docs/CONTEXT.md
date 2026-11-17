@@ -330,6 +330,18 @@ Batches:
 - **Ask Tally's status line shimmers**: the `shimmer` utility (`globals.css`), a lighter band sweeping across the icon and the words as one. It's a moving `mask-image`, not a `background-clip: text` fill, because a text fill can't reach an SVG icon's strokes; plain under reduced motion. It replaced `animate-pulse`. `AskStatus` (`components/shell/ask-status.tsx`) puts an icon before the words, in the line's grey: a brain while it thinks (`askRunningTool` is null), else the running tool's icon, the one its page has in the nav and palette where there is one (`TOOL_ICONS`, typed against `AskTools`, so a new tool needs an icon as well as a phrase in `TOOL_PHRASES`).
 - The palette's "Searching…" stays still text: the user didn't pick a motion for it.
 
+**Live list filters** (November 2026): list filters apply as you go, with no Filter or Apply button. The URL state is handled by **nuqs** (`NuqsAdapter` in the app layout).
+
+- **Search box** (`UrlSearch`, `components/lists/list-filters.tsx`): searches after typing pauses for 300 ms (`SEARCH_DEBOUNCE_MS`). Enter searches at once, and emptying the box searches straight away too.
+- **Selects** (`UrlSelect`): apply as soon as something is chosen. Choosing the default value removes the param from the URL.
+- **Both:**
+  - Write the URL with `history: "replace"` (no Back-button entry per keystroke) and `shallow: false`, so the server page re-renders and still validates every value with `lib/search-params.ts`. Nothing on the client parses the values beyond "a string".
+  - Clear the params passed as `resets` (`page`, or `before` on movements), so a new filter starts on the first page.
+- **Pending results:** `ListFilters` holds one transition for the page. `ListResults` keeps the last results on show, dimmed and `aria-busy` after 150 ms, and reads the new count out through a live `<output>` ("7 products").
+- **Pages:** used on products (search, category, status), movements (kind; the product chip is still a link), purchase orders and requests (status), and transfers (direction, status).
+- **Not used here:** the report period links and the till's history filters (client-side, TanStack DB) are unchanged.
+- **Without JavaScript,** Enter in the products search still submits the GET form.
+
 ## Stack
 
 Next.js 16.4 (App Router, Server Actions, `proxy.ts` instead of middleware), React 19.3, TypeScript 5, Tailwind CSS v4, Drizzle ORM 0.45 on PostgreSQL, Better Auth 1.7 (email and password plus the admin plugin), zod 4, Vitest 5, Ultracite 8.2 (Oxlint + Oxfmt), pnpm, Windows. Versions are in `package.json`; read the bundled Next docs before using any Next API (see `AGENTS.md`).
