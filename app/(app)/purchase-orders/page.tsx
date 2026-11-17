@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { PurchaseOrderStatusBadge } from "@/components/purchasing/purchase-order-status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -115,9 +116,25 @@ const PurchaseOrdersPage = async ({
         }
       >
         {rows.length === 0 ? (
-          <p className="text-ink-2 p-8 text-center text-sm">
-            No purchase orders match.
-          </p>
+          <ListEmpty
+            create={
+              canDraft
+                ? { href: "/purchase-orders/new", label: "New order" }
+                : undefined
+            }
+            filtered={status !== "all"}
+            firstPageHref={
+              page > 1 && total > 0
+                ? `/purchase-orders${queryString({ status: status === "all" ? null : status })}`
+                : undefined
+            }
+            listHref="/purchase-orders"
+            noMatchHint="No order here has that status. Try another."
+            tag="Orders"
+            title="No purchase orders yet"
+          >
+            Orders to suppliers show here, newest first.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">Purchase orders</caption>

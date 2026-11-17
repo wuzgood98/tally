@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
@@ -67,9 +68,17 @@ const SalesPage = async ({ searchParams }: PageProps<"/sales">) => {
         }
       >
         {rows.length === 0 ? (
-          <p className="text-ink-2 p-8 text-center text-sm">
-            No sales recorded yet.
-          </p>
+          <ListEmpty
+            create={
+              canUseTill ? { href: "/till", label: "Open till" } : undefined
+            }
+            firstPageHref={page > 1 && total > 0 ? "/sales" : undefined}
+            listHref="/sales"
+            tag="Sales"
+            title="No sales yet"
+          >
+            Sales rung up at the till or sent by a POS show here, newest first.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">Sales, newest first</caption>

@@ -1,3 +1,4 @@
+import { History, PackageCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -6,6 +7,7 @@ import { BranchBoard } from "@/components/stock/branch-board";
 import { MovementTable } from "@/components/stock/movement-table";
 import { OnTheWayPanel } from "@/components/stock/on-the-way-panel";
 import { ReorderTable } from "@/components/stock/reorder-table";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -172,9 +174,9 @@ const OverviewPage = async () => {
           title="Running low"
         >
           {reorder.length === 0 ? (
-            <p className="text-ink-2 p-4 text-sm">
+            <EmptyNote good icon={PackageCheck} title="Every shelf is covered">
               Nothing is at or below its reorder point.
-            </p>
+            </EmptyNote>
           ) : (
             <ReorderTable lines={reorder} showBranch={allBranches} />
           )}
@@ -205,11 +207,18 @@ const OverviewPage = async () => {
           id="recent"
           title="Latest stock movements"
         >
-          <MovementTable
-            caption="Latest stock movements"
-            rows={movements}
-            showBranch={allBranches}
-          />
+          {movements.length === 0 ? (
+            <EmptyNote icon={History} title="No stock has moved yet">
+              Receipts, sales, transfers and adjustments show here as they
+              happen.
+            </EmptyNote>
+          ) : (
+            <MovementTable
+              caption="Latest stock movements"
+              rows={movements}
+              showBranch={allBranches}
+            />
+          )}
         </Panel>
       </div>
     </>

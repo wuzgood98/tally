@@ -1,8 +1,10 @@
+import { Gauge, PackageCheck, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ReportToolbar } from "@/components/reports/report-toolbar";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Stat, StatGroup } from "@/components/ui/stat";
@@ -166,10 +168,6 @@ const UnsoldTable = ({ rows }: { readonly rows: readonly SellerRow[] }) => (
   </>
 );
 
-const Empty = ({ children }: { readonly children: string }) => (
-  <p className="text-ink-2 p-6 text-center text-sm">{children}</p>
-);
-
 const SellersPage = async ({ searchParams }: PageProps<"/reports/sellers">) => {
   const [viewer, params] = await Promise.all([requireViewer(), searchParams]);
   const context = await loadReportContext(viewer, param(params, "days"));
@@ -228,7 +226,9 @@ const SellersPage = async ({ searchParams }: PageProps<"/reports/sellers">) => {
 
         <Panel flush id="fast" title="Fast sellers">
           {fast.length === 0 ? (
-            <Empty>Nothing sold in this period.</Empty>
+            <EmptyNote icon={TrendingUp} title="Nothing sold in this period">
+              Fast sellers show here once sales come in.
+            </EmptyNote>
           ) : (
             <SoldTable caption="Fast sellers, most units first" rows={fast} />
           )}
@@ -245,9 +245,9 @@ const SellersPage = async ({ searchParams }: PageProps<"/reports/sellers">) => {
           title="Slow sellers"
         >
           {slow.length === 0 ? (
-            <Empty>
+            <EmptyNote good icon={Gauge} title="No slow sellers">
               {`Everything that sold would clear within ${SLOW_COVER_DAYS} days.`}
-            </Empty>
+            </EmptyNote>
           ) : (
             <SoldTable
               caption="Slow sellers, longest cover first"
@@ -265,7 +265,9 @@ const SellersPage = async ({ searchParams }: PageProps<"/reports/sellers">) => {
           title={`Not sold in ${days}`}
         >
           {unsold.length === 0 ? (
-            <Empty>Every line in stock sold at least once.</Empty>
+            <EmptyNote good icon={PackageCheck} title="Everything sold">
+              Every line in stock sold at least once.
+            </EmptyNote>
           ) : (
             <UnsoldTable rows={unsold} />
           )}

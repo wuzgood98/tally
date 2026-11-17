@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { RequestStatusBadge } from "@/components/stock/request-status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -109,9 +110,25 @@ const RequestsPage = async ({ searchParams }: PageProps<"/requests">) => {
         }
       >
         {rows.length === 0 ? (
-          <p className="text-ink-2 p-8 text-center text-sm">
-            No requests match.
-          </p>
+          <ListEmpty
+            create={
+              canRequest
+                ? { href: "/requests/new", label: "Request stock" }
+                : undefined
+            }
+            filtered={status !== "all"}
+            firstPageHref={
+              page > 1 && total > 0
+                ? `/requests${queryString({ status: status === "all" ? null : status })}`
+                : undefined
+            }
+            listHref="/requests"
+            noMatchHint="No request here has that status. Try another."
+            tag="Requests"
+            title="No requests yet"
+          >
+            Stores asking the warehouse for stock show here, newest first.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">Stock requests</caption>

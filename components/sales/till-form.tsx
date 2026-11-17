@@ -1,6 +1,7 @@
 "use client";
 
 import { useShortcut } from "@ui-sdk/react/shortcuts";
+import { ScanBarcode } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import type { SubmitEvent } from "react";
 
@@ -20,6 +21,7 @@ import { TillSyncStatus } from "@/components/till/till-sync-status";
 import { TillToday } from "@/components/till/till-today";
 import { useBasketShelf } from "@/components/till/use-basket-shelf";
 import type { ShelfFacts } from "@/components/till/use-basket-shelf";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Frame, FramePanel } from "@/components/ui/frame";
 import { Select } from "@/components/ui/select";
@@ -293,9 +295,9 @@ export const TillForm = ({
               />
             </div>
             {lines.length === 0 ? (
-              <p className="text-ink-2 p-6 text-center text-sm">
-                The basket is empty. Scan the first item.
-              </p>
+              <EmptyNote icon={ScanBarcode} title="The basket is empty">
+                Scan the first item, or type a name or SKU.
+              </EmptyNote>
             ) : (
               <div className="relative overflow-x-auto">
                 <table className="w-full text-sm">

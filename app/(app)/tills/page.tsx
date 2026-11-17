@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AddTillForm } from "@/components/tills/add-till-form";
 import { RevokeTillButton } from "@/components/tills/revoke-till-button";
+import { EmptyLabel } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Table, Td, Th } from "@/components/ui/table";
@@ -58,10 +59,10 @@ const TillsPage = async () => {
         <div className="grid min-w-0 gap-6">
           <Panel flush id="tills" title="Tills">
             {tills.length === 0 ? (
-              <p className="text-ink-2 p-8 text-center text-sm">
-                No tills yet. The in-app till doesn&rsquo;t need one; add one
-                for each POS machine that will post sales.
-              </p>
+              <EmptyLabel tag="Tills" title="No tills yet">
+                The in-app till doesn&rsquo;t need one. Add one for each POS
+                machine that will post sales.
+              </EmptyLabel>
             ) : (
               <Table>
                 <caption className="sr-only">POS tills and their keys</caption>

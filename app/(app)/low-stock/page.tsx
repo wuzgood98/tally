@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { ReorderTable } from "@/components/stock/reorder-table";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyLabel } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
@@ -168,10 +169,14 @@ const LowStockPage = async () => {
         title="Low stock"
       />
       {lines.length === 0 ? (
-        <Panel>
-          <p className="text-ink-2 text-center text-sm">
+        <Panel flush>
+          <EmptyLabel
+            kind="clear"
+            tag="Low stock"
+            title="Every shelf is covered"
+          >
             Every line is above its reorder point.
-          </p>
+          </EmptyLabel>
         </Panel>
       ) : (
         <div className="grid gap-6">

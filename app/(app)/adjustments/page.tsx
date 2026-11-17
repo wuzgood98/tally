@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { MovementTable } from "@/components/stock/movement-table";
 import { buttonVariants } from "@/components/ui/button";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { operableBranchIds } from "@/lib/permissions";
@@ -65,9 +66,19 @@ const AdjustmentsPage = async ({ searchParams }: PageProps<"/adjustments">) => {
       />
       <Panel flush>
         {page.length === 0 ? (
-          <p className="text-ink-2 p-8 text-center text-sm">
-            No adjustments recorded.
-          </p>
+          <ListEmpty
+            create={
+              canAdjustSomewhere
+                ? { href: "/adjustments/new", label: "Adjust stock" }
+                : undefined
+            }
+            firstPageHref={before === undefined ? undefined : "/adjustments"}
+            listHref="/adjustments"
+            tag="Adjustments"
+            title="No adjustments yet"
+          >
+            Write-offs, finds and stock counts show here, newest first.
+          </ListEmpty>
         ) : (
           <MovementTable
             caption="Stock adjustments"

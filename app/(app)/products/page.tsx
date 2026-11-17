@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { ListEmpty } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -170,15 +171,25 @@ const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
         }
       >
         {rows.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="font-medium">No products match.</p>
-            <p className="text-ink-2 mt-1 text-sm">
-              {search ? `Nothing found for “${search}”. ` : ""}
-              <Link className="text-brand hover:underline" href="/products">
-                Clear the filters
-              </Link>
-            </p>
-          </div>
+          <ListEmpty
+            create={
+              canManageCatalogue(viewer)
+                ? { href: "/products/new", label: "New product" }
+                : undefined
+            }
+            filtered={search !== "" || categoryId !== null || status !== "all"}
+            firstPageHref={page > 1 && total > 0 ? hrefFor(1) : undefined}
+            listHref="/products"
+            noMatchHint={
+              search === ""
+                ? "Nothing in that category has that status."
+                : `Nothing found for “${search}”. Check the spelling, or scan the barcode instead.`
+            }
+            tag="Products"
+            title="No products yet"
+          >
+            Everything the company sells is listed here.
+          </ListEmpty>
         ) : (
           <Table>
             <caption className="sr-only">

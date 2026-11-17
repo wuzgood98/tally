@@ -1,10 +1,12 @@
 "use client";
 
 import { count, eq, sum, useLiveQuery } from "@tanstack/react-db";
+import { Receipt } from "lucide-react";
 import Link from "next/link";
 
 import { SaleRow } from "@/components/till/sale-row";
 import { useTillData } from "@/components/till/till-data-provider";
+import { EmptyNote } from "@/components/ui/empty-state";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
@@ -58,7 +60,9 @@ export const TillToday = ({ storeId }: { readonly storeId: string }) => {
       }
     >
       {recent.length === 0 ? (
-        <p className="text-ink-2 p-4 text-sm">No sales yet today.</p>
+        <EmptyNote icon={Receipt} title="No sales yet today">
+          Each sale you ring up shows here.
+        </EmptyNote>
       ) : (
         <ul>
           {recent.map((sale) => (
