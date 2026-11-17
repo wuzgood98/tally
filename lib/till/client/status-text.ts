@@ -54,6 +54,13 @@ const cutOff = (
   tone: "warn",
 });
 
+/** The usual line: online, nothing waiting. The till's loading skeleton is drawn with it. */
+export const ONLINE_LINE: StatusLine = {
+  kind: "sent",
+  text: "Online · every sale has reached Tally.",
+  tone: "quiet",
+};
+
 /**
  * From most to least pressing. A browser that says it's online while the
  * till's data came from the saved copy means Tally itself can't be reached
@@ -90,9 +97,5 @@ export const statusLine = (
     };
   }
 
-  return {
-    kind: "sent",
-    text: "Online · every sale has reached Tally.",
-    tone: "quiet",
-  };
+  return ONLINE_LINE;
 };

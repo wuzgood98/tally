@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/choice";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { PendingLabel } from "@/components/ui/spinner";
 import { initialsOf } from "@/lib/badge";
 import { barRuns, ean13Modules } from "@/lib/barcode";
 import { NAME_MAX_LENGTH } from "@/lib/limits";
@@ -187,7 +188,9 @@ const NameFace = ({
       </dl>
 
       <InkButton disabled={unchanged} pending={pending}>
-        {pending ? "Saving…" : "Save name"}
+        <PendingLabel label="Saving…" pending={pending}>
+          Save name
+        </PendingLabel>
       </InkButton>
 
       <div className="text-ink mt-auto">
@@ -278,7 +281,9 @@ const PasswordFace = ({
       )}
 
       <InkButton disabled={demo} pending={pending}>
-        {pending ? "Changing…" : "Change password"}
+        <PendingLabel label="Changing…" pending={pending}>
+          Change password
+        </PendingLabel>
       </InkButton>
       <TurnButton onClick={onTurn}>Back to the front</TurnButton>
       <p className="text-ink-3 mt-auto text-center font-mono text-xs">

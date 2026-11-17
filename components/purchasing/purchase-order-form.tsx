@@ -20,6 +20,7 @@ import { Frame, FramePanel } from "@/components/ui/frame";
 import { Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import { formatCount } from "@/lib/format";
 import { formatCedis, parseCedis } from "@/lib/money";
 import { wholeNumber } from "@/lib/numbers";
@@ -311,7 +312,9 @@ export const PurchaseOrderForm = ({
             {error}
           </output>
           <Button disabled={pending} size="md" type="submit">
-            {pending ? "Saving…" : saveLabel}
+            <PendingLabel label="Saving…" pending={pending}>
+              {saveLabel}
+            </PendingLabel>
           </Button>
         </div>
       </div>

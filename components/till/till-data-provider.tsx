@@ -3,6 +3,7 @@
 import { useLiveQuery } from "@tanstack/react-db";
 import { createContext, use, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
+import { Skeleton } from "skullet/react";
 
 import { StartOfflineTill } from "@/components/till/offline-till";
 import { Button } from "@/components/ui/button";
@@ -46,106 +47,132 @@ export const useSavedCopy = (): SavedSnapshot | null => {
   );
 };
 
-/** Nothing to subscribe to: the data layer is made once per person and kept. */
-const subscribe = () => () => null;
+/**
+ * Nothing to subscribe to: the data layer is made once per person and kept,
+ * and there's no queue to watch before it exists.
+ */
+const noSubscription = () => () => null;
 
-const Waiting = ({ children }: { readonly children: ReactNode }) => (
-  <output className="text-ink-2 block p-6 text-center text-sm">
-    {children}
-  </output>
-);
+/** What the screen looks like while the till loads, and how Skullet remembers it. */
+interface LoadingSkeleton {
+  /** Remembers the measured skeleton under this key across visits. */
+  readonly id: string;
+  /** Read to screen readers while loading. */
+  readonly label: string;
+  /**
+   * The screen drawn from sample data, unseen: Skullet measures it into the
+   * skeleton until one from an earlier visit is remembered.
+   */
+  readonly sample: ReactNode;
+}
+
+interface TillHealth {
+  /** A collection or the offline queue failed to load. */
+  readonly failed: boolean;
+  /** The data layer once everything's in; null while it loads. */
+  readonly loaded: TillData | null;
+}
 
 /**
- * Holds the till back until the catalogue and the shelf counts are in the
- * browser, and the offline queue has put back any sales it was keeping.
+ * Whether the catalogue and the shelf counts are in the browser and the
+ * offline queue has put back any sales it was keeping. Takes no data (the
+ * server render, and the browser's first) as still loading, so the screen
+ * keeps one tree, and one skeleton, from the server's HTML to the till.
  */
-const WhenLoaded = ({
-  data,
-  children,
-}: {
-  readonly data: TillData;
-  readonly children: ReactNode;
-}) => {
+const useTillHealth = (data: TillData | null): TillHealth => {
   const products = useLiveQuery({
     query: (q) =>
-      q.from({ product: data.products }).select(({ product }) => ({
-        id: product.id,
-      })),
+      data === null
+        ? null
+        : q.from({ product: data.products }).select(({ product }) => ({
+            id: product.id,
+          })),
   });
 
   const levels = useLiveQuery({
     query: (q) =>
-      q.from({ level: data.stockLevels }).select(({ level }) => ({
-        key: level.key,
-      })),
+      data === null
+        ? null
+        : q.from({ level: data.stockLevels }).select(({ level }) => ({
+            key: level.key,
+          })),
   });
 
   const status = useSyncExternalStore(
-    data.sync.subscribe,
-    data.sync.getStatus,
+    data?.sync.subscribe ?? noSubscription,
+    data?.sync.getStatus ?? (() => STARTING),
     () => STARTING
   );
 
-  if (
-    products.isLoadingError ||
-    levels.isLoadingError ||
-    status.problem !== null
-  ) {
-    return (
-      <div className="grid justify-items-center gap-3 p-6 text-center">
-        <p className="text-danger text-sm">
-          The till couldn&apos;t load the products. Check the connection.
-        </p>
-        <Button
-          onClick={() => {
-            // Errors stay on the collections' health; the buttons retry.
-            data.products.utils.refetch().catch(() => null);
-            data.stockLevels.utils.refetch().catch(() => null);
-            data.sync.start().catch(() => null);
-          }}
-          size="md"
-          type="button"
-          variant="outline"
-        >
-          Try again
-        </Button>
-      </div>
-    );
-  }
-
-  if (!products.isReady || !levels.isReady || !status.ready) {
-    return <Waiting>Loading the till…</Waiting>;
-  }
-
-  return (
-    <TillDataContext value={data}>
-      {children}
-      <StartOfflineTill />
-    </TillDataContext>
-  );
+  return {
+    failed:
+      products.isLoadingError ||
+      levels.isLoadingError ||
+      status.problem !== null,
+    loaded: products.isReady && levels.isReady && status.ready ? data : null,
+  };
 };
+
+const LoadFailed = ({ data }: { readonly data: TillData }) => (
+  <div className="grid justify-items-center gap-3 p-6 text-center">
+    <p className="text-danger text-sm">
+      The till couldn&apos;t load the products. Check the connection.
+    </p>
+    <Button
+      onClick={() => {
+        // Errors stay on the collections' health; the buttons retry.
+        data.products.utils.refetch().catch(() => null);
+        data.stockLevels.utils.refetch().catch(() => null);
+        data.sync.start().catch(() => null);
+      }}
+      size="md"
+      type="button"
+      variant="outline"
+    >
+      Try again
+    </Button>
+  </div>
+);
 
 /**
  * Gives the till its collections. They live in the browser only: the server
- * render shows "Loading the till…", and the browser takes over with the data
- * layer for the signed-in person (`getTillData`).
+ * renders a skeleton of `sample` (Skullet measures it before the first paint,
+ * so nothing moves when the till arrives), and the browser takes over with
+ * the data layer for the signed-in person (`getTillData`), holding the till
+ * back until it's ready.
  */
 export const TillDataProvider = ({
   userId,
   children,
-}: {
+  id,
+  label,
+  sample,
+}: LoadingSkeleton & {
   readonly userId: string;
   readonly children: ReactNode;
 }) => {
   const data = useSyncExternalStore(
-    subscribe,
+    noSubscription,
     () => getTillData(userId),
     () => null
   );
 
-  if (data === null) {
-    return <Waiting>Loading the till…</Waiting>;
+  const { failed, loaded } = useTillHealth(data);
+
+  if (data !== null && failed) {
+    return <LoadFailed data={data} />;
   }
 
-  return <WhenLoaded data={data}>{children}</WhenLoaded>;
+  return (
+    <Skeleton id={id} label={label} loading={loaded === null}>
+      {loaded === null ? (
+        sample
+      ) : (
+        <TillDataContext value={loaded}>
+          {children}
+          <StartOfflineTill />
+        </TillDataContext>
+      )}
+    </Skeleton>
+  );
 };

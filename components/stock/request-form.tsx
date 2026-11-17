@@ -14,6 +14,7 @@ import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import { formatCount } from "@/lib/format";
 import { wholeNumber } from "@/lib/numbers";
 
@@ -288,7 +289,9 @@ export const RequestForm = ({
           {error}
         </output>
         <Button disabled={pending} size="md" type="submit">
-          {pending ? "Sending…" : "Send request"}
+          <PendingLabel label="Sending…" pending={pending}>
+            Send request
+          </PendingLabel>
         </Button>
       </div>
     </form>

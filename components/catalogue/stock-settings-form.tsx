@@ -8,6 +8,7 @@ import type { SettingsState } from "@/app/(app)/products/actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PendingLabel } from "@/components/ui/spinner";
 
 interface StockSettingsFormProps {
   readonly productId: number;
@@ -67,7 +68,9 @@ export const StockSettingsForm = ({
         />
       </Field>
       <Button size="md" disabled={pending} type="submit" variant="outline">
-        {pending ? "Saving…" : "Save"}
+        <PendingLabel label="Saving…" pending={pending}>
+          Save
+        </PendingLabel>
       </Button>
       <output
         aria-live="polite"

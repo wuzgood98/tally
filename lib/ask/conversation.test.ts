@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ASK_FAILED,
   askFailure,
+  askRunningTool,
   askStatusLine,
   isEmptyAnswer,
   linkRecords,
@@ -201,6 +202,24 @@ describe("askStatusLine", () => {
         assistant([toolPart("lowStock", "output-available", {}, { lines: [] })])
       )
     ).toBe("Thinking…");
+  });
+});
+
+describe("askRunningTool", () => {
+  it("names the tool at work, or none while thinking", () => {
+    expect(
+      askRunningTool(
+        assistant([
+          toolPart("lowStock", "input-available", { branch: "Kumasi" }),
+        ])
+      )
+    ).toBe("lowStock");
+    expect(askRunningTool(undefined)).toBeNull();
+    expect(
+      askRunningTool(
+        assistant([toolPart("lowStock", "output-available", {}, { lines: [] })])
+      )
+    ).toBeNull();
   });
 });
 

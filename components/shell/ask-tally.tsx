@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import {
   ASK_FAILED,
   askFailure,
-  askStatusLine,
   isEmptyAnswer,
   linkRecords,
   messageText,
@@ -21,6 +20,7 @@ import type { AskFailure } from "@/lib/ask/conversation";
 import { ASK_QUESTION_MAX_LENGTH } from "@/lib/ask/settings";
 
 import { AskAnswer } from "./ask-answer";
+import { AskStatus } from "./ask-status";
 
 const TRANSPORT = new DefaultChatTransport({ api: "/api/ask" });
 
@@ -226,11 +226,7 @@ export const AskPanel = ({
                   </div>
                 )
               )}
-              {showStatus ? (
-                <p className="text-ink-3 animate-pulse text-sm motion-reduce:animate-none">
-                  {askStatusLine(answering)}
-                </p>
-              ) : null}
+              {showStatus ? <AskStatus message={answering} /> : null}
               {failure === null ? null : (
                 <div className="text-ink-2 flex flex-wrap items-center gap-2 text-sm">
                   <span>{failure.message}</span>

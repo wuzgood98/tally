@@ -16,6 +16,7 @@ import { Frame, FramePanel } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SelectOptions } from "@/components/ui/select";
+import { PendingLabel } from "@/components/ui/spinner";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 interface Option {
@@ -69,11 +70,7 @@ export const ProductForm = ({
   );
 
   const { values } = state;
-  let submitLabel = productId === null ? "Add product" : "Save changes";
-
-  if (pending) {
-    submitLabel = "Saving…";
-  }
+  const submitLabel = productId === null ? "Add product" : "Save changes";
 
   const categoryOptions: SelectOptions = [
     ...Map.groupBy(categories, (item) => item.group ?? ""),
@@ -220,7 +217,9 @@ export const ProductForm = ({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button size="md" disabled={pending} type="submit">
-          {submitLabel}
+          <PendingLabel label="Saving…" pending={pending}>
+            {submitLabel}
+          </PendingLabel>
         </Button>
         <Link
           className={buttonVariants({ size: "md", variant: "ghost" })}

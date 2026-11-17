@@ -8,6 +8,8 @@ import {
   useTransition,
 } from "react";
 import type { ReactNode } from "react";
+// oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Skullet's own export name
+import { forgetShapes as forgetSkeletonLayouts } from "skullet";
 
 import { signOut } from "@/app/login/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -18,11 +20,13 @@ import { countQueuedSales } from "@/lib/till/client/outbox";
 type RequestSignOut = () => Promise<void>;
 
 /**
- * The saved till belongs to whoever opened it last, so it goes with them.
- * Their queued sales stay in their own outbox. `forgetOfflineTill` never
- * rejects, so a failure to clear can't keep anyone signed in.
+ * The saved till belongs to whoever opened it last, so it goes with them,
+ * and so do the loading skeletons' remembered shapes. Their queued sales stay
+ * in their own outbox. `forgetOfflineTill` never rejects, so a failure to
+ * clear can't keep anyone signed in.
  */
 const signOutAndForget = async (): Promise<void> => {
+  forgetSkeletonLayouts();
   await forgetOfflineTill();
   await signOut();
 };

@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { toggleStaff } from "@/app/(app)/staff/actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PendingLabel } from "@/components/ui/spinner";
 
 interface ToggleStaffButtonProps {
   readonly userId: string;
@@ -41,7 +42,9 @@ const ReactivateButton = ({
         type="button"
         variant="ghost"
       >
-        {pending ? "Saving…" : "Reactivate"}
+        <PendingLabel label="Saving…" pending={pending}>
+          Reactivate
+        </PendingLabel>
         <span className="sr-only"> {name}</span>
       </Button>
       {error === null ? null : (

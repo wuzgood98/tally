@@ -3,9 +3,13 @@
 import { and, eq, gte, lt, useLiveQuery } from "@tanstack/react-db";
 import { CalendarX, SearchX } from "lucide-react";
 import { useState } from "react";
+import { Skeleton } from "skullet/react";
 
 import { SaleRow } from "@/components/till/sale-row";
-import { useTillData } from "@/components/till/till-data-provider";
+import {
+  TillDataProvider,
+  useTillData,
+} from "@/components/till/till-data-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyNote } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -15,9 +19,12 @@ import { Select } from "@/components/ui/select";
 import { labelledOptions, namedOptions } from "@/components/ui/select-options";
 import type { PaymentMethod } from "@/lib/db/schema";
 import { PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/stock/payment";
-import { DAY_MS } from "@/lib/time";
-
-const PAGE = 20;
+import {
+  HISTORY_PAGE,
+  dayWindow,
+  todayInAccra,
+} from "@/lib/till/history-contract";
+import type { TillSale } from "@/lib/till/schema";
 
 type Payment = PaymentMethod | "all";
 
@@ -36,69 +43,89 @@ const ORDER_OPTIONS = [
 const isPayment = (value: string): value is Payment =>
   value === "all" || PAYMENT_METHODS.some((method) => method === value);
 
-/** Ghana keeps GMT all year, so a calendar day is a UTC day. */
-const todayInAccra = (): string => new Date().toISOString().slice(0, 10);
-
-const dayWindow = (day: string) => {
-  const start = new Date(`${day}T00:00:00.000Z`);
-
-  return {
-    from: start.toISOString(),
-    to: new Date(start.getTime() + DAY_MS).toISOString(),
-  };
-};
-
 interface Option {
   readonly id: string;
   readonly name: string;
 }
 
-/** The sales panel with no rows: still loading, or none for this day. */
-const NoSales = ({
-  loading,
-  byPayment,
-}: {
-  readonly loading: boolean;
-  readonly byPayment: boolean;
-}) => {
-  if (loading) {
-    return <p className="text-ink-2 p-4 text-sm">Loading…</p>;
-  }
+interface Filters {
+  readonly storeId: string;
+  readonly day: string;
+  readonly payment: Payment;
+  readonly order: Order;
+  readonly limit: number;
+}
 
-  if (byPayment) {
-    return (
-      <EmptyNote icon={SearchX} title="No sales match">
-        Try another day or payment method.
-      </EmptyNote>
-    );
-  }
-
-  return (
+/** The sales panel with no rows for this day, or none paid this way. */
+const NoSales = ({ byPayment }: { readonly byPayment: boolean }) =>
+  byPayment ? (
+    <EmptyNote icon={SearchX} title="No sales match">
+      Try another day or payment method.
+    </EmptyNote>
+  ) : (
     <EmptyNote icon={CalendarX} title="No sales on this day">
       Pick another day to see its sales.
     </EmptyNote>
   );
-};
+
+const SalesList = ({
+  sales,
+  byPayment,
+}: {
+  readonly sales: readonly TillSale[];
+  readonly byPayment: boolean;
+}) =>
+  sales.length === 0 ? (
+    <NoSales byPayment={byPayment} />
+  ) : (
+    <ul>
+      {sales.map((sale) => (
+        <SaleRow key={sale.clientRef} sale={sale} />
+      ))}
+    </ul>
+  );
+
+/** Raises the limit by a page; shown while the last page came back full. */
+const ShowMore = ({ onMore }: { readonly onMore?: () => void }) => (
+  <div>
+    <Button onClick={onMore} size="md" type="button" variant="outline">
+      Show more
+    </Button>
+  </div>
+);
 
 /**
- * A store's recorded sales for one day, from the on-demand history
- * collection. The filters and the sort are the live query; the collection
- * turns them into one bounded request to the server each time they change,
- * and "Show more" only raises the limit. Nothing here is downloaded ahead.
+ * The panel while the till's data layer loads, from the first page the
+ * server saw: only ever measured into its skeleton, so the real rows, and
+ * "Show more" after a full page, land where their skeleton was.
  */
-export const TillHistory = ({
-  stores,
-  defaultStoreId,
+const SalesSample = ({ sales }: { readonly sales: readonly TillSale[] }) => (
+  <div className="grid grid-cols-1 gap-6">
+    <Panel flush title="Sales">
+      <SalesList byPayment={false} sales={sales} />
+    </Panel>
+    {sales.length >= HISTORY_PAGE ? <ShowMore /> : null}
+  </div>
+);
+
+/**
+ * The day's sales from the on-demand history collection. The filters and the
+ * sort are the live query; the collection turns them into one bounded
+ * request to the server each time they change, and "Show more" only raises
+ * the limit. Nothing here is downloaded ahead. While the panel has nothing
+ * to show yet, Skullet draws its rows from the ones it last showed (it keeps
+ * them across filter changes), or the first time from `sample`.
+ */
+const HistoryResults = ({
+  filters: { storeId, day, payment, order, limit },
+  sample,
+  onMore,
 }: {
-  readonly stores: readonly Option[];
-  readonly defaultStoreId: string;
+  readonly filters: Filters;
+  readonly sample: readonly TillSale[];
+  readonly onMore: () => void;
 }) => {
   const { history } = useTillData();
-  const [storeId, setStoreId] = useState(defaultStoreId);
-  const [day, setDay] = useState(todayInAccra);
-  const [payment, setPayment] = useState<Payment>("all");
-  const [order, setOrder] = useState<Order>("newest");
-  const [limit, setLimit] = useState(PAGE);
   const { from, to } = dayWindow(day);
 
   const {
@@ -139,10 +166,66 @@ export const TillHistory = ({
     },
   });
 
+  // Rows already on screen stay while more load; only an empty panel waits.
+  const waiting = isLoading && sales.length === 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-6">
+      <Panel flush title="Sales">
+        {isLoadingError ? (
+          <p className="text-danger p-4 text-sm">
+            Tally couldn&apos;t load these sales. Check the connection.
+          </p>
+        ) : (
+          <Skeleton
+            data={waiting ? null : sales}
+            label="Loading sales"
+            sample={sample}
+          >
+            {(rows) => <SalesList byPayment={payment !== "all"} sales={rows} />}
+          </Skeleton>
+        )}
+      </Panel>
+
+      {sales.length >= limit ? <ShowMore onMore={onMore} /> : null}
+    </div>
+  );
+};
+
+/**
+ * A store's recorded sales for one day. The filters are there at once; the
+ * sales wait for the till's data layer behind a skeleton.
+ */
+export const TillHistory = ({
+  stores,
+  defaultStoreId,
+  firstPage,
+  userId,
+}: {
+  readonly stores: readonly Option[];
+  readonly defaultStoreId: string;
+  /** Today's newest sales at `defaultStoreId`, as the server saw them: the skeleton is drawn from these. */
+  readonly firstPage: readonly TillSale[];
+  readonly userId: string;
+}) => {
+  const [storeId, setStoreId] = useState(defaultStoreId);
+  const [day, setDay] = useState(todayInAccra);
+  const [payment, setPayment] = useState<Payment>("all");
+  const [order, setOrder] = useState<Order>("newest");
+  const [limit, setLimit] = useState(HISTORY_PAGE);
+
+  // The server's first page is a true sample only for the filters it was
+  // read with; for others, an empty day is as good a guess as any.
+  const asServerRead =
+    storeId === defaultStoreId &&
+    day === todayInAccra() &&
+    payment === "all" &&
+    order === "newest";
+
   // New filters start again from the first page.
   const refilter = (change: () => void) => {
     change();
-    setLimit(PAGE);
+    setLimit(HISTORY_PAGE);
   };
 
   return (
@@ -205,38 +288,20 @@ export const TillHistory = ({
         </Field>
       </div>
 
-      <Panel flush title="Sales">
-        {isLoadingError ? (
-          <p className="text-danger p-4 text-sm">
-            Tally couldn&apos;t load these sales. Check the connection.
-          </p>
-        ) : null}
-        {!isLoadingError && sales.length === 0 ? (
-          <NoSales byPayment={payment !== "all"} loading={isLoading} />
-        ) : null}
-        {sales.length > 0 ? (
-          <ul>
-            {sales.map((sale) => (
-              <SaleRow key={sale.id} sale={sale} />
-            ))}
-          </ul>
-        ) : null}
-      </Panel>
-
-      {sales.length >= limit ? (
-        <div>
-          <Button
-            onClick={() => {
-              setLimit((current) => current + PAGE);
-            }}
-            size="md"
-            type="button"
-            variant="outline"
-          >
-            Show more
-          </Button>
-        </div>
-      ) : null}
+      <TillDataProvider
+        id="till-history"
+        label="Loading sales"
+        sample={<SalesSample sales={firstPage} />}
+        userId={userId}
+      >
+        <HistoryResults
+          filters={{ day, limit, order, payment, storeId }}
+          sample={asServerRead ? firstPage : []}
+          onMore={() => {
+            setLimit((current) => current + HISTORY_PAGE);
+          }}
+        />
+      </TillDataProvider>
     </div>
   );
 };

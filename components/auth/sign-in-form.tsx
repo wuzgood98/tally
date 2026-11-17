@@ -8,6 +8,7 @@ import type { SignInState } from "@/app/login/actions";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { PendingLabel } from "@/components/ui/spinner";
 
 const INITIAL: SignInState = { email: "", error: null };
 
@@ -55,7 +56,9 @@ export const SignInForm = ({ next }: { readonly next: string | undefined }) => {
         disabled={pending}
         type="submit"
       >
-        {pending ? "Scanning in…" : "Scan in"}
+        <PendingLabel label="Scanning in…" pending={pending}>
+          Scan in
+        </PendingLabel>
         <ArrowRight aria-hidden="true" className="size-4" />
       </button>
     </form>

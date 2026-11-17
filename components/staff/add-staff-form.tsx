@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SelectOptions } from "@/components/ui/select";
 import { namedOptions } from "@/components/ui/select-options";
+import { PendingLabel } from "@/components/ui/spinner";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 interface AddStaffFormProps {
@@ -100,7 +101,9 @@ export const AddStaffForm = ({ branches }: AddStaffFormProps) => {
         </Field>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <Button size="md" disabled={pending} type="submit">
-            {pending ? "Creating…" : "Create account"}
+            <PendingLabel label="Creating…" pending={pending}>
+              Create account
+            </PendingLabel>
           </Button>
           <p aria-live="polite" className="text-danger text-sm">
             {state.error}

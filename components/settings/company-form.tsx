@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Frame, FrameFooter, FramePanel } from "@/components/ui/frame";
 import { Input, Textarea } from "@/components/ui/input";
+import { PendingLabel } from "@/components/ui/spinner";
 import { NAME_MAX_LENGTH, RECEIPT_FOOTER_MAX } from "@/lib/limits";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
@@ -191,7 +192,9 @@ export const CompanyForm = (props: CompanyFormProps) => {
                 size="md"
                 type="submit"
               >
-                {pending ? "Saving…" : "Save company"}
+                <PendingLabel label="Saving…" pending={pending}>
+                  Save company
+                </PendingLabel>
               </Button>
             </div>
           </FrameFooter>
