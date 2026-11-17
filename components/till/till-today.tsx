@@ -10,8 +10,46 @@ import { EmptyNote } from "@/components/ui/empty-state";
 import { Panel } from "@/components/ui/panel";
 import { formatCount } from "@/lib/format";
 import { formatCedis } from "@/lib/money";
+import type { TillSale } from "@/lib/till/schema";
 
-const RECENT = 8;
+export const TODAY_RECENT = 8;
+
+/** Today's panel as drawn: the newest sales, and the day's count and sum. */
+export const TodayPanel = ({
+  recent,
+  salesToday,
+  totalToday,
+}: {
+  readonly recent: readonly TillSale[];
+  readonly salesToday: number;
+  readonly totalToday: number;
+}) => (
+  <Panel
+    action={
+      <Link className="text-sm hover:underline" href="/till/history">
+        Earlier sales
+      </Link>
+    }
+    flush
+    title={
+      salesToday === 0
+        ? "Your sales today"
+        : `Your sales today · ${formatCount(salesToday)} · ${formatCedis(totalToday)}`
+    }
+  >
+    {recent.length === 0 ? (
+      <EmptyNote icon={Receipt} title="No sales yet today">
+        Each sale you ring up shows here.
+      </EmptyNote>
+    ) : (
+      <ul>
+        {recent.map((sale) => (
+          <SaleRow key={sale.clientRef} sale={sale} />
+        ))}
+      </ul>
+    )}
+  </Panel>
+);
 
 /**
  * This person's sales today at the chosen store, newest first, with a running
@@ -28,7 +66,7 @@ export const TillToday = ({ storeId }: { readonly storeId: string }) => {
         .from({ sale: sales })
         .where(({ sale }) => eq(sale.branchId, storeId))
         .orderBy(({ sale }) => sale.createdAt, "desc")
-        .limit(RECENT),
+        .limit(TODAY_RECENT),
   });
 
   const { data: summary } = useLiveQuery({
@@ -43,33 +81,12 @@ export const TillToday = ({ storeId }: { readonly storeId: string }) => {
   });
 
   const [totals] = summary;
-  const salesToday = totals?.count ?? 0;
 
   return (
-    <Panel
-      action={
-        <Link className="text-sm hover:underline" href="/till/history">
-          Earlier sales
-        </Link>
-      }
-      flush
-      title={
-        salesToday === 0
-          ? "Your sales today"
-          : `Your sales today · ${formatCount(salesToday)} · ${formatCedis(totals?.total ?? 0)}`
-      }
-    >
-      {recent.length === 0 ? (
-        <EmptyNote icon={Receipt} title="No sales yet today">
-          Each sale you ring up shows here.
-        </EmptyNote>
-      ) : (
-        <ul>
-          {recent.map((sale) => (
-            <SaleRow key={sale.clientRef} sale={sale} />
-          ))}
-        </ul>
-      )}
-    </Panel>
+    <TodayPanel
+      recent={recent}
+      salesToday={totals?.count ?? 0}
+      totalToday={totals?.total ?? 0}
+    />
   );
 };

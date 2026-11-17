@@ -1,23 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { TillForm } from "@/components/sales/till-form";
+import { TillForm, TillSample } from "@/components/sales/till-form";
 import { TillDataProvider } from "@/components/till/till-data-provider";
 import { PageHeader } from "@/components/ui/page-header";
+import { getDb } from "@/lib/db";
 import { sellableBranchIds } from "@/lib/permissions";
 import { getCompanySettings } from "@/lib/queries/company";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
+import { getTillSales } from "@/lib/till/api";
 
 export const metadata: Metadata = { title: "Till" };
 
 const TillPage = async () => {
   const viewer = await requireViewer();
 
-  const [branches, scope, company] = await Promise.all([
+  // Today's sales only shape the loading skeleton: the till fetches its own.
+  const [branches, scope, company, salesToday] = await Promise.all([
     listBranches(),
     getScope(viewer),
     getCompanySettings(),
+    getTillSales(getDb(), viewer),
   ]);
 
   const allowed = new Set(
@@ -50,6 +54,8 @@ const TillPage = async () => {
     stores[0]?.id ??
     "";
 
+  const tillStores = stores.map(({ id, name }) => ({ id, name }));
+
   return (
     <>
       <PageHeader
@@ -61,12 +67,26 @@ const TillPage = async () => {
         }
         title="Till"
       />
-      <TillDataProvider userId={viewer.id}>
+      <TillDataProvider
+        id="till"
+        label="Loading the till"
+        sample={
+          <TillSample
+            defaultStoreId={defaultStoreId}
+            receiptFooter={company.receiptFooter}
+            salesToday={salesToday.filter(
+              (sale) => sale.branchId === defaultStoreId
+            )}
+            stores={tillStores}
+          />
+        }
+        userId={viewer.id}
+      >
         <TillForm
           cashierId={viewer.id}
           defaultStoreId={defaultStoreId}
           receiptFooter={company.receiptFooter}
-          stores={stores.map(({ id, name }) => ({ id, name }))}
+          stores={tillStores}
         />
       </TillDataProvider>
     </>

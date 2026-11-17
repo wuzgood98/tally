@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { TillDataProvider } from "@/components/till/till-data-provider";
 import { TillHistory } from "@/components/till/till-history";
 import { PageHeader } from "@/components/ui/page-header";
+import { getDb } from "@/lib/db";
 import { sellableBranchIds } from "@/lib/permissions";
 import { getScope, listBranches } from "@/lib/scope";
 import { requireViewer } from "@/lib/session";
+import { getSaleHistory } from "@/lib/till/api";
+import {
+  HISTORY_PAGE,
+  dayWindow,
+  todayInAccra,
+} from "@/lib/till/history-contract";
 
 export const metadata: Metadata = { title: "Earlier sales" };
 
@@ -59,6 +65,15 @@ const TillHistoryPage = async () => {
     stores[0]?.id ??
     "";
 
+  // Only shapes the loading skeleton: the page fetches its own sales.
+  const firstPage = await getSaleHistory(getDb(), viewer, {
+    ...dayWindow(todayInAccra()),
+    branchId: defaultStoreId,
+    limit: HISTORY_PAGE,
+    offset: 0,
+    sort: { direction: "desc", field: "createdAt" },
+  });
+
   return (
     <>
       <PageHeader
@@ -66,12 +81,12 @@ const TillHistoryPage = async () => {
         eyebrow={eyebrow}
         title="Earlier sales"
       />
-      <TillDataProvider userId={viewer.id}>
-        <TillHistory
-          defaultStoreId={defaultStoreId}
-          stores={stores.map(({ id, name }) => ({ id, name }))}
-        />
-      </TillDataProvider>
+      <TillHistory
+        defaultStoreId={defaultStoreId}
+        firstPage={firstPage}
+        stores={stores.map(({ id, name }) => ({ id, name }))}
+        userId={viewer.id}
+      />
     </>
   );
 };

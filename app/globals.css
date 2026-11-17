@@ -143,6 +143,10 @@
   --danger: #c2321f;
   --danger-soft: #fce6e2;
   --good: #1d7a4c;
+  /* Skullet's loading skeletons: bars in the ink, a shimmer of the surface. */
+  --skullet-base: rgb(15 17 21 / 0.07);
+  --skullet-highlight: rgb(255 255 255 / 0.6);
+  --skullet-radius: var(--radius-sm);
 
   --ui-background: var(--surface);
   --ui-foreground: var(--ink);
@@ -182,6 +186,8 @@
     --danger: #ff7a69;
     --danger-soft: rgb(255 122 105 / 0.12);
     --good: #5fd39a;
+    --skullet-base: rgb(237 237 239 / 0.07);
+    --skullet-highlight: rgb(255 255 255 / 0.06);
   }
 }
 

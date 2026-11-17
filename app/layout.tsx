@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SkulletProvider } from "skullet/react";
 
 import "@ui-sdk/core/web.css";
 import "./globals.css";
@@ -39,7 +40,10 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
     suppressHydrationWarning
   >
     <body className="min-h-svh">
-      <ThemeProvider>{children}</ThemeProvider>
+      {/* Loading skeletons share one measuring script; colours come from globals.css. */}
+      <SkulletProvider>
+        <ThemeProvider>{children}</ThemeProvider>
+      </SkulletProvider>
     </body>
   </html>
 );

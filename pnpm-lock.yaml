@@ -83,6 +83,9 @@ importers:
       shadcn:
         specifier: ^4.23.0
         version: 4.23.0
+      skullet:
+        specifier: 0.0.3
+        version: 0.0.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -3510,6 +3513,23 @@ packages:
   sisteransi@2.0.0:
     resolution: {integrity: sha512-2WCqLdt12eN6ehLI50S2/ZxoowXU3DD1KVPRyVP0WEsFahrGZZmCdq1K59qjJljMRIDTwx1D9YaRK+hDneBUMg==}
     engines: {node: '>=20'}
+
+  skullet@0.0.3:
+    resolution: {integrity: sha512-YPKHasYQxuZTQ6Tf6ap61lseIjdAklQlScg48HMKJW/AiGg8HaVdbfzg5XW/j6OdRuJbITpwsG5vJ8LAapmMJA==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      svelte: '>=5'
+      vue: '>=3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   slice-ansi@10.0.1:
     resolution: {integrity: sha512-CJKEH3zwVX4bOnE+bFbmh+JK/YMT9VAazqBsVBTesnYKXlNtz6oVmrhNp1jHrxHzscuUkWiKZpzNzFraZcrorg==}
@@ -6957,6 +6977,11 @@ snapshots:
   sisteransi@1.0.5: {}
 
   sisteransi@2.0.0: {}
+
+  skullet@0.0.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+    optionalDependencies:
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
 
   slice-ansi@10.0.1:
     dependencies:

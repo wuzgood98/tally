@@ -3,7 +3,7 @@
 import { useShortcut } from "@ui-sdk/react/shortcuts";
 import { ScanBarcode } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
-import type { SubmitEvent } from "react";
+import type { ReactNode, SubmitEvent } from "react";
 
 import type { PickedProduct } from "@/app/(app)/lookup-action";
 import {
@@ -17,8 +17,12 @@ import { LastSale } from "@/components/till/last-sale";
 import type { LastSaleFacts } from "@/components/till/last-sale";
 import { TillAttention } from "@/components/till/till-attention";
 import { useTillData } from "@/components/till/till-data-provider";
-import { TillSyncStatus } from "@/components/till/till-sync-status";
-import { TillToday } from "@/components/till/till-today";
+import { SyncLine, TillSyncStatus } from "@/components/till/till-sync-status";
+import {
+  TODAY_RECENT,
+  TillToday,
+  TodayPanel,
+} from "@/components/till/till-today";
 import { useBasketShelf } from "@/components/till/use-basket-shelf";
 import type { ShelfFacts } from "@/components/till/use-basket-shelf";
 import { EmptyNote } from "@/components/ui/empty-state";
@@ -34,9 +38,11 @@ import {
   changeDue,
   readTender,
 } from "@/lib/stock/quick-cash";
+import { ONLINE_LINE } from "@/lib/till/client/status-text";
 import { chargeFailureMessage } from "@/lib/till/client/sync";
 import type { ChargeOutcome } from "@/lib/till/client/sync";
 import { lookupTillProducts } from "@/lib/till/lookup";
+import type { TillSale } from "@/lib/till/schema";
 
 interface Option {
   readonly id: string;
@@ -104,6 +110,95 @@ interface Payment {
 }
 
 const FRESH_PAYMENT: Payment = { method: "cash", received: "" };
+
+const SCAN_AREA = "border-line grid gap-4 border-b p-4";
+
+const EmptyBasket = () => (
+  <EmptyNote icon={ScanBarcode} title="The basket is empty">
+    Scan the first item, or type a name or SKU.
+  </EmptyNote>
+);
+
+/** The scan area and basket on the left, the receipt and checkout on the right. */
+const TillColumns = ({
+  scan,
+  basket,
+  checkout,
+}: {
+  readonly scan: ReactNode;
+  readonly basket: ReactNode;
+  readonly checkout: ReactNode;
+}) => (
+  <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
+    <Frame>
+      <FramePanel flush>
+        {scan}
+        {basket}
+      </FramePanel>
+    </Frame>
+    {checkout}
+  </div>
+);
+
+const ignore = (): void => {
+  // The sample is only measured, never used.
+};
+
+/**
+ * The till as it opens, with this person's sales today as the server saw
+ * them: never seen, only measured by Skullet into the loading skeleton
+ * (`TillDataProvider`), so the real till lands where its skeleton was.
+ */
+export const TillSample = ({
+  stores,
+  defaultStoreId,
+  receiptFooter,
+  salesToday,
+}: Pick<TillFormProps, "stores" | "defaultStoreId" | "receiptFooter"> & {
+  /** Today's sales by this person at `defaultStoreId`, newest first. */
+  readonly salesToday: readonly TillSale[];
+}) => (
+  <div className="grid grid-cols-1 gap-6">
+    <SyncLine line={ONLINE_LINE} />
+    <TillColumns
+      basket={<EmptyBasket />}
+      checkout={
+        <TillCheckout
+          error={null}
+          footer={receiptFooter}
+          lines={[]}
+          onPaymentMethod={ignore}
+          onReceived={ignore}
+          paymentMethod={FRESH_PAYMENT.method}
+          pending={false}
+          received=""
+          storeName={
+            stores.find((store) => store.id === defaultStoreId)?.name ?? ""
+          }
+          tender={NO_TENDER}
+          total={0}
+          units={0}
+        />
+      }
+      scan={
+        <div className={SCAN_AREA}>
+          {stores.length > 1 ? (
+            <Field>
+              <FieldLabel>Till at</FieldLabel>
+              <Select options={namedOptions(stores)} value={defaultStoreId} />
+            </Field>
+          ) : null}
+          <ProductPicker label="Scan items" onPick={ignore} />
+        </div>
+      }
+    />
+    <TodayPanel
+      recent={salesToday.slice(0, TODAY_RECENT)}
+      salesToday={salesToday.length}
+      totalToday={salesToday.reduce((sum, sale) => sum + sale.total, 0)}
+    />
+  </div>
+);
 
 /**
  * The till. Scan to fill the basket, pick how the customer pays, charge.
@@ -271,104 +366,103 @@ export const TillForm = ({
       <TillAttention />
       {lastSale === null ? null : <LastSale sale={lastSale} />}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
-        <Frame>
-          <FramePanel flush>
-            <div className="border-line grid gap-4 border-b p-4" ref={scanArea}>
-              {stores.length > 1 ? (
-                <Field>
-                  <FieldLabel>Till at</FieldLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      setStoreId(value ?? "");
-                    }}
-                    options={namedOptions(stores)}
-                    value={storeId}
-                  />
-                </Field>
-              ) : null}
-              <ProductPicker
-                autoFocus
-                label="Scan items"
-                lookup={lookup}
-                onPick={addProduct}
-              />
+      <TillColumns
+        basket={
+          lines.length === 0 ? (
+            <EmptyBasket />
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Basket</caption>
+                <thead>
+                  <tr className="text-ink-2 border-line border-b text-left text-xs">
+                    <th className="px-4 py-2 font-medium" scope="col">
+                      Item
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Price
+                    </th>
+                    <th
+                      className="w-24 px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Qty
+                    </th>
+                    <th
+                      className="px-2 py-2 text-right font-medium"
+                      scope="col"
+                    >
+                      Amount
+                    </th>
+                    <th className="w-12 px-2 py-2" scope="col">
+                      <span className="sr-only">Remove</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <TillLineRow
+                      branchId={storeId}
+                      flash={
+                        bump?.productId === line.product.id ? bump.count : 0
+                      }
+                      key={line.product.id}
+                      line={line}
+                      onChange={update}
+                      onRemove={remove}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {lines.length === 0 ? (
-              <EmptyNote icon={ScanBarcode} title="The basket is empty">
-                Scan the first item, or type a name or SKU.
-              </EmptyNote>
-            ) : (
-              <div className="relative overflow-x-auto">
-                <table className="w-full text-sm">
-                  <caption className="sr-only">Basket</caption>
-                  <thead>
-                    <tr className="text-ink-2 border-line border-b text-left text-xs">
-                      <th className="px-4 py-2 font-medium" scope="col">
-                        Item
-                      </th>
-                      <th
-                        className="px-2 py-2 text-right font-medium"
-                        scope="col"
-                      >
-                        Price
-                      </th>
-                      <th
-                        className="w-24 px-2 py-2 text-right font-medium"
-                        scope="col"
-                      >
-                        Qty
-                      </th>
-                      <th
-                        className="px-2 py-2 text-right font-medium"
-                        scope="col"
-                      >
-                        Amount
-                      </th>
-                      <th className="w-12 px-2 py-2" scope="col">
-                        <span className="sr-only">Remove</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((line) => (
-                      <TillLineRow
-                        branchId={storeId}
-                        flash={
-                          bump?.productId === line.product.id ? bump.count : 0
-                        }
-                        key={line.product.id}
-                        line={line}
-                        onChange={update}
-                        onRemove={remove}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </FramePanel>
-        </Frame>
-
-        <TillCheckout
-          error={error}
-          footer={receiptFooter}
-          lines={lines}
-          onPaymentMethod={(method) => {
-            setPayment((current) => ({ ...current, method }));
-          }}
-          onReceived={(received) => {
-            setPayment((current) => ({ ...current, received }));
-          }}
-          paymentMethod={payment.method}
-          pending={pending}
-          received={payment.received}
-          storeName={storeName}
-          tender={tender}
-          total={summary.total}
-          units={summary.units}
-        />
-      </div>
+          )
+        }
+        checkout={
+          <TillCheckout
+            error={error}
+            footer={receiptFooter}
+            lines={lines}
+            onPaymentMethod={(method) => {
+              setPayment((current) => ({ ...current, method }));
+            }}
+            onReceived={(received) => {
+              setPayment((current) => ({ ...current, received }));
+            }}
+            paymentMethod={payment.method}
+            pending={pending}
+            received={payment.received}
+            storeName={storeName}
+            tender={tender}
+            total={summary.total}
+            units={summary.units}
+          />
+        }
+        scan={
+          <div className={SCAN_AREA} ref={scanArea}>
+            {stores.length > 1 ? (
+              <Field>
+                <FieldLabel>Till at</FieldLabel>
+                <Select
+                  onValueChange={(value) => {
+                    setStoreId(value ?? "");
+                  }}
+                  options={namedOptions(stores)}
+                  value={storeId}
+                />
+              </Field>
+            ) : null}
+            <ProductPicker
+              autoFocus
+              label="Scan items"
+              lookup={lookup}
+              onPick={addProduct}
+            />
+          </div>
+        }
+      />
 
       <TillToday storeId={storeId} />
     </form>

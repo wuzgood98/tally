@@ -15,6 +15,23 @@ import { z } from "zod";
 
 import { PAYMENT_METHODS } from "@/lib/stock/payment";
 import { tillSale } from "@/lib/till/schema";
+import { DAY_MS } from "@/lib/time";
+
+/** How many sales "Earlier sales" shows at first, and adds with "Show more". */
+export const HISTORY_PAGE = 20;
+
+/** Ghana keeps GMT all year, so a calendar day is a UTC day. */
+export const todayInAccra = (): string => new Date().toISOString().slice(0, 10);
+
+/** One calendar day (YYYY-MM-DD) as the window the history filters on. */
+export const dayWindow = (day: string) => {
+  const start = new Date(`${day}T00:00:00.000Z`);
+
+  return {
+    from: start.toISOString(),
+    to: new Date(start.getTime() + DAY_MS).toISOString(),
+  };
+};
 
 export const HISTORY_PAGE_MAX = 100;
 
