@@ -17,6 +17,7 @@ import {
 import type { MouseEvent, ReactNode, TransitionStartFunction } from "react";
 
 import { Field, FieldLabel } from "@/components/ui/field";
+import { FILTER_CHIP_CLEAR } from "@/components/ui/filter-chip";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SelectOptions } from "@/components/ui/select";
@@ -367,7 +368,10 @@ export const UrlChip = ({
       {chosen ? (
         <button
           aria-label={`Clear ${label.toLowerCase()}`}
-          className="text-brand hover:bg-brand/15 absolute inset-y-0 end-1.5 my-auto grid size-6 place-items-center rounded-full"
+          className={cn(
+            FILTER_CHIP_CLEAR,
+            "absolute inset-y-0 end-1.5 my-auto"
+          )}
           onClick={() => {
             choose(null);
           }}

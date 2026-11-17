@@ -77,7 +77,7 @@ const BellPanel = ({
           </PopoverTitle>
           {unread > 0 ? (
             <button
-              className="press text-brand hover:bg-surface-2 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-60"
+              className="press text-brand hover:bg-surface-2 rounded-control px-2 py-1 text-xs font-medium disabled:opacity-60"
               disabled={pending}
               onClick={() => {
                 startTransition(async () => {

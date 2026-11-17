@@ -59,7 +59,7 @@ const ChosenProduct = ({
       // The picker it replaces had focus; keep it here, not on the page.
       // oxlint-disable-next-line jsx-a11y/no-autofocus
       autoFocus={autoFocus}
-      className="press text-ink-2 hover:text-ink hover:bg-surface-2 flex items-center gap-1 rounded-md px-2 py-1 text-sm"
+      className="press text-ink-2 hover:text-ink hover:bg-surface-2 rounded-control flex items-center gap-1 px-2 py-1 text-sm"
       onClick={onClear}
       type="button"
     >
