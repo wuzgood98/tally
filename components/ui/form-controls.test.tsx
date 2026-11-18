@@ -41,8 +41,8 @@ const formOf = (element: HTMLElement) => {
 };
 
 const STORES = [
-  { label: "Accra Mall", value: "accra" },
-  { label: "Kumasi City", value: "kumasi" },
+  { label: "Spintex", value: "spintex" },
+  { label: "Kumasi (Ahinsan)", value: "kumasi" },
 ];
 
 describe("Select", () => {
@@ -57,7 +57,7 @@ describe("Select", () => {
     );
     const trigger = screen.getByRole("combobox", { name: "Store" });
 
-    expect(trigger.textContent).toContain("Kumasi City");
+    expect(trigger.textContent).toContain("Kumasi (Ahinsan)");
     expect(submitted(formOf(trigger))).toEqual({ branchId: "kumasi" });
   });
 
@@ -67,7 +67,7 @@ describe("Select", () => {
       <form>
         <Select
           aria-label="Store"
-          defaultValue="accra"
+          defaultValue="spintex"
           name="branchId"
           options={STORES}
         />
@@ -76,9 +76,9 @@ describe("Select", () => {
     const trigger = screen.getByRole("combobox", { name: "Store" });
 
     await user.click(trigger);
-    await user.click(screen.getByRole("option", { name: "Kumasi City" }));
+    await user.click(screen.getByRole("option", { name: "Kumasi (Ahinsan)" }));
 
-    expect(trigger.textContent).toContain("Kumasi City");
+    expect(trigger.textContent).toContain("Kumasi (Ahinsan)");
     expect(submitted(formOf(trigger))).toEqual({ branchId: "kumasi" });
   });
 
@@ -88,7 +88,7 @@ describe("Select", () => {
       <form>
         <Select
           aria-label="Store"
-          defaultValue="accra"
+          defaultValue="spintex"
           name="branchId"
           options={STORES}
         />

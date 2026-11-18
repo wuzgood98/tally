@@ -4,9 +4,9 @@ Read this before planning or building anything in Tally. It records what the pro
 
 ## What Tally is
 
-Stock control for **one retailer with several branches**, at the scale of China Mall in Ghana: about five large general-merchandise stores plus a central warehouse, selling everything from rice to chest freezers, from local and imported (mostly Chinese) suppliers. It is **not** a mall that rents space to tenant shops; there is one company and one catalogue.
+Stock control for **one retailer with several branches**, at the scale of Ghana's big general-merchandise chains: about five large general-merchandise stores plus a central warehouse, selling everything from rice to chest freezers, from local and imported (mostly Chinese) suppliers. It is **not** a mall that rents space to tenant shops; there is one company and one catalogue.
 
-- Demo company: **Akwaaba Mall**, fictional. Branch locations are real Ghanaian places; the company, people and suppliers are made up. Never present it as China Mall or any real business.
+- Demo company: **Akwaaba Mall**, fictional. Branch locations are real Ghanaian places; the company, people and suppliers are made up. Never present it as, or name, any real business, in the app, the docs or the tests.
 - The company name is set by head office on the settings page (`company_settings`, `lib/company.ts`); until then it comes from `TALLY_COMPANY_NAME`, and the demo name is only the last default.
 - Currency: Ghana cedis (GH₵). Time zone: `Africa/Accra` (GMT all year, no daylight saving).
 - Users: head office (`admin`), branch managers (`manager`), storekeepers (`storekeeper`), cashiers (`cashier`).
