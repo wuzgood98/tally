@@ -2,6 +2,7 @@
   "name": "tally",
   "version": "0.0.1",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -76,5 +77,6 @@
     "typescript": "^5.9.3",
     "ultracite": "8.2.0",
     "vitest": "^5.1.0"
-  }
+  },
+  "packageManager": "pnpm@11.22.0"
 }
