@@ -2,7 +2,7 @@
 
 Stock control for one multi-branch retailer (five stores and a warehouse, the scale of Ghana's big general-merchandise chains, prices in Ghana cedis). Demo company: the fictional "Akwaaba Mall". Milestone 1 (the core stock loop) is done and pushed to `main` on github.com/wuzgood98/tally. Commit only when the user asks.
 
-**Read `docs/CONTEXT.md` before planning, building or answering questions about Tally**: it holds the decisions, data model, invariants, gotchas and what's next. Never write stock levels outside `applyMovement` (`lib/stock/ledger.ts`), and never open `.data/pglite` from two processes at once.
+**Read `docs/CONTEXT.md` before planning, building or answering questions about Tally** (with `docs/data-layer.md` before touching the till's data; both are local working notes, gitignored, so a fresh clone won't have them): it holds the decisions, data model, invariants, gotchas and what's next. Never write stock levels outside `applyMovement` (`lib/stock/ledger.ts`), and never open `.data/pglite` from two processes at once.
 
 ## ui-sdk
 

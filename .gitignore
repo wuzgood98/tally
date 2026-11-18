@@ -51,3 +51,6 @@ scripts/.icon-preview.png
 
 # plans written for agents (kept local)
 /plans/
+
+# Local working notes (decisions, gotchas, the data-layer guide); not published.
+/docs/
