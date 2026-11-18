@@ -66,13 +66,20 @@ export const AddStaffForm = ({ branches }: AddStaffFormProps) => {
       >
         <Field>
           <FieldLabel>Full name</FieldLabel>
-          <Input autoComplete="off" maxLength={80} name="name" required />
+          <Input
+            autoComplete="off"
+            maxLength={80}
+            name="name"
+            placeholder="e.g. Efua Asante"
+            required
+          />
         </Field>
         <Field>
           <FieldLabel>Work email</FieldLabel>
           <Input
             autoComplete="off"
             name="email"
+            placeholder="e.g. efua.asante@akwaaba.example"
             required
             spellCheck={false}
             type="email"

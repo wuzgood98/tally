@@ -63,6 +63,7 @@ export const TransferLineRow = ({
           onFocus={(event) => {
             event.target.select();
           }}
+          placeholder="0"
           value={line.quantity}
         />
       </td>

@@ -168,6 +168,7 @@ const ScanArea = ({
             onStore?.(value ?? "");
           }}
           options={namedOptions(stores)}
+          placeholder="Choose a store"
           value={storeId}
         />
       </Field>

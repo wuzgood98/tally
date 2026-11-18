@@ -146,6 +146,7 @@ export const ReceiveTransferForm = ({
                       onFocus={(event) => {
                         event.target.select();
                       }}
+                      placeholder="0"
                       value={counts[line.productId] ?? ""}
                     />
                   </td>

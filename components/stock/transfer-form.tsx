@@ -195,6 +195,7 @@ export const TransferForm = ({
                   }
                 }}
                 options={namedOptions(sources)}
+                placeholder="Choose a branch"
                 value={fromId}
               />
             </Field>

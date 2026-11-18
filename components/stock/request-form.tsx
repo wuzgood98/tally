@@ -89,6 +89,7 @@ const RequestLineRow = ({
           onFocus={(event) => {
             event.target.select();
           }}
+          placeholder="0"
           value={line.quantity}
         />
       </td>
@@ -187,6 +188,7 @@ export const RequestForm = ({
               setStoreId(value ?? "");
             }}
             options={namedOptions(stores)}
+            placeholder="Choose a store"
             value={storeId}
           />
         </Field>

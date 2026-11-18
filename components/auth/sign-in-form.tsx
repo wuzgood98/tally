@@ -28,6 +28,7 @@ export const SignInForm = ({ next }: { readonly next: string | undefined }) => {
           inputMode="email"
           look="line"
           name="email"
+          placeholder="you@akwaaba.example"
           required
           spellCheck={false}
           type="email"
@@ -40,6 +41,7 @@ export const SignInForm = ({ next }: { readonly next: string | undefined }) => {
           autoComplete="current-password"
           look="line"
           name="password"
+          placeholder="Your password"
           required
         />
       </Field>
