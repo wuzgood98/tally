@@ -11,7 +11,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { ForgetOfflineTill } from "@/components/till/offline-till";
 import { BRANCHES } from "@/lib/db/seed-data";
 import { isDemo } from "@/lib/demo";
-import { PRIVACY_PATH, TERMS_PATH } from "@/lib/legal";
+import { FEEDBACK_EMAIL, PRIVACY_PATH, TERMS_PATH } from "@/lib/legal";
 import { getCompanyName } from "@/lib/queries/company";
 import { param } from "@/lib/search-params";
 import { PUBLIC_PATH, publicPageMetadata } from "@/lib/seo";
@@ -73,7 +73,7 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
           </article>
         </div>
         <nav
-          aria-label="Terms and privacy"
+          aria-label="Terms, privacy and feedback"
           className="text-ink-3 text-2xs flex gap-3 font-mono tracking-widest uppercase"
         >
           <Link className="hover:text-ink transition-colors" href={TERMS_PATH}>
@@ -86,6 +86,13 @@ const LoginPage = async ({ searchParams }: PageProps<"/login">) => {
           >
             Privacy
           </Link>
+          <span aria-hidden="true">·</span>
+          <a
+            className="hover:text-ink transition-colors"
+            href={`mailto:${FEEDBACK_EMAIL}`}
+          >
+            Feedback
+          </a>
         </nav>
       </div>
       <ForgetOfflineTill />

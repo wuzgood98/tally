@@ -8,8 +8,8 @@ export const SITE_TAGLINE = "Stock control for multi-branch retailers";
 export const SITE_DESCRIPTION =
   "Stock control for a retailer with several stores and a warehouse: receiving, transfers, counts, low-stock alerts, point-of-sale sales and reports, all on one movement ledger.";
 
-/** Placeholder on a reserved domain: replace before relying on it. */
-export const SECURITY_EMAIL = "security@tally.example";
+/** Where security reports go. A company deploying Tally sets its own. */
+export const SECURITY_EMAIL = "security@g14o.dev";
 
 type Env = Readonly<Record<string, string | undefined>>;
 

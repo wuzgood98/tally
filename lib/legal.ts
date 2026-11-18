@@ -6,12 +6,15 @@ import type { PublicPath } from "@/lib/seo";
  * company should have it reviewed before relying on it (see the README).
  */
 
-/** Placeholder on a reserved domain: replace before relying on it. */
-export const PRIVACY_EMAIL = "privacy@tally.example";
+/** Where privacy requests go. A company deploying Tally sets its own. */
+export const PRIVACY_EMAIL = "privacy@g14o.dev";
+
+/** Where the sign-in page's Feedback link sends mail. */
+export const FEEDBACK_EMAIL = "feedback@g14o.dev";
 
 /** Change these whenever the page's text changes. */
 export const TERMS_UPDATED = "2026-11-15";
-export const PRIVACY_UPDATED = "2026-11-16";
+export const PRIVACY_UPDATED = "2026-11-18";
 
 export const TERMS_PATH = "/terms" satisfies PublicPath;
 export const PRIVACY_PATH = "/privacy" satisfies PublicPath;
