@@ -119,7 +119,7 @@ Next.js 16 (App Router, Server Actions) · React 19 · TypeScript · Tailwind CS
 | Permissions | Plain functions in `lib/permissions.ts`, checked by every domain function. The UI uses the same functions only to hide what you can't do. |
 | Auth | Better Auth with email and password; no public sign-up. There's no session cookie cache, so a deactivation or role change applies on the next click. |
 | Notifications | Written in the same transaction as the change they report, after its conditional update, so a lost race or a failed action tells no one. |
-| The till | Server components everywhere else; the till alone keeps its data in the browser (TanStack DB collections), charges optimistically, queues sales in an offline outbox, and a service worker caches what it needs to open with no connection. `docs/data-layer.md` explains it. |
+| The till | Server components everywhere else; the till alone keeps its data in the browser (TanStack DB collections), charges optimistically, queues sales in an offline outbox, and a service worker caches what it needs to open with no connection (`lib/till/client`, `public/till-sw.js`). |
 | Database | PostgreSQL. Without `DATABASE_URL`, Tally runs **PGlite** (Postgres compiled to WebAssembly) in-process, so `pnpm dev` needs nothing installed. Both use the same migrations. |
 
 ## Running it
@@ -191,8 +191,6 @@ pnpm db:reset     # wipe and reseed (stop the dev server first; needs --yes for 
 
 ## Documentation
 
-- [`docs/CONTEXT.md`](docs/CONTEXT.md): the decisions, data model, rules the code depends on, and gotchas. Read it before changing anything.
-- [`docs/data-layer.md`](docs/data-layer.md): how the till's offline data layer works, and how to move another screen onto it.
 - [`AGENTS.md`](AGENTS.md): the coding standards, for people and for coding agents.
 
 ## License

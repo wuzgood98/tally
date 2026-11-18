@@ -178,8 +178,9 @@ const withIsoTime = <Row extends { readonly createdAt: Date }>(
  * Today's sales this person rang up at their tills, newest first. Every one
  * of them, with no cap: one person's day is bounded on its own, and the till
  * counts and sums this list for "Your sales today", so a cap would undercount.
- * A join (not a correlated subquery) counts the units: see "Drizzle and
- * correlated subqueries" in docs/CONTEXT.md.
+ * A join (not a correlated subquery) counts the units: in a single-table
+ * select, Drizzle writes outer columns without a table prefix, so Postgres
+ * binds them to the inner table's column of the same name.
  */
 export const getTillSales = async (
   db: Db,
