@@ -61,6 +61,7 @@ export const ReceiptLineRow = ({
           onFocus={(event) => {
             event.target.select();
           }}
+          placeholder="0"
           value={line.quantity}
         />
       </td>
@@ -78,6 +79,7 @@ export const ReceiptLineRow = ({
           onFocus={(event) => {
             event.target.select();
           }}
+          placeholder="0.00"
           value={line.cost}
         />
       </td>

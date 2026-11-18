@@ -192,6 +192,7 @@ export const PurchaseOrderForm = ({
                   setBranchId(value ?? "");
                 }}
                 options={namedOptions(branches)}
+                placeholder="Choose a branch"
                 value={branchId}
               />
             </Field>

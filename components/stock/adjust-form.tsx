@@ -194,6 +194,7 @@ export const AdjustForm = ({
                   setBranchId(value ?? "");
                 }}
                 options={namedOptions(branches)}
+                placeholder="Choose a branch"
                 value={branchId}
               />
             </Field>
@@ -235,6 +236,7 @@ export const AdjustForm = ({
                   onChange={(event) => {
                     setAmount(event.target.value);
                   }}
+                  placeholder="0"
                   value={amount}
                 />
               </Field>
@@ -262,6 +264,7 @@ export const AdjustForm = ({
                 onChange={(event) => {
                   setNote(event.target.value);
                 }}
+                placeholder="e.g. Carton crushed in the storeroom"
                 required={noteRequired}
                 value={note}
               />

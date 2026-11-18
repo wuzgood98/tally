@@ -197,6 +197,7 @@ export const ReturnForm = ({
                     onFocus={(event) => {
                       event.target.select();
                     }}
+                    placeholder="0"
                     value={drafts[line.productId]?.quantity ?? "0"}
                   />
                 </td>

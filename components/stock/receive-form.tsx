@@ -197,6 +197,7 @@ export const ReceiveForm = ({
                   setBranchId(value ?? "");
                 }}
                 options={namedOptions(branches)}
+                placeholder="Choose a branch"
                 value={branchId}
               />
             </Field>
@@ -223,6 +224,7 @@ export const ReceiveForm = ({
                 format="code"
                 maxLength={60}
                 name="supplierReference"
+                placeholder="e.g. INV-20431"
               />
             </Field>
           </div>

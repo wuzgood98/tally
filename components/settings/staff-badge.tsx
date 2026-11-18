@@ -15,7 +15,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { PendingLabel } from "@/components/ui/spinner";
 import { initialsOf } from "@/lib/badge";
 import { barRuns, ean13Modules } from "@/lib/barcode";
-import { NAME_MAX_LENGTH } from "@/lib/limits";
+import { MIN_PASSWORD_LENGTH, NAME_MAX_LENGTH } from "@/lib/limits";
 import { submitWithoutReset } from "@/lib/submit-without-reset";
 
 type Side = "front" | "back";
@@ -167,6 +167,7 @@ const NameFace = ({
           onChange={(event) => {
             setTyped(event.target.value);
           }}
+          placeholder="Your full name"
           required
         />
       </Field>
@@ -244,6 +245,7 @@ const PasswordFace = ({
             autoComplete="current-password"
             look="line"
             name="currentPassword"
+            placeholder="Your current password"
             required
           />
         </Field>
@@ -254,6 +256,7 @@ const PasswordFace = ({
             autoComplete="new-password"
             look="line"
             name="newPassword"
+            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
             required
           />
         </Field>

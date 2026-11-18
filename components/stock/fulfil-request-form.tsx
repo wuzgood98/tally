@@ -157,6 +157,7 @@ export const FulfilRequestForm = ({
                     onFocus={(event) => {
                       event.target.select();
                     }}
+                    placeholder="0"
                     value={sending[line.productId] ?? "0"}
                   />
                 </td>

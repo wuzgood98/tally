@@ -123,6 +123,7 @@ export const CompanyForm = (props: CompanyFormProps) => {
                   defaultValue={props.companyName}
                   maxLength={NAME_MAX_LENGTH}
                   name="companyName"
+                  placeholder="e.g. Akwaaba Mall"
                   required
                 />
                 <FieldDescription>
@@ -139,6 +140,7 @@ export const CompanyForm = (props: CompanyFormProps) => {
                   inputMode="numeric"
                   min={0}
                   name="defaultReorderPoint"
+                  placeholder="e.g. 10"
                   required
                   type="number"
                 />
@@ -170,6 +172,7 @@ export const CompanyForm = (props: CompanyFormProps) => {
                   onFocus={() => {
                     setFooterFocused(true);
                   }}
+                  placeholder="e.g. Thank you for shopping with us!"
                   rows={3}
                 />
                 <FieldDescription>

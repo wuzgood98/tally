@@ -90,6 +90,7 @@ export const TillLineRow = ({
           onFocus={(event) => {
             event.target.select();
           }}
+          placeholder="0"
           value={line.quantity}
         />
       </td>

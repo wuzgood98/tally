@@ -103,6 +103,7 @@ export const ProductForm = ({
                   defaultValue={values.name}
                   maxLength={120}
                   name="name"
+                  placeholder="e.g. Rice 5kg"
                   required
                 />
               </LabelledField>
@@ -114,6 +115,7 @@ export const ProductForm = ({
                 defaultValue={values.sku}
                 maxLength={24}
                 name="sku"
+                placeholder="e.g. RICE-5"
                 required
                 spellCheck={false}
               />
@@ -129,6 +131,7 @@ export const ProductForm = ({
                 inputMode="numeric"
                 maxLength={14}
                 name="barcode"
+                placeholder="Scan or type the barcode"
                 spellCheck={false}
               />
             </LabelledField>
@@ -164,6 +167,7 @@ export const ProductForm = ({
                 defaultValue={values.sellPrice}
                 inputMode="decimal"
                 name="sellPrice"
+                placeholder="0.00"
                 required
               />
             </LabelledField>
@@ -183,6 +187,7 @@ export const ProductForm = ({
                 defaultValue={values.reorderPoint}
                 inputMode="numeric"
                 name="reorderPoint"
+                placeholder="e.g. 10"
                 required
               />
             </LabelledField>
