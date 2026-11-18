@@ -25,6 +25,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Route types (PageProps and friends) live in .next/types and
+      # next-env.d.ts, which are gitignored; the type-aware lint needs them too.
+      - run: pnpm exec next typegen
       - run: pnpm check
       - run: pnpm typecheck
 
