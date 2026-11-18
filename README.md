@@ -138,7 +138,7 @@ To use a real Postgres server instead:
 ```bash
 cp .env.example .env.local   # set DATABASE_URL and BETTER_AUTH_SECRET
 pnpm exec tsx --env-file=.env.local scripts/migrate.ts
-pnpm db:seed                 # optional demo data
+pnpm exec tsx --env-file=.env.local scripts/seed.ts   # optional demo data
 ```
 
 `.env.example` documents every variable. Only one process may open `.data/pglite` at a time, so stop the dev server before `pnpm db:reset`.
@@ -162,7 +162,7 @@ Tally ships a public [terms of use](app/terms/page.tsx) and [privacy notice](app
 pnpm dev          # start the dev server
 pnpm build        # production build
 pnpm test         # run the test suite (each file gets its own in-memory Postgres)
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # generate Next's route types, then tsc --noEmit
 pnpm check        # lint + format check (Ultracite)
 pnpm fix          # fix what Ultracite can
 pnpm eval:ask     # Ask Tally's golden questions against real models (spends free-tier requests)
@@ -170,7 +170,7 @@ pnpm till:simulate # post a few sales through the sales API (needs TALLY_TILL_KE
 pnpm icons        # regenerate the favicon, app icons and manifest icons
 pnpm db:generate  # create a migration after changing lib/db/schema.ts
 pnpm db:migrate   # apply migrations to the local PGlite (see Running it for a real server)
-pnpm db:seed      # load the demo data into an empty database
+pnpm db:seed      # load the demo data into the local PGlite (see Running it for a real server)
 pnpm db:reset     # wipe and reseed (stop the dev server first; needs --yes for a real server)
 ```
 
